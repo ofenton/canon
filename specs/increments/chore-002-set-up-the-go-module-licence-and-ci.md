@@ -79,6 +79,34 @@ $ git diff --stat main...HEAD
 `cmd/canon/main.go`, `cmd/canon/main_test.go`, `specs/increment-plan.md`.
 All explicable from Scope; `main.go` noted above.
 
+### CI, on Linux — https://github.com/ofenton/canon/pull/1
+
+Run [32600923478](https://github.com/ofenton/canon/actions/runs/32600923478): both jobs green in 38s.
+
+```
+success  build
+success  ledger
+```
+
+The static-binary assertion, run on the actual deployment target rather than inferred:
+
+```
+bin/canon: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), statically linked, stripped
+```
+
+### Defects found during verification
+
+CI failed on its first run and this increment was returned to `in-progress`. Two defects, both
+fixed on this branch:
+
+1. **The workflow YAML did not parse.** `echo 'run: make fmt'` put a colon-space inside a plain
+   YAML scalar. This fails remotely as a "workflow file issue" — 0s, no jobs, no logs, and
+   `gh run view --log-failed` returns "log not found", which is a slow thing to diagnose.
+   `.sdlc/bin/lint-workflows.py` now parses every workflow, wired into `make check`.
+2. **`bin/` in `.gitignore` matched any directory named `bin` at any depth**, silently swallowing
+   `.sdlc/bin` so a new script there could not be added. Anchored to `/bin/`. Already-tracked
+   files were unaffected, which is what made it quiet.
+
 ### Not verified
 
-The CI workflow itself has not run — there is no remote yet. It will execute on first push.
+Nothing outstanding.
