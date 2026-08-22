@@ -1,6 +1,6 @@
 # Canon
 
-**Status:** draft
+**Status:** agreed
 **Owner:** Oliver Fenton
 **Last updated:** 2026-08-22
 **Licence intent:** open source (Apache-2.0)
