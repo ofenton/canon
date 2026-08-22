@@ -10,7 +10,7 @@ LDFLAGS := -s -w -X main.version=$(VERSION)
 
 export CGO_ENABLED = 0
 
-.PHONY: all build test vet fmt bench clean check
+.PHONY: all build test vet fmt bench clean check lint-ci
 
 all: check build
 
@@ -29,7 +29,12 @@ vet:
 fmt:
 	gofmt -l -w .
 
-check: vet test
+# A workflow file that does not parse fails as a "workflow file issue" with no logs
+# and no jobs, which is expensive to diagnose remotely. Parse it here instead.
+lint-ci:
+	@python3 .sdlc/bin/lint-workflows.py
+
+check: vet lint-ci test
 
 clean:
 	rm -rf bin

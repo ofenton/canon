@@ -19,7 +19,13 @@ jobs:
           cache: true
 
       - name: Format
-        run: test -z "$(gofmt -l .)" || { gofmt -l .; echo 'run: make fmt'; exit 1; }
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "$unformatted"
+            echo "not gofmt-clean, run make fmt" >&2
+            exit 1
+          fi
 
       - name: Vet
         run: make vet
@@ -30,12 +36,13 @@ jobs:
       - name: Build
         run: make build
 
-      # The self-host story depends on the binary having no dynamic dependencies.
+      # The self-host story depends on the binary having no dynamic dependencies,
+      # so assert it rather than trusting CGO_ENABLED to stay set.
       - name: Assert the binary is static
         run: |
           file bin/canon
           if ldd bin/canon 2>&1 | grep -qv 'not a dynamic executable'; then
-            echo 'binary is dynamically linked — CGO must stay disabled' >&2
+            echo "binary is dynamically linked, CGO must stay disabled" >&2
             exit 1
           fi
 
@@ -45,8 +52,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      # The pre-commit hook can be bypassed with --no-verify. This cannot.
       - name: Validate the ledger
         run: |
           python3 .sdlc/bin/validate-plan.py
           python3 .sdlc/bin/validate-skills.py
           python3 .sdlc/bin/check-traceability.py
+
+      - name: Validate workflow syntax
+        run: make lint-ci
