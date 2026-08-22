@@ -55,14 +55,14 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-001: Append-only event log with actor provenance
 
 - **Type:** feature
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 1 (Critical)
 - **Traces:** R12
 - **Scope:** Define the event schema (CBOR-encoded, versioned) and an append-only store over SQLite. Every event carries id, timestamp, actor id, actor kind (human or agent), and model identifier where applicable. No projection, no API yet. No other changes.
 - **Acceptance Criteria:**
-  - [ ] WHEN an event is appended THE SYSTEM SHALL record actor id, actor kind and timestamp and SHALL NOT permit modification of any earlier event
-  - [ ] WHEN an event is appended with an unknown schema version THE SYSTEM SHALL reject it naming the supported versions
-  - [ ] THE SYSTEM SHALL append 10,000 events in under 2 seconds on commodity hardware
+  - [x] WHEN an event is appended THE SYSTEM SHALL record actor id, actor kind and timestamp and SHALL NOT permit modification of any earlier event
+  - [x] WHEN an event is appended with an unknown schema version THE SYSTEM SHALL reject it naming the supported versions
+  - [x] THE SYSTEM SHALL append 10,000 events in under 2 seconds on commodity hardware
 - **Test Strategy:**
   - Property test: appends never mutate prior events
   - Round-trip test: every event type encodes and decodes losslessly
@@ -70,7 +70,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Dependencies:** chore-002
 - **Rollback Plan:** Drop the events table; nothing consumes it yet
 - **Risk:** High — the event schema is the one thing federation depends on and the one thing that cannot be migrated cheaply
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/feat-001-append-only-event-log-with-actor-provenance.md`
 
 ## feat-002: Projection engine with snapshots
 
