@@ -191,10 +191,11 @@ Stated explicitly, because refusing these *is* the product:
 | Q4 | Apache-2.0 or AGPL-3.0 | — | Ollie | |
 | Q5 | Does an agent need its own identity record, or is a token enough for v1? | — | Ollie | |
 
-**On Q3.** Storing issues as files in git is architecturally attractive and dogfoods ADR-0002,
-but it brings merge conflicts on concurrent edits, poor query performance past a few thousand
-issues, and no realtime. **Assumed:** schema in git (reviewed, versioned), issues in SQLite
-(fast, queryable), with a git-backed export for auditability. Worth arguing with at Gate 1.
+**On Q3.** Assessed in full in [ADR-0003](../docs/decisions/0003-storage-history-and-federation.md).
+Storing issues as files in the working tree is empirically the worst option — it is what Bugs
+Everywhere did, and merge conflicts killed it. The recommendation is an **append-only event log
+with a pluggable home**: the server owns the log in week one, and a git ref becomes a second home
+later without a rewrite. History, federation and offline all fall out of the same decision.
 
 ## Why this beats the alternatives
 
