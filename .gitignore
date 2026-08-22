@@ -9,7 +9,7 @@ GEMINI.md
 __pycache__/
 *.pyc
 
-# Build output
-bin/
+# Build output (anchored: an unanchored bin/ also matches .sdlc/bin)
+/bin/
 *.db
 *.db-journal
