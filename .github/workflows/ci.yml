@@ -1,0 +1,52 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache: true
+
+      - name: Format
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; echo 'run: make fmt'; exit 1; }
+
+      - name: Vet
+        run: make vet
+
+      - name: Test
+        run: make test
+
+      - name: Build
+        run: make build
+
+      # The self-host story depends on the binary having no dynamic dependencies.
+      - name: Assert the binary is static
+        run: |
+          file bin/canon
+          if ldd bin/canon 2>&1 | grep -qv 'not a dynamic executable'; then
+            echo 'binary is dynamically linked — CGO must stay disabled' >&2
+            exit 1
+          fi
+
+  ledger:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate the ledger
+        run: |
+          python3 .sdlc/bin/validate-plan.py
+          python3 .sdlc/bin/validate-skills.py
+          python3 .sdlc/bin/check-traceability.py
