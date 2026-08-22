@@ -1,0 +1,16 @@
+{
+  "//": "Convenience only — faster feedback while editing in Claude Code. The gate that actually protects the repository is .sdlc/hooks/pre-commit, which works for every agent and for humans. See docs/decisions/0001-vendor-neutral-agent-tooling.md.",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if git diff --name-only HEAD 2>/dev/null | grep -q '^specs/increment-plan.md$'; then python3 .sdlc/bin/validate-plan.py >&2 || true; fi"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Deterministic gate: the ledger must be well formed and honest before anything lands.
+# Instructions in AGENTS.md are advisory; this is not.
+set -uo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+status=0
+for check in validate-plan validate-skills check-traceability; do
+  if ! python3 ".sdlc/bin/${check}.py"; then
+    status=1
+  fi
+done
+
+if [[ $status -ne 0 ]]; then
+  echo >&2
+  echo "commit blocked: fix the problems above, or re-run with --no-verify if you know why." >&2
+fi
+exit $status
