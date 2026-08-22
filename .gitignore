@@ -8,3 +8,8 @@ GEMINI.md
 
 __pycache__/
 *.pyc
+
+# Build output
+bin/
+*.db
+*.db-journal
