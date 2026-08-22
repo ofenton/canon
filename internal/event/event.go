@@ -78,6 +78,38 @@ type Event struct {
 	Actor Actor `cbor:"6,keyasint"`
 	// Payload holds type-specific fields.
 	Payload map[string]any `cbor:"7,keyasint,omitempty"`
+
+	// Seq is the store-assigned append position. It is not part of the signed
+	// envelope: the same event appended to two clones is the same fact at
+	// different positions, so it must not affect the canonical bytes.
+	Seq int64 `cbor:"-"`
+}
+
+// timeFormat is RFC 3339 with nanoseconds, always UTC.
+const timeFormat = "2006-01-02T15:04:05.999999999Z07:00"
+
+func parseTime(s string) (time.Time, error) {
+	t, err := time.Parse(timeFormat, s)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("parsing timestamp %q: %w", s, err)
+	}
+	return t.UTC(), nil
+}
+
+// New returns an event stamped with the current schema version.
+//
+// The store never defaults a missing version: an event whose version is zero is
+// rejected rather than assumed to be current. Silently stamping a zero would let a
+// decoder bug write events that claim to be valid, into a log that cannot be edited.
+func New(typ, subject string, at time.Time, actor Actor, payload map[string]any) *Event {
+	return &Event{
+		Version: SchemaVersion,
+		Type:    typ,
+		Subject: subject,
+		At:      at.UTC(),
+		Actor:   actor,
+		Payload: payload,
+	}
 }
 
 var (

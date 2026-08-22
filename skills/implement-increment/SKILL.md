@@ -69,11 +69,16 @@ Match the surrounding code: its naming, its error handling, its comment density,
 A change that reads as if it were always there is easier to review than a change that is
 individually elegant.
 
-Commit in small steps with the trailer:
+Commit in small steps, staging **explicitly** and never with `git add -A`:
 
 ```bash
+git add path/to/changed.go path/to/changed_test.go
 git commit -m "sec-001: parameterize search query" -m "Increment: sec-001"
 ```
+
+`git add -A` stages whatever happens to be in the tree, including another increment's work in
+progress and stray build output. Naming the files is the difference between a diff that matches
+the Scope and one that merely mostly does.
 
 **When you find something outside scope** — a second bug, a missing test, an ugly abstraction —
 do not fix it. Note it, finish the increment, and raise it as a new increment afterwards. The
