@@ -55,7 +55,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-001: Append-only event log with actor provenance
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-progress
 - **Tier:** 1 (Critical)
 - **Traces:** R12
 - **Scope:** Define the event schema (CBOR-encoded, versioned) and an append-only store over SQLite. Every event carries id, timestamp, actor id, actor kind (human or agent), and model identifier where applicable. No projection, no API yet. No other changes.
