@@ -36,7 +36,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## chore-002: Set up the Go module, licence and CI
 
 - **Type:** chore
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 1 (Critical)
 - **Traces:** none
 - **Scope:** Create the Go module, `LICENSE` (Apache-2.0), `Makefile`, and a CI workflow running build, vet and test. No application code. No other changes.
@@ -50,7 +50,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Dependencies:** none
 - **Rollback Plan:** Delete the Go module files; no product code depends on this yet
 - **Risk:** Low — scaffolding only
-- **Evidence:** _(re-verifying: CI failed on first run)_ see `specs/increments/chore-002-set-up-the-go-module-licence-and-ci.md`
+- **Evidence:** CI run 32600923478 green (PR #1); see `specs/increments/chore-002-set-up-the-go-module-licence-and-ci.md`
 
 ## feat-001: Append-only event log with actor provenance
 
