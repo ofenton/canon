@@ -1,0 +1,64 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache: true
+
+      - name: Format
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "$unformatted"
+            echo "not gofmt-clean, run make fmt" >&2
+            exit 1
+          fi
+
+      - name: Vet
+        run: make vet
+
+      - name: Test
+        run: make test
+
+      - name: Build
+        run: make build
+
+      # The self-host story depends on the binary having no dynamic dependencies,
+      # so assert it rather than trusting CGO_ENABLED to stay set.
+      - name: Assert the binary is static
+        run: |
+          file bin/canon
+          if ldd bin/canon 2>&1 | grep -qv 'not a dynamic executable'; then
+            echo "binary is dynamically linked, CGO must stay disabled" >&2
+            exit 1
+          fi
+
+  ledger:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # The pre-commit hook can be bypassed with --no-verify. This cannot.
+      - name: Validate the ledger
+        run: |
+          python3 .sdlc/bin/validate-plan.py
+          python3 .sdlc/bin/validate-skills.py
+          python3 .sdlc/bin/check-traceability.py
+
+      - name: Validate workflow syntax
+        run: make lint-ci

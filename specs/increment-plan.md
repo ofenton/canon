@@ -36,21 +36,21 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## chore-002: Set up the Go module, licence and CI
 
 - **Type:** chore
-- **Status:** approved
+- **Status:** in-review
 - **Tier:** 1 (Critical)
 - **Traces:** none
 - **Scope:** Create the Go module, `LICENSE` (Apache-2.0), `Makefile`, and a CI workflow running build, vet and test. No application code. No other changes.
 - **Acceptance Criteria:**
-  - [ ] WHEN `make build` runs THE SYSTEM SHALL produce a single static binary with no external runtime dependencies
-  - [ ] WHEN `make test` runs THE SYSTEM SHALL execute the test suite and exit non-zero on failure
-  - [ ] THE SYSTEM SHALL carry an Apache-2.0 LICENSE file at the repository root
+  - [x] WHEN `make build` runs THE SYSTEM SHALL produce a single static binary with no external runtime dependencies
+  - [x] WHEN `make test` runs THE SYSTEM SHALL execute the test suite and exit non-zero on failure
+  - [x] THE SYSTEM SHALL carry an Apache-2.0 LICENSE file at the repository root
 - **Test Strategy:**
   - Build on a clean machine with no Go cache
   - Confirm `ldd` reports a static binary
 - **Dependencies:** none
 - **Rollback Plan:** Delete the Go module files; no product code depends on this yet
 - **Risk:** Low — scaffolding only
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** CI run 32600923478 green (PR #1); see `specs/increments/chore-002-set-up-the-go-module-licence-and-ci.md`
 
 ## feat-001: Append-only event log with actor provenance
 
