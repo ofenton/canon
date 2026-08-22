@@ -18,8 +18,8 @@ Three requirements arrived together, and it turns out they have one answer:
 |---|---|---|
 | **Bugs Everywhere** | Issues as files in the working tree | Merge conflicts on every concurrent edit. Abandoned. |
 | **ticgit** | Issues in git | Its creator left and built GitHub instead. |
-| **git-bug** | Issues as git objects under `refs/bugs`, CRDT merge | Works. The reference implementation. Niche adoption. |
-| **grite** | Append-only event log in `refs/grite/wal`, CBOR, Ed25519-signed, CRDT, sled materialised view, Rust, agent-first | Directly parallel to this proposal. **14 stars, 126 commits** — very early. |
+| **git-bug** | Issues as git objects, CRDT merge. Go, GPLv3. CLI + TUI + web UI + GraphQL, bridges to GitHub/GitLab | Mature and alive: **10k stars, 2,632 commits**. The reference implementation. |
+| **grite** | Append-only event log in `refs/grite/wal`, CBOR, Ed25519-signed, CRDT, sled view. Rust, MIT, agent-first | Directly parallel to this proposal. **14 stars, 126 commits** — very early. |
 | **Fossil** | Ticket change artifacts inside the SCM, replayed to reconstruct state | Shipped and stable for 15+ years. Sqlite's own tracker. |
 | **GitHub Issues** | Repo-local, server-side | Cross-repo epics are a documented, unfixed failure. |
 
@@ -132,6 +132,49 @@ from day one, adding a second home later is a *transport*, not a rewrite.
 federates on it. Getting it wrong means a migration of the only thing that was supposed to be
 immutable.
 
+## Build on existing work?
+
+Both candidates solve *distributed storage of issues in git*. Neither attempts the problem Canon
+exists for — an organisation's tracker where configuration cannot diverge. The overlap is the
+mechanism, not the product.
+
+| | git-bug | grite | Canon needs |
+|---|---|---|---|
+| Event/CRDT storage in git | ✅ | ✅ | ✅ |
+| Org-wide schema as code | ✗ — fixed model | ✗ — fixed model | **the entire wedge** |
+| Permissions ≠ repo access | ✗ | ✗ | ✅ (Fossil's objection) |
+| Cross-repo epics / org stream | ✗ strictly repo-local | ✗ strictly repo-local | ✅ |
+| Multi-user server | ✗ local web UI | ✗ no server | ✅ |
+| MCP | ✗ | ✗ (CLI + JSON) | ✅ |
+| Measured flow metrics | ✗ | ✗ | ✅ |
+| Licence | **GPLv3** | MIT | Apache-2.0 intended |
+
+**Building on git-bug** would inherit a proven storage layer, a web UI, GraphQL and working
+GitHub/GitLab bridges. Two costs. First, **GPLv3 is viral** — linking it makes Canon GPLv3,
+which contradicts the Apache-2.0 commitment in the spec and constitution rule 14. That is a
+licence decision, not a technical one, and it is reversible only before the first release.
+Second, its data model is fixed around bugs, comments and labels, with no schema layer; adding
+`canon.yaml` means fighting the grain of the codebase.
+
+**Building on grite** is licence-compatible (MIT) and its event model is the one recommended
+here. But it is 126 commits old with a bus factor of one, it would force Rust as the
+implementation language, and it supplies only the layer that is *easiest* to write. Everything
+Canon actually needs — schema, permissions, org stream, server, UI, MCP — would still be ours.
+
+**Decision: build the storage layer fresh, and interoperate rather than depend.**
+
+The append-only log plus projection is a few hundred lines of well-understood code. The valuable
+part of the prior art is the *design*, which is free to borrow: events in a dedicated ref, CRDT
+last-write-wins with commutative sets, periodic snapshots to bound replay cost, per-actor
+identity with optional signing. Take the lessons, not the dependency.
+
+To keep the door open, Canon's event format should be close enough to import a git-bug or grite
+repository, and an importer is a natural early contribution back to either community.
+
+**Revisit if:** the Apache-2.0 commitment is dropped, in which case git-bug becomes a serious
+foundation and the bridges alone are worth weeks; or grite matures enough that interoperating at
+the event format is more valuable than owning the layer.
+
 ## Consequences
 
 **Good.** History is inherent. Backups are a file copy. Scale is a projection swap. Federation
@@ -142,7 +185,6 @@ already carries provenance.
 Reads always go through a projection, so a rebuild is required after any projection bug. Event
 schema changes need versioning discipline from the first commit.
 
-**Watch.** `grite` is doing the pure git-native version, in Rust, agent-first. At 14 stars and
-126 commits it is early enough not to be a blocker, and it validates the direction. If it matures
-fast, the honest options are to interoperate at the event format or to contribute rather than
-compete. Worth re-checking before any public launch.
+**Watch.** Re-check both projects before any public launch. `grite` validates the direction and
+may become worth interoperating with. `git-bug` is the incumbent in this space and its bridges
+are the fastest path to Jira/GitHub migration if the licence question is ever revisited.
