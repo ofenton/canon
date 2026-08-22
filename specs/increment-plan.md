@@ -36,7 +36,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## chore-002: Set up the Go module, licence and CI
 
 - **Type:** chore
-- **Status:** planned
+- **Status:** approved
 - **Tier:** 1 (Critical)
 - **Traces:** none
 - **Scope:** Create the Go module, `LICENSE` (Apache-2.0), `Makefile`, and a CI workflow running build, vet and test. No application code. No other changes.
@@ -55,7 +55,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-001: Append-only event log with actor provenance
 
 - **Type:** feature
-- **Status:** planned
+- **Status:** approved
 - **Tier:** 1 (Critical)
 - **Traces:** R12
 - **Scope:** Define the event schema (CBOR-encoded, versioned) and an append-only store over SQLite. Every event carries id, timestamp, actor id, actor kind (human or agent), and model identifier where applicable. No projection, no API yet. No other changes.
@@ -75,7 +75,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-002: Projection engine with snapshots
 
 - **Type:** feature
-- **Status:** planned
+- **Status:** approved
 - **Tier:** 1 (Critical)
 - **Traces:** R12
 - **Scope:** Replay events into current-state projections, with periodic snapshots to bound replay cost, and a `canon rebuild` command that discards and rebuilds every projection from the log. No other changes.
@@ -95,7 +95,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-003: Load and validate canon.yaml
 
 - **Type:** feature
-- **Status:** planned
+- **Status:** approved
 - **Tier:** 1 (Critical)
 - **Traces:** R1, R2
 - **Scope:** Read the organisation schema — issue types, states, transitions, fields, permissions — from a single `canon.yaml`. Validate it on startup. No enforcement on writes yet. No other changes.
@@ -114,7 +114,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-004: Enforce the schema on every write
 
 - **Type:** feature
-- **Status:** planned
+- **Status:** approved
 - **Tier:** 1 (Critical)
 - **Traces:** R3, R4, R5, R6
 - **Scope:** Reject writes that use fields, states or transitions not in `canon.yaml`. Provide no runtime interface for adding them. Refuse schema changes that would orphan existing issues. Apply additive changes without downtime. No other changes.
@@ -136,7 +136,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-005: Issue entity with parent/child hierarchy
 
 - **Type:** feature
-- **Status:** planned
+- **Status:** approved
 - **Tier:** 1 (Critical)
 - **Traces:** R7, R8, R10
 - **Scope:** One `Issue` entity with an optional parent, expressed as events. Epics, stories and sub-tasks are parent/child relations, not storage types. Deleting an issue re-parents its children. No other changes.
@@ -157,7 +157,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-006: HTTP API
 
 - **Type:** feature
-- **Status:** planned
+- **Status:** approved
 - **Tier:** 1 (Critical)
 - **Traces:** R11, R16
 - **Scope:** The single API used by the UI, CLI and agents. Create, read, update, transition, list. Creating an issue requires only a title. No other changes.
@@ -177,7 +177,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-007: Agent identity, provenance and proposals
 
 - **Type:** feature
-- **Status:** planned
+- **Status:** approved
 - **Tier:** 1 (Critical)
 - **Traces:** R12, R14, R15
 - **Scope:** Per-actor identity records with an id, kind and optional signing key. Transitions marked `requires_evidence` in the schema are rejected without evidence. An agent lacking permission creates a proposal for human approval rather than failing. No other changes.
@@ -198,7 +198,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-008: MCP server with parity test
 
 - **Type:** feature
-- **Status:** planned
+- **Status:** approved
 - **Tier:** 1 (Critical)
 - **Traces:** R13
 - **Scope:** Expose every API operation over MCP, with an automated test asserting the MCP tool list covers the full API surface. No other changes.
@@ -218,7 +218,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-009: Queries and boards as saved queries
 
 - **Type:** feature
-- **Status:** planned
+- **Status:** approved
 - **Tier:** 2 (High)
 - **Traces:** R9
 - **Scope:** A query language over issues, saved queries, and boards expressed as a saved query plus a grouping key. Boards hold no state. No other changes.
@@ -238,7 +238,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-010: Flow metrics without estimation
 
 - **Type:** feature
-- **Status:** planned
+- **Status:** approved
 - **Tier:** 2 (High)
 - **Traces:** R19, R20
 - **Scope:** Cycle time and throughput computed from recorded state transitions. No estimate field anywhere. No other changes.
@@ -258,7 +258,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-011: Keyboard-first web UI
 
 - **Type:** feature
-- **Status:** planned
+- **Status:** approved
 - **Tier:** 1 (Critical)
 - **Traces:** R18
 - **Scope:** List, detail and create views, embedded in the binary. Every action reachable by keyboard without pointer input. No other changes.
@@ -278,7 +278,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-012: Meet the latency budget at 10,000 issues
 
 - **Type:** perf
-- **Status:** planned
+- **Status:** approved
 - **Tier:** 2 (High)
 - **Traces:** R17
 - **Scope:** Benchmark and tune reads against a seeded 10,000-issue dataset until the budget is met. Indexes and query plans only; no model changes. No other changes.
@@ -297,7 +297,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-013: One-command self-host and single-file backup
 
 - **Type:** feature
-- **Status:** planned
+- **Status:** approved
 - **Tier:** 1 (Critical)
 - **Traces:** R21, R22
 - **Scope:** `canon serve` starts a working instance with no external services. All data in one file that can be copied as a backup. README covering install, run and backup. No other changes.
@@ -317,7 +317,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## chore-003: Dogfood: run this project in Canon
 
 - **Type:** chore
-- **Status:** planned
+- **Status:** approved
 - **Tier:** 2 (High)
 - **Traces:** none
 - **Scope:** Import this repository's increment ledger into Canon and track the remaining work there. No product code changes. No other changes.

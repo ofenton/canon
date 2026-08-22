@@ -147,6 +147,22 @@ EARS notation — `WHEN <trigger> THE SYSTEM SHALL <observable response>`.
 - **R25:** WHEN an admin requests a schema report THE SYSTEM SHALL list every field with its usage
   count and last-used date, so unused configuration is visible.
 
+**Untracked work** — the `NOJIRA` problem. Developers write placeholder references because policy
+demands a ticket for work that does not warrant one, and creating a real ticket is expensive. The
+answer is not stricter enforcement, which produces junk tickets on top of the placeholders. It is
+to make creating a ticket free, make linking possible after the fact, and make the untracked
+proportion visible so an organisation can decide what it will tolerate instead of pretending it
+is zero.
+
+- **R26:** WHEN a developer runs one command in a repository THE SYSTEM SHALL create an issue from
+  the current branch or commit and link it, requiring no more than a title.
+- **R27:** WHEN a commit is supplied after the fact THE SYSTEM SHALL link it to an existing or new
+  issue and record the link with its original commit timestamp.
+- **R28:** WHEN an operator requests a traceability report THE SYSTEM SHALL report the proportion
+  of commits carrying no issue reference, over a given range.
+- **R29:** THE SYSTEM SHALL treat deliberately untracked work as a recorded, countable category
+  rather than requiring a placeholder reference.
+
 ### Out of scope
 
 Stated explicitly, because refusing these *is* the product:

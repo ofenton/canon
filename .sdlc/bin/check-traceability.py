@@ -47,6 +47,33 @@ def load_increments(path: pathlib.Path) -> list[dict]:
     return increments
 
 
+def untracked_commits() -> tuple[int, int] | None:
+    """Return (commits with no Increment trailer, total commits), excluding merges.
+
+    Work that legitimately needs no increment is normal — that is the Direct track.
+    What is not normal is nobody knowing how much of it there is. Reporting the ratio
+    makes the aggregate visible without forcing a junk increment for every typo, which
+    is the pressure that produces NOJIRA-style placeholder references in the first place.
+    """
+    try:
+        out = subprocess.run(
+            ["git", "log", "--no-merges", "--format=%H%x1f%B%x1e"],
+            capture_output=True, text=True, check=True, timeout=30,
+        ).stdout
+    except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired, OSError):
+        return None
+
+    total = untracked = 0
+    for record in out.split("\x1e"):
+        if not record.strip():
+            continue
+        _, _, message = record.partition("\x1f")
+        total += 1
+        if not re.search(r"^Increment:\s*[a-z]{2,6}-\d{3}\s*$", message, re.M):
+            untracked += 1
+    return untracked, total
+
+
 def git_trailers() -> dict[str, int] | None:
     """Count commits per increment id. None when git history cannot be read at all."""
     try:
@@ -77,6 +104,11 @@ def main() -> int:
     parser.add_argument("--plan", default="specs/increment-plan.md")
     parser.add_argument("--spec", default="specs/product.md")
     parser.add_argument("--assessments", default="specs/assessments")
+    parser.add_argument(
+        "--max-untracked-pct", type=float, default=None,
+        help="fail if more than this percentage of commits carry no Increment trailer "
+             "(default: report the ratio without failing)",
+    )
     args = parser.parse_args()
 
     plan_path = pathlib.Path(args.plan)
@@ -151,6 +183,16 @@ def main() -> int:
             problems.append(
                 f"commits carry 'Increment: {orphan}' but that increment is not in the ledger"
             )
+
+        tally = untracked_commits()
+        if tally is not None and tally[1]:
+            untracked, total = tally
+            pct = 100.0 * untracked / total
+            summary = f"{untracked} of {total} commits ({pct:.0f}%) carry no Increment trailer"
+            if args.max_untracked_pct is not None and pct > args.max_untracked_pct:
+                problems.append(f"{summary} — above the {args.max_untracked_pct:.0f}% limit")
+            else:
+                notes.append(summary)
 
     for note in notes:
         print(f"  note: {note}")
