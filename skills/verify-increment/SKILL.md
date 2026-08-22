@@ -56,6 +56,10 @@ you say why — an unverifiable criterion is a planning defect worth reporting b
 
 ### 3. Check the scope boundary
 
+**Run this command and paste its real output.** Writing the file list from memory is not a scope
+check — it is a guess that looks like one, and it is how a stray binary or another increment's
+work reaches main unnoticed.
+
 ```bash
 git diff --stat main...HEAD
 ```
