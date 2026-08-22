@@ -36,7 +36,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## chore-002: Set up the Go module, licence and CI
 
 - **Type:** chore
-- **Status:** approved
+- **Status:** in-progress
 - **Tier:** 1 (Critical)
 - **Traces:** none
 - **Scope:** Create the Go module, `LICENSE` (Apache-2.0), `Makefile`, and a CI workflow running build, vet and test. No application code. No other changes.
