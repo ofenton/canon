@@ -70,14 +70,23 @@ $ wc -l LICENSE
 
 Retrieved verbatim from `apache.org/licenses/LICENSE-2.0.txt`.
 
-### Scope
+### Scope — two violations, found after merge
 
-```
-$ git diff --stat main...HEAD
-```
-`LICENSE`, `Makefile`, `go.mod`, `.github/workflows/ci.yml`, `.gitignore`,
-`cmd/canon/main.go`, `cmd/canon/main_test.go`, `specs/increment-plan.md`.
-All explicable from Scope; `main.go` noted above.
+This section originally listed the expected files from memory instead of running
+`git diff --stat`. That is the whole reason the check exists, and skipping it let two things
+through:
+
+1. **`internal/event/event.go` and `internal/event/sample_test.go` shipped under chore-002.**
+   They are feat-001's work. A `git add -A` swept them in from the working tree while both
+   increments were in flight. The code is correct and feat-001 was already approved, so it has
+   not been reverted — reverting to re-add identical code would be churn. Recorded here, and
+   feat-001's evidence notes that its schema portion landed early.
+2. **A 2.4 MB `canon` binary was committed at the repository root.** `/bin/` was ignored but a
+   stray root-level build was not. Removed, and `/canon` added to `.gitignore`. The blob remains
+   in history; stripping it is cheap now and expensive after the repo is public.
+
+Root cause in both cases: `git add -A` with two increments' work in one tree, and a Scope check
+that was written rather than run.
 
 ### CI, on Linux — https://github.com/ofenton/canon/pull/1
 
