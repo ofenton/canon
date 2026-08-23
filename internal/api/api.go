@@ -22,6 +22,7 @@ import (
 
 	"github.com/ofenton/canon/internal/enforce"
 	"github.com/ofenton/canon/internal/event"
+	"github.com/ofenton/canon/internal/metrics"
 	"github.com/ofenton/canon/internal/projection"
 	"github.com/ofenton/canon/internal/query"
 	"github.com/ofenton/canon/internal/schema"
@@ -66,6 +67,7 @@ func (s *Server) Routes() map[string]http.HandlerFunc {
 		"GET /api/proposals/{id}":              s.getProposal,
 		"POST /api/proposals/{id}/approve":     s.approveProposal,
 		"POST /api/proposals/{id}/reject":      s.rejectProposal,
+		"GET /api/metrics":                     s.metrics,
 		"GET /api/boards":                      s.listBoards,
 		"POST /api/boards":                     s.saveBoard,
 		"GET /api/boards/{name}":               s.renderBoard,
@@ -242,6 +244,40 @@ func (s *Server) rejectProposal(w http.ResponseWriter, r *http.Request) {
 }
 
 // listBoards returns the saved boards.
+// metrics reports measured flow. There is nothing to configure and nothing to
+// estimate: the numbers come from transitions that were recorded anyway.
+func (s *Server) metrics(w http.ResponseWriter, r *http.Request) {
+	view, err := s.view()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	q, err := query.Parse(r.URL.Query().Get("q"), s.schema)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	to := s.now().UTC()
+	days := 30
+	if raw := r.URL.Query().Get("days"); raw != "" {
+		n, err := strconv.Atoi(raw)
+		if err != nil || n <= 0 {
+			writeError(w, http.StatusBadRequest, fmt.Errorf("days must be a positive number, got %q", raw))
+			return
+		}
+		days = n
+	}
+	from := to.AddDate(0, 0, -days)
+
+	bucket := 24 * time.Hour
+	if days > 90 {
+		bucket = 7 * 24 * time.Hour
+	}
+	writeJSON(w, http.StatusOK,
+		metrics.Compute(q.Filter(view, s.schema), s.schema, from, to, bucket))
+}
+
 func (s *Server) listBoards(w http.ResponseWriter, r *http.Request) {
 	boards, err := s.enforcer.Boards()
 	if err != nil {

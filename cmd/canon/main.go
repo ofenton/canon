@@ -14,6 +14,7 @@ import (
 	"github.com/ofenton/canon/internal/enforce"
 	"github.com/ofenton/canon/internal/event"
 	"github.com/ofenton/canon/internal/mcp"
+	"github.com/ofenton/canon/internal/metrics"
 	"github.com/ofenton/canon/internal/projection"
 	"github.com/ofenton/canon/internal/schema"
 )
@@ -109,6 +110,9 @@ func schemaCmd(args []string) error {
 
 	s, err := schema.Load(*path)
 	if err != nil {
+		return err
+	}
+	if err := metrics.CheckNoEstimateFields(s); err != nil {
 		return err
 	}
 
@@ -270,6 +274,9 @@ func serve(args []string) error {
 
 	// Refuse to start against a log the schema cannot describe, rather than
 	// discovering it one failed write at a time.
+	if err := metrics.CheckNoEstimateFields(sch); err != nil {
+		return err
+	}
 	if err := enforce.CheckMigration(store, sch); err != nil {
 		return fmt.Errorf("schema does not fit the existing log: %w", err)
 	}

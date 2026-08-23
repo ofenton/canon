@@ -210,6 +210,7 @@ Every request needs an `X-Canon-Actor` header naming a registered actor.
 | `GET` | `/api/proposals/{id}` | One proposal |
 | `POST` | `/api/proposals/{id}/approve` | Apply it, on the approver's authority |
 | `POST` | `/api/proposals/{id}/reject` | Decline it, with an optional `reason` |
+| `GET` | `/api/metrics` | Measured flow (`?days=`, `?q=` to scope it) |
 | `GET` | `/api/actors` | Registered actor ids |
 | `POST` | `/api/actors` | Register a human or agent |
 | `GET` | `/api/actors/{id}` | An actor's roles and teams |
@@ -263,6 +264,45 @@ transition_issue     {"id":"CANON-1","to":"done"}        → proposal_required, 
 
 The last one is not an error. The attempt was recorded for a human, which from the agent's point
 of view succeeded.
+
+## Measurement, not estimation
+
+Canon has no story point field and will not get one. Estimates get inflated under pressure to make
+velocity rise, they are inconsistent between people, and they measure the guess rather than the
+work. A field named like an estimate is refused at startup:
+
+```
+$ canon schema
+canon: field "storyPoints" is an estimate; Canon measures flow from recorded transitions
+and has no estimation. Remove it, or use cycle time and throughput instead
+```
+
+What you get instead comes from timestamps that were recorded anyway:
+
+```
+$ curl "$A/metrics?days=30" -H "$H"
+
+completed 9   started 11   in progress 2
+cycle time (active→closed)   p50   2d   p85   7d   p95  11d   max  11d   (n=9)
+lead time (created→closed)   p50   2d   p85   7d   p95  11d   max  11d   (n=9)
+slowest: CANON-9 11d, CANON-6 7d, CANON-8 3d
+ageing (unfinished, oldest first):
+  WIP-2    in_progress  18d
+  WIP-1    in_progress  10d
+```
+
+Three deliberate choices:
+
+- **No mean.** Cycle times are long-tailed and an average hides the tail people actually complain
+  about. Here p50 is 2 days and p85 is 7.
+- **Ageing is reported for unfinished work.** Cycle time only moves once something finishes. The
+  oldest thing still in progress moves *before* the damage lands, and is the number to watch.
+- **Lead time alongside cycle time.** Cycle time is what the team controls; lead time is what the
+  requester waits. Reporting only the first is how a team convinces itself things are fine while
+  the queue grows.
+
+`?q=` accepts the query language, so flow can be measured per team or per component without a
+separate reporting concept.
 
 ## How it stores things
 
