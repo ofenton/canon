@@ -336,7 +336,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-014: Roles and permissions in canon.yaml
 
 - **Type:** feature
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 1 (Critical)
 - **Traces:** R30, R31, R32
 - **Scope:** Add a `roles:` section to `canon.yaml` defining each role, the operations it permits, and an optional `scope: team`. Enforce it on every write in `enforce`. Add an `owner_team` field concept to issues so team scope has something to resolve against. No other changes.
