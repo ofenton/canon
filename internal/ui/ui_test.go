@@ -103,6 +103,19 @@ func TestSelectionIsScopedToMain(t *testing.T) {
 	}
 }
 
+// The status bar reports the last action. Rendering a list must not write to it, or
+// a refusal reported by an action is wiped by the re-render that follows.
+func TestListSummaryDoesNotClobberTheStatusBar(t *testing.T) {
+	page := mustAsset(t)
+	body := between(page, "async function renderIssues", "async function renderBoards")
+	if strings.Contains(body, "say(") {
+		t.Error("renderIssues writes to the status bar; a re-render would wipe the last action's result")
+	}
+	if !strings.Contains(body, `id = "list-summary"`) {
+		t.Error("the list does not report how many issues it is showing")
+	}
+}
+
 // The help dialog must be generated from the registry, so it cannot drift from it.
 func TestHelpIsGeneratedFromTheRegistry(t *testing.T) {
 	page := mustAsset(t)

@@ -116,6 +116,12 @@ await page.keyboard.press("Enter");
 await page.waitForFunction(() => document.querySelectorAll("#main tbody tr").length === 1, { timeout: 5000 });
 check("/ filters with a query", true);
 
+// A truncated list must say so rather than silently showing a prefix — and it must
+// not do it in the status bar, which reports the last action.
+const summary = await page.locator("#list-summary").textContent();
+check("the list reports how many it is showing",
+  /\d+ issues?|showing \d+ of \d+/.test(summary), summary.slice(0, 60));
+
 for (const [keys, marker] of [[["g", "m"], "Cycle time"], [["g", "p"], "proposal"], [["g", "i"], ""]]) {
   for (const k of keys) await page.keyboard.press(k);
   await page.waitForTimeout(400);
