@@ -198,7 +198,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-008: MCP server with parity test
 
 - **Type:** feature
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 1 (Critical)
 - **Traces:** R13
 - **Scope:** Expose every API operation over MCP, with an automated test asserting the MCP tool list covers the full API surface. No other changes.
@@ -218,7 +218,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-009: Queries and boards as saved queries
 
 - **Type:** feature
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 2 (High)
 - **Traces:** R9
 - **Scope:** A query language over issues, saved queries, and boards expressed as a saved query plus a grouping key. Boards hold no state. No other changes.
