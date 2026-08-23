@@ -379,15 +379,15 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## docs-001: Project README
 
 - **Type:** docs
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 2 (High)
 - **Traces:** none
 - **Scope:** Replace the inherited template README with one describing Canon: the problem, the wedge, how to run it, and the API. Documentation only. No other changes.
 - **Acceptance Criteria:**
-  - [ ] THE SYSTEM SHALL describe what Canon is and the problem it addresses, with the evidence behind it
-  - [ ] WHEN a reader follows the quick start THE SYSTEM SHALL take them from clone to a working instance
-  - [ ] THE SYSTEM SHALL document every API route currently implemented
-  - [ ] THE SYSTEM SHALL state plainly what is not built yet, including the absence of authentication
+  - [x] THE SYSTEM SHALL describe what Canon is and the problem it addresses, with the evidence behind it
+  - [x] WHEN a reader follows the quick start THE SYSTEM SHALL take them from clone to a working instance
+  - [x] THE SYSTEM SHALL document every API route currently implemented
+  - [x] THE SYSTEM SHALL state plainly what is not built yet, including the absence of authentication
 - **Test Strategy:**
   - Follow the quick start verbatim on a clean checkout and confirm each command works
   - Cross-check the documented routes against `Routes()`
@@ -397,6 +397,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 
 
 ---
+- **Evidence:** see `specs/increments/docs-001-project-readme.md`
 
 ## Sequencing
 
