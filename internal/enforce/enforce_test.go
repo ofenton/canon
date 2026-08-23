@@ -30,6 +30,31 @@ func fixture(t *testing.T) (*Enforcer, *event.Store) {
 
 func human() event.Actor { return event.Actor{ID: "ollie", Kind: event.ActorHuman} }
 
+// fixtureWithoutRoles builds an enforcer over a schema that defines no roles, to
+// prove authorisation is opt-in.
+func fixtureWithoutRoles(t *testing.T) (*Enforcer, *event.Store) {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "canon.yaml")
+	if err := os.WriteFile(path, []byte(`version: 1
+states: [{name: todo, category: open}, {name: done, category: closed}]
+transitions: [{from: todo, to: done}]
+fields: [{name: title, type: string, required: true}]
+issue_types: [{name: task, fields: [title]}]
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s, err := schema.Load(path)
+	if err != nil {
+		t.Fatalf("load schema: %v", err)
+	}
+	log, err := event.Open(filepath.Join(t.TempDir(), "canon.db"))
+	if err != nil {
+		t.Fatalf("open log: %v", err)
+	}
+	t.Cleanup(func() { log.Close() })
+	return New(s, log), log
+}
+
 func at(min int) time.Time { return time.Date(2026, 8, 23, 9, min, 0, 0, time.UTC) }
 
 func mustCreate(t *testing.T, e *Enforcer, id string) {
