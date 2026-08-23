@@ -253,12 +253,13 @@ func TestAncestorQuery(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, id := range []string{"EPIC", "STORY", "SUB", "OTHER"} {
-		if err := e.CreateAs(p, id, "task", map[string]string{"title": id}, "platform", at(1)); err != nil {
+	// Types must respect the schema's declared levels: epic > feature > story > task.
+	for _, pair := range [][2]string{{"EPIC", "epic"}, {"FEATURE", "feature"}, {"STORY", "story"}, {"SUB", "task"}, {"OTHER", "task"}} {
+		if err := e.CreateAs(p, pair[0], pair[1], map[string]string{"title": pair[0]}, "platform", at(1)); err != nil {
 			t.Fatal(err)
 		}
 	}
-	for _, link := range [][2]string{{"STORY", "EPIC"}, {"SUB", "STORY"}} {
+	for _, link := range [][2]string{{"FEATURE", "EPIC"}, {"STORY", "FEATURE"}, {"SUB", "STORY"}} {
 		if err := e.Reparent(link[0], link[1], at(2), event.Actor{ID: "ollie", Kind: event.ActorHuman}); err != nil {
 			t.Fatal(err)
 		}
@@ -266,12 +267,13 @@ func TestAncestorQuery(t *testing.T) {
 	v := view(t, log)
 
 	cases := map[string]string{
-		"ancestor=EPIC":            "STORY,SUB",
+		"ancestor=EPIC":            "FEATURE,STORY,SUB",
+		"ancestor=FEATURE":         "STORY,SUB",
 		"ancestor=STORY":           "SUB",
 		"ancestor=SUB":             "",
 		"ancestor=NOPE":            "",
 		"!ancestor=EPIC":           "EPIC,OTHER",
-		"ancestor=EPIC state=todo": "STORY,SUB",
+		"ancestor=EPIC state=todo": "FEATURE,STORY,SUB",
 	}
 	for raw, want := range cases {
 		t.Run(raw, func(t *testing.T) {

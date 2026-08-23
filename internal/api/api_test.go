@@ -123,12 +123,12 @@ func TestEveryRouteIsExercised(t *testing.T) {
 	}
 	calls := []call{
 		{"GET /api/schema", "GET", "/api/schema", "ollie", nil, 200},
-		{"POST /api/issues", "POST", "/api/issues", "ollie", map[string]string{"id": "CANON-1", "title": "one", "team": "platform"}, 201},
+		{"POST /api/issues", "POST", "/api/issues", "ollie", map[string]string{"id": "CANON-1", "title": "one", "team": "platform", "type": "story"}, 201},
 		{"GET /api/issues", "GET", "/api/issues", "ollie", nil, 200},
 		{"GET /api/issues/{id}", "GET", "/api/issues/CANON-1", "ollie", nil, 200},
 		{"PATCH /api/issues/{id}/fields", "PATCH", "/api/issues/CANON-1/fields", "ollie", map[string]string{"priority": "p1"}, 204},
 		{"POST /api/issues/{id}/transition", "POST", "/api/issues/CANON-1/transition", "ollie", map[string]string{"to": "in_progress"}, 204},
-		{"POST /api/issues", "POST", "/api/issues", "ollie", map[string]string{"id": "CANON-2", "title": "two", "team": "platform"}, 201},
+		{"POST /api/issues", "POST", "/api/issues", "ollie", map[string]string{"id": "CANON-2", "title": "two", "team": "platform", "type": "task"}, 201},
 		{"PUT /api/issues/{id}/parent", "PUT", "/api/issues/CANON-2/parent", "ollie", map[string]string{"parent": "CANON-1"}, 204},
 		{"GET /api/issues/{id}/children", "GET", "/api/issues/CANON-1/children", "ollie", nil, 200},
 		{"GET /api/issues/{id}/ancestors", "GET", "/api/issues/CANON-2/ancestors", "ollie", nil, 200},
@@ -138,7 +138,7 @@ func TestEveryRouteIsExercised(t *testing.T) {
 		{"GET /api/cycles", "GET", "/api/cycles", "ollie", nil, 200},
 		{"DELETE /api/issues/{id}/dependencies/{on}", "DELETE", "/api/issues/CANON-2/dependencies/CANON-1", "ollie", nil, 204},
 		{"DELETE /api/issues/{id}", "DELETE", "/api/issues/CANON-2", "ollie", nil, 204},
-		{"POST /api/issues", "POST", "/api/issues", "ollie", map[string]string{"id": "CANON-3", "title": "three", "team": "platform"}, 201},
+		{"POST /api/issues", "POST", "/api/issues", "ollie", map[string]string{"id": "CANON-3", "title": "three", "team": "platform", "type": "task"}, 201},
 		{"POST /api/issues/{id}/transition", "POST", "/api/issues/CANON-3/transition", "agent:one", map[string]string{"to": "in_progress"}, 204},
 		{"GET /api/events", "GET", "/api/events", "ollie", nil, 200},
 		{"GET /api/actors", "GET", "/api/actors", "ollie", nil, 200},
@@ -324,7 +324,7 @@ func TestQueryValidationAtTheBoundary(t *testing.T) {
 // Board membership must follow the data with no board update.
 func TestBoardFollowsTheDataOverHTTP(t *testing.T) {
 	_, h := newServer(t)
-	do(t, h, "ollie", "POST", "/api/issues", map[string]string{"id": "CANON-1", "title": "one", "team": "platform"})
+	do(t, h, "ollie", "POST", "/api/issues", map[string]string{"id": "CANON-1", "title": "one", "team": "platform", "type": "story"})
 	do(t, h, "ollie", "POST", "/api/issues", map[string]string{"id": "CANON-2", "title": "two", "team": "payments"})
 	if rec := do(t, h, "ollie", "POST", "/api/boards",
 		map[string]string{"name": "plat", "query": "team=platform", "group_by": "state"}); rec.Code != 201 {
@@ -353,7 +353,7 @@ func TestBoardFollowsTheDataOverHTTP(t *testing.T) {
 		t.Fatalf("board should hold one platform issue, got %d", got)
 	}
 	// Moving an issue into the team must add it, with no write to the board.
-	do(t, h, "ollie", "POST", "/api/issues", map[string]string{"id": "CANON-3", "title": "three", "team": "platform"})
+	do(t, h, "ollie", "POST", "/api/issues", map[string]string{"id": "CANON-3", "title": "three", "team": "platform", "type": "task"})
 	if got := count(); got != 2 {
 		t.Errorf("board should follow the data, got %d", got)
 	}
