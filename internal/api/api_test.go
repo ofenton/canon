@@ -131,6 +131,8 @@ func TestEveryRouteIsExercised(t *testing.T) {
 		{"PUT /api/issues/{id}/parent", "PUT", "/api/issues/CANON-2/parent", "ollie", map[string]string{"parent": "CANON-1"}, 204},
 		{"GET /api/issues/{id}/children", "GET", "/api/issues/CANON-1/children", "ollie", nil, 200},
 		{"DELETE /api/issues/{id}", "DELETE", "/api/issues/CANON-2", "ollie", nil, 204},
+		{"POST /api/issues", "POST", "/api/issues", "ollie", map[string]string{"id": "CANON-3", "title": "three", "team": "platform"}, 201},
+		{"POST /api/issues/{id}/transition", "POST", "/api/issues/CANON-3/transition", "agent:one", map[string]string{"to": "in_progress"}, 204},
 		{"GET /api/events", "GET", "/api/events", "ollie", nil, 200},
 		{"GET /api/actors", "GET", "/api/actors", "ollie", nil, 200},
 		{"POST /api/actors", "POST", "/api/actors", "ollie", map[string]string{"id": "kim"}, 201},
@@ -139,6 +141,16 @@ func TestEveryRouteIsExercised(t *testing.T) {
 		{"DELETE /api/actors/{id}/roles/{role}", "DELETE", "/api/actors/kim/roles/member", "ollie", nil, 204},
 		{"POST /api/actors/{id}/teams", "POST", "/api/actors/kim/teams", "ollie", map[string]string{"team": "platform"}, 204},
 		{"DELETE /api/actors/{id}/teams/{team}", "DELETE", "/api/actors/kim/teams/platform", "ollie", nil, 204},
+
+		// An agent works CANON-1 to in_review, then proposes completing it. 202 is
+		// the proposal, not a failure.
+		{"POST /api/issues/{id}/transition", "POST", "/api/issues/CANON-1/transition", "agent:one", map[string]string{"to": "in_review", "evidence": "312 passed"}, 204},
+		{"POST /api/issues/{id}/transition", "POST", "/api/issues/CANON-1/transition", "agent:one", map[string]string{"to": "done"}, 202},
+		{"GET /api/proposals", "GET", "/api/proposals", "ollie", nil, 200},
+		{"GET /api/proposals/{id}", "GET", "/api/proposals/PROP-1", "ollie", nil, 200},
+		{"POST /api/proposals/{id}/approve", "POST", "/api/proposals/PROP-1/approve", "ollie", nil, 204},
+		{"POST /api/issues/{id}/transition", "POST", "/api/issues/CANON-3/transition", "agent:one", map[string]string{"to": "done"}, 202},
+		{"POST /api/proposals/{id}/reject", "POST", "/api/proposals/PROP-2/reject", "ollie", map[string]string{"reason": "not ready"}, 204},
 	}
 
 	exercised := map[string]bool{}

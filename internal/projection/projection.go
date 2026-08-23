@@ -61,24 +61,60 @@ type Actor struct {
 	Teams []string
 }
 
+// ProposalStatus is where a proposal has got to.
+type ProposalStatus string
+
+const (
+	ProposalOpen     ProposalStatus = "open"
+	ProposalApproved ProposalStatus = "approved"
+	ProposalRejected ProposalStatus = "rejected"
+)
+
+// Proposal is an operation an agent was not permitted to perform, recorded for a
+// human to decide on.
+//
+// It is a first-class record rather than a failed request, because the useful
+// artifact is the attempt: what the agent wanted to do, on what, with what evidence.
+type Proposal struct {
+	ID         string
+	Subject    string
+	Operation  string
+	Evidence   string
+	ProposedBy string
+	Model      string
+	Role       string
+	ProposedAt time.Time
+	Status     ProposalStatus
+	DecidedBy  string
+	DecidedAt  time.Time
+	Reason     string
+	// From is the state the subject was in when the proposal was made. An approval
+	// that no longer starts from here is stale.
+	From string
+	To   string
+}
+
 // Projection is the materialised view over an event log.
 type Projection struct {
-	log    *event.Store
-	issues map[string]*Issue
-	actors map[string]*Actor
-	seq    int64
-	read   int64
+	log       *event.Store
+	issues    map[string]*Issue
+	actors    map[string]*Actor
+	proposals map[string]*Proposal
+	seq       int64
+	read      int64
 }
 
 // New returns an empty projection over log. Call Rebuild or Restore before reading.
 func New(log *event.Store) *Projection {
-	return &Projection{log: log, issues: map[string]*Issue{}, actors: map[string]*Actor{}}
+	return &Projection{log: log, issues: map[string]*Issue{},
+		actors: map[string]*Actor{}, proposals: map[string]*Proposal{}}
 }
 
 // Rebuild discards all state and replays the log from the beginning.
 func (p *Projection) Rebuild() error {
 	p.issues = map[string]*Issue{}
 	p.actors = map[string]*Actor{}
+	p.proposals = map[string]*Proposal{}
 	p.seq = 0
 	return p.Catchup()
 }
@@ -182,6 +218,11 @@ func (p *Projection) Snapshot() string {
 			fmt.Fprintf(h, "  %s>%s@%d\n", t.From, t.To, t.At.UnixNano())
 		}
 	}
+	for _, proposal := range p.Proposals("") {
+		fmt.Fprintf(h, "proposal\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\n",
+			proposal.ID, proposal.Subject, proposal.Operation,
+			proposal.Status, proposal.ProposedBy, proposal.DecidedBy)
+	}
 	for _, id := range p.ActorIDs() {
 		actor := p.actors[id]
 		fmt.Fprintf(h, "actor\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\n",
@@ -256,6 +297,37 @@ func (p *Projection) apply(e *event.Event) error {
 		issue.Team = str(e.Payload["team"])
 		p.touch(issue, e)
 
+	case "proposal.created":
+		if _, exists := p.proposals[e.Subject]; exists {
+			return fmt.Errorf("event %s creates proposal %q, which already exists", e.ID, e.Subject)
+		}
+		p.proposals[e.Subject] = &Proposal{
+			ID:         e.Subject,
+			Subject:    str(e.Payload["issue"]),
+			Operation:  str(e.Payload["operation"]),
+			Evidence:   str(e.Payload["evidence"]),
+			ProposedBy: e.Actor.ID,
+			Model:      e.Actor.Model,
+			Role:       str(e.Payload["role"]),
+			ProposedAt: e.At,
+			Status:     ProposalOpen,
+			From:       str(e.Payload["from"]),
+			To:         str(e.Payload["to"]),
+		}
+
+	case "proposal.approved", "proposal.rejected":
+		proposal, ok := p.proposals[e.Subject]
+		if !ok {
+			return fmt.Errorf("event %s decides unknown proposal %q", e.ID, e.Subject)
+		}
+		proposal.Status = ProposalApproved
+		if e.Type == "proposal.rejected" {
+			proposal.Status = ProposalRejected
+		}
+		proposal.DecidedBy = e.Actor.ID
+		proposal.DecidedAt = e.At
+		proposal.Reason = str(e.Payload["reason"])
+
 	case "actor.registered":
 		if _, exists := p.actors[e.Subject]; exists {
 			return fmt.Errorf("event %s registers %q, which already exists", e.ID, e.Subject)
@@ -310,6 +382,29 @@ func (p *Projection) apply(e *event.Event) error {
 			e.ID, e.Seq, e.Type)
 	}
 	return nil
+}
+
+// Proposal returns one proposal.
+func (p *Projection) Proposal(id string) (*Proposal, bool) {
+	proposal, ok := p.proposals[id]
+	return proposal, ok
+}
+
+// Proposals returns proposals in id order, optionally filtered by status.
+func (p *Projection) Proposals(status ProposalStatus) []*Proposal {
+	ids := make([]string, 0, len(p.proposals))
+	for id := range p.proposals {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+
+	out := make([]*Proposal, 0, len(ids))
+	for _, id := range ids {
+		if status == "" || p.proposals[id].Status == status {
+			out = append(out, p.proposals[id])
+		}
+	}
+	return out
 }
 
 // Actor returns the projected identity of one actor.
