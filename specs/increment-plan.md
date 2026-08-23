@@ -136,15 +136,15 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-005: Issue entity with parent/child hierarchy
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-review
 - **Tier:** 1 (Critical)
 - **Traces:** R7, R8, R10
 - **Scope:** One `Issue` entity with an optional parent, expressed as events. Epics, stories and sub-tasks are parent/child relations, not storage types. Deleting an issue re-parents its children. No other changes.
 - **Acceptance Criteria:**
-  - [ ] THE SYSTEM SHALL store all work as a single Issue entity with an optional parent reference
-  - [ ] THE SYSTEM SHALL contain no storage-level distinction between epic, story and sub-task
-  - [ ] WHEN an issue with children is deleted THE SYSTEM SHALL re-parent its children to that issue's parent
-  - [ ] WHEN a parent reference would create a cycle THE SYSTEM SHALL reject the write
+  - [x] THE SYSTEM SHALL store all work as a single Issue entity with an optional parent reference
+  - [x] THE SYSTEM SHALL contain no storage-level distinction between epic, story and sub-task
+  - [x] WHEN an issue with children is deleted THE SYSTEM SHALL re-parent its children to that issue's parent
+  - [x] WHEN a parent reference would create a cycle THE SYSTEM SHALL reject the write
 - **Test Strategy:**
   - Cycle detection test across a deep hierarchy
   - Re-parent test: delete a mid-tree node, assert grandchildren survive
@@ -152,7 +152,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Dependencies:** feat-002, feat-004
 - **Rollback Plan:** Revert to a flat issue list with no parent field
 - **Risk:** Low — small model, well understood
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/feat-005-issue-entity-with-parent-child-hierarchy.md`
 
 ## feat-006: HTTP API
 

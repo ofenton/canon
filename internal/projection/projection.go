@@ -225,6 +225,14 @@ func (p *Projection) apply(e *event.Event) error {
 		issue.Parent = str(e.Payload["parent"])
 		p.touch(issue, e)
 
+	case "issue.deleted":
+		// Deletion is a tombstone. The events stay in the log — history is not
+		// rewritten — but the issue leaves the projected present.
+		if _, ok := p.issues[e.Subject]; !ok {
+			return fmt.Errorf("event %s deletes unknown issue %q", e.ID, e.Subject)
+		}
+		delete(p.issues, e.Subject)
+
 	default:
 		return fmt.Errorf("event %s at seq %d: unknown type %q — "+
 			"the projection must be taught this type before it can replay this log",
