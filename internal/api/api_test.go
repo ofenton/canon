@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -151,6 +152,11 @@ func TestEveryRouteIsExercised(t *testing.T) {
 		{"POST /api/proposals/{id}/approve", "POST", "/api/proposals/PROP-1/approve", "ollie", nil, 204},
 		{"POST /api/issues/{id}/transition", "POST", "/api/issues/CANON-3/transition", "agent:one", map[string]string{"to": "done"}, 202},
 		{"POST /api/proposals/{id}/reject", "POST", "/api/proposals/PROP-2/reject", "ollie", map[string]string{"reason": "not ready"}, 204},
+
+		{"POST /api/boards", "POST", "/api/boards", "ollie", map[string]string{"name": "platform", "query": "team=platform", "group_by": "state"}, 201},
+		{"GET /api/boards", "GET", "/api/boards", "ollie", nil, 200},
+		{"GET /api/boards/{name}", "GET", "/api/boards/platform", "ollie", nil, 200},
+		{"DELETE /api/boards/{name}", "DELETE", "/api/boards/platform", "ollie", nil, 204},
 	}
 
 	exercised := map[string]bool{}
@@ -285,5 +291,78 @@ func TestListFilters(t *testing.T) {
 	}
 	if len(body.Issues) != 2 {
 		t.Errorf("team filter: got %d issues want 2", len(body.Issues))
+	}
+}
+
+// A query naming something the schema does not have must be refused at the boundary,
+// not silently return an empty list that reads as "no work".
+func TestQueryValidationAtTheBoundary(t *testing.T) {
+	_, h := newServer(t)
+	do(t, h, "ollie", "POST", "/api/issues",
+		map[string]string{"id": "CANON-1", "title": "x", "team": "platform", "fields": ""})
+
+	for _, q := range []string{"storyPoints=8", "sprint=4", "state=shipped"} {
+		rec := do(t, h, "ollie", "GET", "/api/issues?q="+url.QueryEscape(q), nil)
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("query %q: status %d want 400 — %s", q, rec.Code, rec.Body)
+		}
+	}
+
+	rec := do(t, h, "ollie", "GET", "/api/issues?q="+url.QueryEscape("team=platform"), nil)
+	if rec.Code != http.StatusOK {
+		t.Errorf("a valid query must succeed: %d %s", rec.Code, rec.Body)
+	}
+}
+
+// Board membership must follow the data with no board update.
+func TestBoardFollowsTheDataOverHTTP(t *testing.T) {
+	_, h := newServer(t)
+	do(t, h, "ollie", "POST", "/api/issues", map[string]string{"id": "CANON-1", "title": "one", "team": "platform"})
+	do(t, h, "ollie", "POST", "/api/issues", map[string]string{"id": "CANON-2", "title": "two", "team": "payments"})
+	if rec := do(t, h, "ollie", "POST", "/api/boards",
+		map[string]string{"name": "plat", "query": "team=platform", "group_by": "state"}); rec.Code != 201 {
+		t.Fatalf("save board: %d %s", rec.Code, rec.Body)
+	}
+
+	count := func() int {
+		rec := do(t, h, "ollie", "GET", "/api/boards/plat", nil)
+		var body struct {
+			Columns []struct {
+				Name  string
+				Count int
+			}
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+			t.Fatal(err)
+		}
+		total := 0
+		for _, c := range body.Columns {
+			total += c.Count
+		}
+		return total
+	}
+
+	if got := count(); got != 1 {
+		t.Fatalf("board should hold one platform issue, got %d", got)
+	}
+	// Moving an issue into the team must add it, with no write to the board.
+	do(t, h, "ollie", "POST", "/api/issues", map[string]string{"id": "CANON-3", "title": "three", "team": "platform"})
+	if got := count(); got != 2 {
+		t.Errorf("board should follow the data, got %d", got)
+	}
+}
+
+// Saving a board whose query does not parse must be refused at save time.
+func TestBoardQueryIsValidatedOnSave(t *testing.T) {
+	_, h := newServer(t)
+	rec := do(t, h, "ollie", "POST", "/api/boards",
+		map[string]string{"name": "bad", "query": "storyPoints=8"})
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Errorf("status %d want 422 — %s", rec.Code, rec.Body)
+	}
+	rec = do(t, h, "ollie", "POST", "/api/boards",
+		map[string]string{"name": "bad", "query": "team=platform", "group_by": "sprint"})
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Errorf("bad group key: status %d want 422 — %s", rec.Code, rec.Body)
 	}
 }
