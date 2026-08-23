@@ -218,14 +218,14 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-009: Queries and boards as saved queries
 
 - **Type:** feature
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 2 (High)
 - **Traces:** R9
 - **Scope:** A query language over issues, saved queries, and boards expressed as a saved query plus a grouping key. Boards hold no state. No other changes.
 - **Acceptance Criteria:**
-  - [ ] THE SYSTEM SHALL express a board as a saved query and a grouping key with no state of its own
-  - [ ] WHEN an issue stops matching a board's query THE SYSTEM SHALL cease to show it on that board with no separate update
-  - [ ] WHEN a query references a field not in canon.yaml THE SYSTEM SHALL reject it naming the valid fields
+  - [x] THE SYSTEM SHALL express a board as a saved query and a grouping key with no state of its own
+  - [x] WHEN an issue stops matching a board's query THE SYSTEM SHALL cease to show it on that board with no separate update
+  - [x] WHEN a query references a field not in canon.yaml THE SYSTEM SHALL reject it naming the valid fields
 - **Test Strategy:**
   - Board test: change an issue field, assert board membership follows without a write to the board
   - Schema inspection asserting no board state table
@@ -233,7 +233,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Dependencies:** feat-006
 - **Rollback Plan:** Ship fixed list views with no saved queries
 - **Risk:** Medium — the query language is easy to over-build; keep it small
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/feat-009-queries-and-boards-as-saved-queries.md`
 
 ## feat-010: Flow metrics without estimation
 

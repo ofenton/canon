@@ -22,6 +22,8 @@ type Issue struct {
 	Title  string
 	State  string
 	Parent string
+	// Type is the issue type declared at creation, from canon.yaml.
+	Type string
 	// Team owns the issue. Team-scoped roles resolve against it.
 	Team      string
 	Fields    map[string]string
@@ -94,12 +96,26 @@ type Proposal struct {
 	To   string
 }
 
+// Board is a saved query and a grouping key.
+//
+// It holds no membership. An issue appears on a board because it matches, and leaves
+// because it stops matching — there is nothing to update and nothing to go stale.
+// That is the whole difference between a board and a second copy of the truth.
+type Board struct {
+	Name      string
+	Query     string
+	GroupBy   string
+	CreatedBy string
+	CreatedAt time.Time
+}
+
 // Projection is the materialised view over an event log.
 type Projection struct {
 	log       *event.Store
 	issues    map[string]*Issue
 	actors    map[string]*Actor
 	proposals map[string]*Proposal
+	boards    map[string]*Board
 	seq       int64
 	read      int64
 }
@@ -107,7 +123,8 @@ type Projection struct {
 // New returns an empty projection over log. Call Rebuild or Restore before reading.
 func New(log *event.Store) *Projection {
 	return &Projection{log: log, issues: map[string]*Issue{},
-		actors: map[string]*Actor{}, proposals: map[string]*Proposal{}}
+		actors: map[string]*Actor{}, proposals: map[string]*Proposal{},
+		boards: map[string]*Board{}}
 }
 
 // Rebuild discards all state and replays the log from the beginning.
@@ -115,6 +132,7 @@ func (p *Projection) Rebuild() error {
 	p.issues = map[string]*Issue{}
 	p.actors = map[string]*Actor{}
 	p.proposals = map[string]*Proposal{}
+	p.boards = map[string]*Board{}
 	p.seq = 0
 	return p.Catchup()
 }
@@ -207,8 +225,8 @@ func (p *Projection) Snapshot() string {
 	h := sha256.New()
 	for _, id := range ids {
 		issue := p.issues[id]
-		fmt.Fprintf(h, "%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%d\x1f%d\x1f%s\x1f%s\x1f%s\n",
-			issue.ID, issue.Title, issue.State, issue.Parent, issue.Team,
+		fmt.Fprintf(h, "%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%d\x1f%d\x1f%s\x1f%s\x1f%s\n",
+			issue.ID, issue.Title, issue.State, issue.Type, issue.Parent, issue.Team,
 			issue.CreatedAt.UnixNano(), issue.UpdatedAt.UnixNano(),
 			issue.LastActor.ID, issue.LastActor.Kind, issue.LastActor.Model)
 		for _, k := range sortedKeys(issue.Fields) {
@@ -222,6 +240,9 @@ func (p *Projection) Snapshot() string {
 		fmt.Fprintf(h, "proposal\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\n",
 			proposal.ID, proposal.Subject, proposal.Operation,
 			proposal.Status, proposal.ProposedBy, proposal.DecidedBy)
+	}
+	for _, board := range p.Boards() {
+		fmt.Fprintf(h, "board\x1f%s\x1f%s\x1f%s\n", board.Name, board.Query, board.GroupBy)
 	}
 	for _, id := range p.ActorIDs() {
 		actor := p.actors[id]
@@ -244,8 +265,19 @@ func (p *Projection) apply(e *event.Event) error {
 			ID:        e.Subject,
 			Title:     str(e.Payload["title"]),
 			State:     str(e.Payload["state"]),
+			Type:      str(e.Payload["type"]),
 			Fields:    map[string]string{},
 			CreatedAt: e.At,
+		}
+		// Everything else in the payload is a schema field. Reading only the two
+		// named above silently dropped fields supplied at creation, which surfaced
+		// only when a query tried to filter on one.
+		for key, value := range e.Payload {
+			switch key {
+			case "title", "state", "type":
+				continue
+			}
+			issue.Fields[key] = str(value)
 		}
 		p.issues[e.Subject] = issue
 		p.touch(issue, e)
@@ -296,6 +328,24 @@ func (p *Projection) apply(e *event.Event) error {
 		}
 		issue.Team = str(e.Payload["team"])
 		p.touch(issue, e)
+
+	case "board.created":
+		if _, exists := p.boards[e.Subject]; exists {
+			return fmt.Errorf("event %s creates board %q, which already exists", e.ID, e.Subject)
+		}
+		p.boards[e.Subject] = &Board{
+			Name:      e.Subject,
+			Query:     str(e.Payload["query"]),
+			GroupBy:   str(e.Payload["group_by"]),
+			CreatedBy: e.Actor.ID,
+			CreatedAt: e.At,
+		}
+
+	case "board.deleted":
+		if _, ok := p.boards[e.Subject]; !ok {
+			return fmt.Errorf("event %s deletes unknown board %q", e.ID, e.Subject)
+		}
+		delete(p.boards, e.Subject)
 
 	case "proposal.created":
 		if _, exists := p.proposals[e.Subject]; exists {
@@ -403,6 +453,26 @@ func (p *Projection) Proposals(status ProposalStatus) []*Proposal {
 		if status == "" || p.proposals[id].Status == status {
 			out = append(out, p.proposals[id])
 		}
+	}
+	return out
+}
+
+// Board returns one saved board.
+func (p *Projection) Board(name string) (*Board, bool) {
+	board, ok := p.boards[name]
+	return board, ok
+}
+
+// Boards returns every saved board, in name order.
+func (p *Projection) Boards() []*Board {
+	names := make([]string, 0, len(p.boards))
+	for name := range p.boards {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	out := make([]*Board, 0, len(names))
+	for _, name := range names {
+		out = append(out, p.boards[name])
 	}
 	return out
 }
