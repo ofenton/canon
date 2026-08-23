@@ -116,8 +116,14 @@ type Projection struct {
 	actors    map[string]*Actor
 	proposals map[string]*Proposal
 	boards    map[string]*Board
-	seq       int64
-	read      int64
+
+	// sortedIDs caches the issue id ordering. Every list read needs it, and
+	// re-sorting per request is O(n log n) work repeated for a set that only
+	// changes when an issue is created or deleted.
+	sortedIDs []string
+
+	seq  int64
+	read int64
 }
 
 // New returns an empty projection over log. Call Rebuild or Restore before reading.
@@ -130,6 +136,7 @@ func New(log *event.Store) *Projection {
 // Rebuild discards all state and replays the log from the beginning.
 func (p *Projection) Rebuild() error {
 	p.issues = map[string]*Issue{}
+	p.sortedIDs = nil
 	p.actors = map[string]*Actor{}
 	p.proposals = map[string]*Proposal{}
 	p.boards = map[string]*Board{}
@@ -155,6 +162,7 @@ func (p *Projection) Catchup() error {
 
 // Restore adopts a checkpoint, so replay resumes from that position.
 func (p *Projection) Restore(cp Checkpoint) error {
+	p.sortedIDs = nil
 	p.issues = make(map[string]*Issue, len(cp.Issues))
 	for id, issue := range cp.Issues {
 		clone := *issue
@@ -254,12 +262,21 @@ func (p *Projection) Children(id string) []string {
 }
 
 // IssueIDs returns every projected issue id, sorted.
+//
+// The result is cached and invalidated only when the set of issues changes, so a
+// read costs a slice copy rather than a sort. Callers get a copy because the cache
+// must not be mutable from outside.
 func (p *Projection) IssueIDs() []string {
-	out := make([]string, 0, len(p.issues))
-	for id := range p.issues {
-		out = append(out, id)
+	if p.sortedIDs == nil {
+		ids := make([]string, 0, len(p.issues))
+		for id := range p.issues {
+			ids = append(ids, id)
+		}
+		sort.Strings(ids)
+		p.sortedIDs = ids
 	}
-	sort.Strings(out)
+	out := make([]string, len(p.sortedIDs))
+	copy(out, p.sortedIDs)
 	return out
 }
 
@@ -333,6 +350,7 @@ func (p *Projection) apply(e *event.Event) error {
 			issue.Fields[key] = str(value)
 		}
 		p.issues[e.Subject] = issue
+		p.sortedIDs = nil
 		p.touch(issue, e)
 
 	case "field.set":
@@ -478,6 +496,7 @@ func (p *Projection) apply(e *event.Event) error {
 			return fmt.Errorf("event %s deletes unknown issue %q", e.ID, e.Subject)
 		}
 		delete(p.issues, e.Subject)
+		p.sortedIDs = nil
 
 	default:
 		return fmt.Errorf("event %s at seq %d: unknown type %q — "+
