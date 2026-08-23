@@ -5,8 +5,9 @@ accretion — and where coding agents are first-class users rather than an API a
 
 Apache-2.0. Self-hosted. One static binary, one file of data, no external services.
 
-> **Status: in development.** The domain, authorisation and HTTP API work. There is no web UI,
-> no MCP server and no authentication yet. See [What is not built](#what-is-not-built).
+> **Status: in development.** The domain, authorisation, HTTP API, MCP server, queries and boards
+> work. There is no web UI and no authentication yet.
+> See [What is not built](#what-is-not-built).
 
 ## The problem
 
@@ -198,7 +199,7 @@ Every request needs an `X-Canon-Actor` header naming a registered actor.
 |---|---|---|
 | `GET` | `/api/schema` | The organisation's schema, with permitted transitions per state |
 | `GET` | `/api/events` | The raw event log (`?subject=`, `?since=`) |
-| `GET` | `/api/issues` | List issues (`?state=`, `?team=`) |
+| `GET` | `/api/issues` | List issues (`?q=` query, or `?state=` / `?team=` shorthands) |
 | `POST` | `/api/issues` | Create — only `title` is required |
 | `GET` | `/api/issues/{id}` | One issue's projected state |
 | `DELETE` | `/api/issues/{id}` | Delete; children are lifted to the grandparent |
@@ -206,6 +207,10 @@ Every request needs an `X-Canon-Actor` header naming a registered actor.
 | `POST` | `/api/issues/{id}/transition` | `{"to": …, "evidence": …}` |
 | `PUT` | `/api/issues/{id}/parent` | Set or clear the parent |
 | `GET` | `/api/issues/{id}/children` | Direct children |
+| `GET` | `/api/boards` | Saved boards, and the keys you may group by |
+| `POST` | `/api/boards` | Save a board: a name, a query, a grouping key |
+| `GET` | `/api/boards/{name}` | Render a board against current data |
+| `DELETE` | `/api/boards/{name}` | Delete a saved board |
 | `GET` | `/api/proposals` | Open proposals awaiting a human (`?status=all` for history) |
 | `GET` | `/api/proposals/{id}` | One proposal |
 | `POST` | `/api/proposals/{id}/approve` | Apply it, on the approver's authority |
@@ -235,6 +240,49 @@ canon version
 ```
 
 All accept `-db` (default `canon.db`) and, where relevant, `-schema` (default `canon.yaml`).
+
+## Queries and boards
+
+The query language is deliberately small — term, comparison, negation, implicit AND. There is no
+OR: two queries are two boards. JQL is what the other end of that road looks like.
+
+```
+team=platform                 exact match on a built-in attribute
+priority=p1                   or on any field in canon.yaml
+category=open                 states grouped, so this survives a state being renamed
+!team=platform                negation
+title~slow                    substring
+team=platform priority=p1     implicit AND
+```
+
+Keys *and values* are checked against the schema, so a typo is refused rather than quietly
+matching nothing — which looks exactly like "no work":
+
+```
+GET /api/issues?q=storyPoints=8
+400  query key "storyPoints" is not a field in this organisation's schema;
+     valid keys are actor, category, component, evidence, parent, priority, state, team, title
+```
+
+**A board is a saved query plus a grouping key, and nothing else.**
+
+```
+$ curl -X POST $A/boards -H "$H" -d '{"name":"platform","query":"team=platform","group_by":"state"}'
+$ curl $A/boards/platform -H "$H"
+
+platform  (team=platform  grouped by state)
+  todo           CANON-2
+  in_progress    CANON-1
+```
+
+Move an issue and the board follows, because nothing was ever written to it:
+
+```
+  in_progress    CANON-1, CANON-2
+```
+
+There is no board membership to update, and therefore none to go stale. Columns grouped by state
+follow the schema's declared order rather than sorting alphabetically.
 
 ## Agents
 
@@ -287,9 +335,8 @@ Honest list, so nobody is surprised:
 - **Authentication.** `X-Canon-Actor` is trusted. It must name a registered actor with real roles,
   which is a meaningful narrowing, but anyone who can reach the port can claim any registered
   identity. **Do not expose an instance to a network you do not control.**
-- **Web UI.** API and CLI only so far.
-
-- **Queries, boards and flow metrics.** Planned.
+- **Web UI.** API, CLI and MCP only so far.
+- **Flow metrics.** Planned.
 - **Federated repo-local storage.** The event model is designed for it; the transport is not built.
 - **Jira import.** Wanted, not started.
 
