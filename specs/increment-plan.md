@@ -336,16 +336,16 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-014: Roles and permissions in canon.yaml
 
 - **Type:** feature
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 1 (Critical)
 - **Traces:** R30, R31, R32
 - **Scope:** Add a `roles:` section to `canon.yaml` defining each role, the operations it permits, and an optional `scope: team`. Enforce it on every write in `enforce`. Add an `owner_team` field concept to issues so team scope has something to resolve against. No other changes.
 - **Acceptance Criteria:**
-  - [ ] THE SYSTEM SHALL define every role and the operations it permits in `canon.yaml`, with no per-project override
-  - [ ] WHEN an actor attempts an operation their role does not permit THE SYSTEM SHALL reject it and name the roles that would permit it
-  - [ ] WHEN a role is declared `scope: team` THE SYSTEM SHALL permit its operations only on issues owned by a team that actor belongs to
-  - [ ] WHEN `canon.yaml` grants a role an operation that does not exist THE SYSTEM SHALL refuse to start and name it
-  - [ ] THE SYSTEM SHALL expose no runtime interface for creating or altering a role
+  - [x] THE SYSTEM SHALL define every role and the operations it permits in `canon.yaml`, with no per-project override
+  - [x] WHEN an actor attempts an operation their role does not permit THE SYSTEM SHALL reject it and name the roles that would permit it
+  - [x] WHEN a role is declared `scope: team` THE SYSTEM SHALL permit its operations only on issues owned by a team that actor belongs to
+  - [x] WHEN `canon.yaml` grants a role an operation that does not exist THE SYSTEM SHALL refuse to start and name it
+  - [x] THE SYSTEM SHALL expose no runtime interface for creating or altering a role
 - **Test Strategy:**
   - Table test over each role against each operation, permitted and refused
   - Team-scope test: same role, two teams, one issue — permitted for the owner, refused for the other
@@ -354,7 +354,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Dependencies:** feat-004
 - **Rollback Plan:** Remove the roles section and the permission check; enforcement returns to schema-only
 - **Risk:** Medium — new schema surface, and the operation vocabulary must be right before roles reference it
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/feat-014-roles-and-permissions-in-canon-yaml.md`
 
 ## feat-015: Actor registry and team membership
 

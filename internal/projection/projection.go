@@ -18,10 +18,12 @@ import (
 
 // Issue is the projected current state of one issue.
 type Issue struct {
-	ID        string
-	Title     string
-	State     string
-	Parent    string
+	ID     string
+	Title  string
+	State  string
+	Parent string
+	// Team owns the issue. Team-scoped roles resolve against it.
+	Team      string
 	Fields    map[string]string
 	CreatedAt time.Time
 	UpdatedAt time.Time
@@ -154,8 +156,8 @@ func (p *Projection) Snapshot() string {
 	h := sha256.New()
 	for _, id := range ids {
 		issue := p.issues[id]
-		fmt.Fprintf(h, "%s\x1f%s\x1f%s\x1f%s\x1f%d\x1f%d\x1f%s\x1f%s\x1f%s\n",
-			issue.ID, issue.Title, issue.State, issue.Parent,
+		fmt.Fprintf(h, "%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%d\x1f%d\x1f%s\x1f%s\x1f%s\n",
+			issue.ID, issue.Title, issue.State, issue.Parent, issue.Team,
 			issue.CreatedAt.UnixNano(), issue.UpdatedAt.UnixNano(),
 			issue.LastActor.ID, issue.LastActor.Kind, issue.LastActor.Model)
 		for _, k := range sortedKeys(issue.Fields) {
@@ -223,6 +225,14 @@ func (p *Projection) apply(e *event.Event) error {
 			return err
 		}
 		issue.Parent = str(e.Payload["parent"])
+		p.touch(issue, e)
+
+	case "issue.team_set":
+		issue, err := p.require(e)
+		if err != nil {
+			return err
+		}
+		issue.Team = str(e.Payload["team"])
 		p.touch(issue, e)
 
 	case "issue.deleted":
