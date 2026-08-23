@@ -9,8 +9,21 @@ GEMINI.md
 __pycache__/
 *.pyc
 
-# Build output (anchored: an unanchored bin/ also matches .sdlc/bin)
+# Build output. Anchored: an unanchored bin/ also matches .sdlc/bin.
 /bin/
 /canon
+
+# Local runtime state. `canon serve` writes these into the working directory.
+#
+# /canon.yaml is anchored on purpose: the root copy is one operator's local config,
+# but internal/schema/testdata/canon.yaml is a tracked fixture and an unanchored
+# pattern would silently exclude it.
+/canon.yaml
 *.db
 *.db-journal
+*.db-wal
+*.db-shm
+
+# Scratch directories used to drive the binary during development.
+/.demotmp/
+/.seedtmp/
