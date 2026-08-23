@@ -59,6 +59,10 @@ func (s *Server) Routes() map[string]http.HandlerFunc {
 		"POST /api/issues/{id}/transition":     s.transition,
 		"PUT /api/issues/{id}/parent":          s.setParent,
 		"GET /api/issues/{id}/children":        s.listChildren,
+		"GET /api/proposals":                   s.listProposals,
+		"GET /api/proposals/{id}":              s.getProposal,
+		"POST /api/proposals/{id}/approve":     s.approveProposal,
+		"POST /api/proposals/{id}/reject":      s.rejectProposal,
 		"GET /api/actors":                      s.listActors,
 		"POST /api/actors":                     s.registerActor,
 		"GET /api/actors/{id}":                 s.getActor,
@@ -164,6 +168,69 @@ func (s *Server) listChildren(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"children": view.Children(r.PathValue("id"))})
+}
+
+// listProposals returns open proposals by default; ?status=all for the history.
+func (s *Server) listProposals(w http.ResponseWriter, r *http.Request) {
+	var (
+		proposals []*enforce.Proposal
+		err       error
+	)
+	if r.URL.Query().Get("status") == "all" {
+		proposals, err = s.enforcer.AllProposals()
+	} else {
+		proposals, err = s.enforcer.Proposals()
+	}
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"proposals": proposals})
+}
+
+func (s *Server) getProposal(w http.ResponseWriter, r *http.Request) {
+	all, err := s.enforcer.AllProposals()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	for _, p := range all {
+		if p.ID == r.PathValue("id") {
+			writeJSON(w, http.StatusOK, p)
+			return
+		}
+	}
+	writeError(w, http.StatusNotFound, fmt.Errorf("unknown proposal %s", r.PathValue("id")))
+}
+
+func (s *Server) approveProposal(w http.ResponseWriter, r *http.Request) {
+	p, ok := s.principal(w, r)
+	if !ok {
+		return
+	}
+	if err := s.enforcer.ApproveProposal(p, r.PathValue("id"), s.now()); err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) rejectProposal(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Reason string `json:"reason"`
+	}
+	if r.ContentLength > 0 && !decode(w, r, &body) {
+		return
+	}
+	p, ok := s.principal(w, r)
+	if !ok {
+		return
+	}
+	if err := s.enforcer.RejectProposal(p, r.PathValue("id"), body.Reason, s.now()); err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) listActors(w http.ResponseWriter, r *http.Request) {
@@ -430,11 +497,12 @@ func writeDomainError(w http.ResponseWriter, err error) {
 	var proposal *enforce.ProposalRequired
 	if enforce.AsProposalRequired(err, &proposal) {
 		writeJSON(w, http.StatusAccepted, map[string]any{
-			"status":    "proposal_required",
-			"operation": proposal.Operation,
-			"subject":   proposal.Subject,
-			"role":      proposal.Role,
-			"message":   err.Error(),
+			"status":      "proposal_required",
+			"proposal_id": proposal.ProposalID,
+			"operation":   proposal.Operation,
+			"subject":     proposal.Subject,
+			"role":        proposal.Role,
+			"message":     err.Error(),
 		})
 		return
 	}
