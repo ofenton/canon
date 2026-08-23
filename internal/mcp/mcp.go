@@ -50,6 +50,8 @@ var descriptions = map[string]string{
 	"POST /api/issues/{id}/transition":     "Move an issue to a new state. Some states require evidence. If your role may only propose the transition, this returns a proposal for a human to approve.",
 	"PUT /api/issues/{id}/parent":          "Set or clear an issue's parent. Cycles are refused.",
 	"GET /api/issues/{id}/children":        "List an issue's direct children.",
+	"GET /api/issues/{id}/ancestors":       "List an issue's parents up to its root, nearest first, with its depth.",
+	"GET /api/issues/{id}/tree":            "List everything beneath an issue, each with its depth. Pass depth to limit how far down.",
 	"GET /api/proposals":                   "List proposals awaiting a human decision. Pass status=all for the full history.",
 	"GET /api/proposals/{id}":              "Read one proposal, including who proposed it and why.",
 	"POST /api/proposals/{id}/approve":     "Approve a proposal and apply it. Humans only.",
