@@ -258,14 +258,14 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-011: Keyboard-first web UI
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-review
 - **Tier:** 1 (Critical)
 - **Traces:** R18
 - **Scope:** List, detail and create views, embedded in the binary. Every action reachable by keyboard without pointer input. No other changes.
 - **Acceptance Criteria:**
-  - [ ] THE SYSTEM SHALL make every action available in the UI reachable by keyboard without pointer input
-  - [ ] WHEN a user presses the create shortcut THE SYSTEM SHALL open a title-only create field focused and ready for input
-  - [ ] THE SYSTEM SHALL serve the UI from the binary with no separate asset deployment
+  - [x] THE SYSTEM SHALL make every action available in the UI reachable by keyboard without pointer input
+  - [x] WHEN a user presses the create shortcut THE SYSTEM SHALL open a title-only create field focused and ready for input
+  - [x] THE SYSTEM SHALL serve the UI from the binary with no separate asset deployment
 - **Test Strategy:**
   - Playwright run driving a full issue lifecycle by keyboard only
   - Assert the binary serves the UI with no filesystem assets present
@@ -273,7 +273,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Dependencies:** feat-006
 - **Rollback Plan:** Serve the API only; the CLI remains usable
 - **Risk:** Medium — UI work is the easiest thing to overrun on a deadline
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/feat-011-keyboard-first-web-ui.md`
 
 ## feat-012: Meet the latency budget at 10,000 issues
 

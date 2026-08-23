@@ -26,6 +26,7 @@ import (
 	"github.com/ofenton/canon/internal/projection"
 	"github.com/ofenton/canon/internal/query"
 	"github.com/ofenton/canon/internal/schema"
+	"github.com/ofenton/canon/internal/ui"
 )
 
 // ActorHeader names the caller. v1 trusts it; see the package comment.
@@ -82,8 +83,23 @@ func (s *Server) Routes() map[string]http.HandlerFunc {
 	}
 }
 
-// Handler builds the router.
+// Handler builds the router: the API, plus the web UI at the root.
+//
+// The UI is mounted here rather than in Routes() because Routes() is the contract
+// agents get — the MCP tool list is derived from it, and a UI path in there would
+// become a meaningless tool. Keeping them apart also lets the "every route is under
+// /api" test stay strict instead of carving out an exception.
 func (s *Server) Handler() http.Handler {
+	mux := http.NewServeMux()
+	for pattern, handler := range s.Routes() {
+		mux.HandleFunc(pattern, handler)
+	}
+	mux.Handle("/", ui.Handler())
+	return mux
+}
+
+// APIHandler builds a router with no UI, for callers that want only the API.
+func (s *Server) APIHandler() http.Handler {
 	mux := http.NewServeMux()
 	for pattern, handler := range s.Routes() {
 		mux.HandleFunc(pattern, handler)
