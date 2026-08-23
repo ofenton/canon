@@ -42,12 +42,27 @@ fields:
     type: text
 
 issue_types:
-  - name: bug
-    fields: [title, priority, component]
-  - name: task
-    fields: [title, priority]
   - name: epic
     fields: [title]
+  - name: feature
+    fields: [title, priority]
+  - name: story
+    fields: [title, priority]
+  - name: task
+    fields: [title, priority]
+  - name: bug
+    fields: [title, priority, component]
+
+# Nesting is a property of types, not of individual issues. A child's type must sit
+# at the level below its parent's, which makes cycles impossible by construction.
+# Several types may share a level: a story contains tasks and bugs alike.
+hierarchy:
+  levels:
+    - [epic]
+    - [feature]
+    - [story]
+    - [task, bug]
+  allow_skipping: false
 
 # Roles are org-wide policy: which roles exist and what each may do. Membership —
 # who holds which role, and which team they are in — is state, and lives in the

@@ -12,21 +12,33 @@ import (
 	"github.com/ofenton/canon/internal/projection"
 )
 
-// tree builds epic -> story -> two sub-tasks, all as plain issues with parents.
+// mustCreateTyped creates an issue of a given type, so trees respect the schema's
+// declared nesting.
+func mustCreateTyped(t *testing.T, e *Enforcer, id, issueType string) {
+	t.Helper()
+	fields := map[string]string{"title": id}
+	if err := e.Create(id, issueType, fields, at(0), human()); err != nil {
+		t.Fatalf("create %s (%s): %v", id, issueType, err)
+	}
+}
+
+// tree builds epic → feature → story → two tasks, matching the schema's levels.
 func tree(t *testing.T, e *Enforcer) {
 	t.Helper()
-	mustCreate(t, e, "EPIC")
-	mustCreate(t, e, "STORY")
-	mustCreate(t, e, "SUB-1")
-	mustCreate(t, e, "SUB-2")
+	mustCreateTyped(t, e, "EPIC", "epic")
+	mustCreateTyped(t, e, "FEATURE", "feature")
+	mustCreateTyped(t, e, "STORY", "story")
+	mustCreateTyped(t, e, "SUB-1", "task")
+	mustCreateTyped(t, e, "SUB-2", "bug")
 	link := func(child, parent string, min int) {
 		if err := e.Reparent(child, parent, at(min), human()); err != nil {
 			t.Fatalf("reparent %s -> %s: %v", child, parent, err)
 		}
 	}
-	link("STORY", "EPIC", 1)
-	link("SUB-1", "STORY", 2)
-	link("SUB-2", "STORY", 3)
+	link("FEATURE", "EPIC", 1)
+	link("STORY", "FEATURE", 2)
+	link("SUB-1", "STORY", 3)
+	link("SUB-2", "STORY", 4)
 }
 
 func view(t *testing.T, log *event.Store) *projection.Projection {
@@ -47,14 +59,14 @@ func TestHierarchyIsRelationsNotTypes(t *testing.T) {
 	tree(t, e)
 	p := view(t, log)
 
-	for _, id := range []string{"EPIC", "STORY", "SUB-1", "SUB-2"} {
+	for _, id := range []string{"EPIC", "FEATURE", "STORY", "SUB-1", "SUB-2"} {
 		if _, ok := p.Issue(id); !ok {
 			t.Fatalf("%s missing", id)
 		}
 	}
 	story, _ := p.Issue("STORY")
-	if story.Parent != "EPIC" {
-		t.Errorf("STORY parent: got %q want EPIC", story.Parent)
+	if story.Parent != "FEATURE" {
+		t.Errorf("STORY parent: got %q want FEATURE", story.Parent)
 	}
 	if got := p.Children("STORY"); len(got) != 2 {
 		t.Errorf("STORY children: got %v want 2", got)
@@ -110,30 +122,40 @@ func TestProjectionHasNoHierarchyTypes(t *testing.T) {
 
 // AC: WHEN an issue with children is deleted THE SYSTEM SHALL re-parent its children
 // to that issue's parent.
-func TestDeleteReparentsChildren(t *testing.T) {
+func TestDeleteRefusesAnIllegalLift(t *testing.T) {
 	e, log := fixture(t)
 	tree(t, e)
 
 	// Deleting the middle of the tree must lift its children, not orphan them.
-	if err := e.Delete("STORY", at(4), human()); err != nil {
-		t.Fatalf("delete: %v", err)
+	// Deleting the story would lift its tasks under a feature, which the hierarchy
+	// forbids — so the delete is refused rather than producing an invalid tree.
+	err := e.Delete("STORY", at(5), human())
+	if err == nil {
+		t.Fatal("deleting a story whose children cannot be lifted must be refused")
+	}
+	for _, want := range []string{"SUB-1", "SUB-2", "hierarchy"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the refusal must name what is in the way; %q missing from: %v", want, err)
+		}
+	}
+
+	// Move the children out, and the delete becomes legal.
+	for _, id := range []string{"SUB-1", "SUB-2"} {
+		if err := e.Reparent(id, "", at(6), human()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := e.Delete("STORY", at(7), human()); err != nil {
+		t.Fatalf("delete after clearing the children: %v", err)
 	}
 	p := view(t, log)
-
 	if _, ok := p.Issue("STORY"); ok {
 		t.Error("STORY must be gone from the projection")
 	}
 	for _, id := range []string{"SUB-1", "SUB-2"} {
-		child, ok := p.Issue(id)
-		if !ok {
-			t.Fatalf("%s was orphaned by the delete", id)
+		if _, ok := p.Issue(id); !ok {
+			t.Errorf("%s was destroyed by the delete", id)
 		}
-		if child.Parent != "EPIC" {
-			t.Errorf("%s parent: got %q, want EPIC (lifted to the grandparent)", id, child.Parent)
-		}
-	}
-	if got := p.Children("EPIC"); len(got) != 2 {
-		t.Errorf("EPIC children after delete: got %v want SUB-1 and SUB-2", got)
 	}
 }
 
@@ -145,12 +167,12 @@ func TestDeleteRootLeavesChildrenParentless(t *testing.T) {
 		t.Fatalf("delete: %v", err)
 	}
 	p := view(t, log)
-	story, ok := p.Issue("STORY")
+	feature, ok := p.Issue("FEATURE")
 	if !ok {
-		t.Fatal("STORY was deleted along with its parent; children must survive")
+		t.Fatal("FEATURE was deleted along with its parent; children must survive")
 	}
-	if story.Parent != "" {
-		t.Errorf("STORY parent: got %q, want empty", story.Parent)
+	if feature.Parent != "" {
+		t.Errorf("FEATURE parent: got %q, want empty", feature.Parent)
 	}
 }
 
@@ -162,7 +184,9 @@ func TestDeleteIsRecordedNotErased(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := e.Delete("STORY", at(4), human()); err != nil {
+	// A feature lifts cleanly to no parent, since an epic is its only legal parent
+	// and the epic is what is being deleted.
+	if err := e.Delete("EPIC", at(5), human()); err != nil {
 		t.Fatalf("delete: %v", err)
 	}
 	after, err := log.Count()
@@ -174,7 +198,7 @@ func TestDeleteIsRecordedNotErased(t *testing.T) {
 	}
 	// The children's moves must be explicit facts, not an implicit projection rule,
 	// so the audit trail says why each child changed parent.
-	events, _ := log.Subject("SUB-1")
+	events, _ := log.Subject("FEATURE")
 	var reparents int
 	for _, ev := range events {
 		if ev.Type == "issue.reparented" {
@@ -182,58 +206,46 @@ func TestDeleteIsRecordedNotErased(t *testing.T) {
 		}
 	}
 	if reparents < 2 {
-		t.Errorf("SUB-1 has %d reparent events; the lift must be recorded explicitly", reparents)
+		t.Errorf("FEATURE has %d reparent events; the lift must be recorded explicitly", reparents)
 	}
 }
 
-// AC: WHEN a parent reference would create a cycle THE SYSTEM SHALL reject the write.
-func TestRejectsCycles(t *testing.T) {
-	e, log := fixture(t)
+// Cycles in the hierarchy are impossible by construction: a child's type sits
+// strictly below its parent's, so following parents upward strictly decreases the
+// level and must terminate. This replaces the generic cycle check feat-005 added,
+// which was guarding a case the type rules make unreachable.
+func TestHierarchyCyclesAreImpossibleByConstruction(t *testing.T) {
+	e, _ := fixture(t)
 	tree(t, e)
 
-	cases := map[string][2]string{
-		"self":       {"STORY", "STORY"},
-		"direct":     {"EPIC", "STORY"},
-		"transitive": {"EPIC", "SUB-1"},
+	// Every inversion that would have formed a cycle is refused on type grounds.
+	inversions := [][2]string{
+		{"EPIC", "FEATURE"},
+		{"EPIC", "SUB-1"},
+		{"FEATURE", "STORY"},
+		{"STORY", "SUB-1"},
+		{"SUB-1", "SUB-2"}, // same level
 	}
-	for name, pair := range cases {
-		t.Run(name, func(t *testing.T) {
-			before, _ := log.Count()
-			err := e.Reparent(pair[0], pair[1], at(9), human())
-			if err == nil {
-				t.Fatalf("reparenting %s under %s must be rejected", pair[0], pair[1])
-			}
-			if !strings.Contains(strings.ToLower(err.Error()), "cycle") {
-				t.Errorf("error should say it is a cycle, got: %v", err)
-			}
-			// The error must show the path, or it is impossible to act on.
-			if !strings.Contains(err.Error(), pair[0]) {
-				t.Errorf("error should name the issue, got: %v", err)
-			}
-			// A path that repeats a node reads as a bug in the checker.
-			if strings.Contains(err.Error(), pair[0]+" -> "+pair[0]) {
-				t.Errorf("cycle path repeats a node, got: %v", err)
-			}
-			if segments := strings.Split(err.Error(), " -> "); len(segments) > 1 {
-				seen := map[string]bool{}
-				for _, seg := range segments[1:] {
-					seg = strings.TrimSpace(seg)
-					if seen[seg] {
-						t.Errorf("cycle path repeats %q: %v", seg, err)
-					}
-					seen[seg] = true
-				}
-			}
-			after, _ := log.Count()
-			if after != before {
-				t.Error("a rejected reparent must append nothing")
-			}
-		})
+	for _, pair := range inversions {
+		err := e.Reparent(pair[0], pair[1], at(9), human())
+		if err == nil {
+			t.Errorf("%s under %s must be refused", pair[0], pair[1])
+			continue
+		}
+		if !strings.Contains(err.Error(), "cannot sit under") &&
+			!strings.Contains(err.Error(), "top of the hierarchy") {
+			t.Errorf("the refusal should be on type grounds, got: %v", err)
+		}
 	}
 
-	// A legitimate move within the tree must still work.
-	if err := e.Reparent("SUB-1", "EPIC", at(10), human()); err != nil {
-		t.Errorf("moving a leaf up the tree is not a cycle: %v", err)
+	// Self-parenting is refused for the same reason: a type cannot sit under itself.
+	if err := e.Reparent("STORY", "STORY", at(9), human()); err == nil {
+		t.Error("an issue must not be its own parent")
+	}
+
+	// And a legal move still works.
+	if err := e.Reparent("SUB-1", "STORY", at(10), human()); err != nil {
+		t.Errorf("a task under a story is legal: %v", err)
 	}
 }
 

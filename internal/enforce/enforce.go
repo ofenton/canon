@@ -149,23 +149,29 @@ func (e *Enforcer) Transition(id, to, evidence string, at time.Time, actor event
 
 // Reparent sets or clears an issue's parent.
 //
-// Depth in Canon is a parent reference and nothing else: epics, stories and sub-tasks
-// are the same entity at different heights. That keeps the model small, but it means
-// the only structural invariant worth enforcing is that the graph stays a tree.
+// Nesting is governed by issue type, not by individual issues: the schema declares an
+// ordering — epic, feature, story, then task or bug — and a child's type must sit at
+// the level below its parent's.
+//
+// That ordering is also why there is no cycle check here. A child's level is strictly
+// greater than its parent's, so following parents upward strictly decreases the level
+// and must terminate. The generic check this replaced was guarding a case the type
+// rules make unreachable.
 func (e *Enforcer) Reparent(id, parent string, at time.Time, actor event.Actor) error {
 	if err := e.refresh(); err != nil {
 		return err
 	}
-	if _, ok := e.view.Issue(id); !ok {
+	issue, ok := e.view.Issue(id)
+	if !ok {
 		return fmt.Errorf("unknown issue %s", id)
 	}
 	if parent != "" {
-		if _, ok := e.view.Issue(parent); !ok {
+		parentIssue, ok := e.view.Issue(parent)
+		if !ok {
 			return fmt.Errorf("unknown parent %s", parent)
 		}
-		if path, cyclic := e.wouldCycle(id, parent); cyclic {
-			return fmt.Errorf("making %s a child of %s would create a cycle: %s",
-				id, parent, strings.Join(path, " -> "))
+		if err := e.schema.CanNest(issue.Type, parentIssue.Type); err != nil {
+			return fmt.Errorf("cannot make %s a child of %s: %w", id, parent, err)
 		}
 	}
 	return e.append("issue.reparented", id, at, actor, map[string]any{"parent": parent})
@@ -189,41 +195,36 @@ func (e *Enforcer) Delete(id string, at time.Time, actor event.Actor) error {
 		return fmt.Errorf("unknown issue %s", id)
 	}
 
-	for _, child := range e.view.Children(id) {
+	children := e.view.Children(id)
+
+	// Lifting a child to its grandparent can produce a nesting the schema forbids —
+	// a task under a feature, say. Refusing is better than the alternatives: silently
+	// creating an invalid tree hides the problem, and cascading the delete destroys
+	// work nobody asked to destroy.
+	if issue.Parent != "" {
+		grandparent, exists := e.view.Issue(issue.Parent)
+		if exists {
+			var blocked []string
+			for _, child := range children {
+				childIssue, _ := e.view.Issue(child)
+				if err := e.schema.CanNest(childIssue.Type, grandparent.Type); err != nil {
+					blocked = append(blocked, fmt.Sprintf("%s (%s)", child, childIssue.Type))
+				}
+			}
+			if len(blocked) > 0 {
+				return fmt.Errorf("cannot delete %s: its children would be lifted under %s (%s), which the hierarchy does not permit for %s. Move or delete them first",
+					id, issue.Parent, grandparent.Type, strings.Join(blocked, ", "))
+			}
+		}
+	}
+
+	for _, child := range children {
 		if err := e.append("issue.reparented", child, at, actor,
 			map[string]any{"parent": issue.Parent, "because": "parent " + id + " was deleted"}); err != nil {
 			return fmt.Errorf("lifting child %s: %w", child, err)
 		}
 	}
 	return e.append("issue.deleted", id, at, actor, nil)
-}
-
-// wouldCycle reports whether making child a descendant of parent closes a loop,
-// returning the offending path so the error can show it.
-func (e *Enforcer) wouldCycle(child, parent string) ([]string, bool) {
-	path := []string{parent}
-	seen := map[string]bool{parent: true}
-	for current := parent; current != ""; {
-		if current == child {
-			// path already ends at child, having walked up to it.
-			return path, true
-		}
-		issue, ok := e.view.Issue(current)
-		if !ok {
-			return nil, false
-		}
-		current = issue.Parent
-		if current == "" {
-			return nil, false
-		}
-		if seen[current] {
-			// An existing loop; refuse rather than walk it forever.
-			return append(path, current), true
-		}
-		seen[current] = true
-		path = append(path, current)
-	}
-	return nil, false
 }
 
 // CheckMigration reports whether a new schema can be applied to an existing log.
