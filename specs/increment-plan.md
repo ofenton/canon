@@ -198,7 +198,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-008: MCP server with parity test
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-progress
 - **Tier:** 1 (Critical)
 - **Traces:** R13
 - **Scope:** Expose every API operation over MCP, with an automated test asserting the MCP tool list covers the full API surface. No other changes.
