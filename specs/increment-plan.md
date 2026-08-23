@@ -359,7 +359,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-015: Actor registry and team membership
 
 - **Type:** feature
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 1 (Critical)
 - **Traces:** R33
 - **Scope:** Record actor identities and team membership as events (`actor.registered`, `team.member_added`, `team.member_removed`) and project them. Resolve an actor's roles and teams at write time. No authentication. No other changes.
