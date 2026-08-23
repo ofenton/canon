@@ -419,7 +419,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-017: Hierarchy API: ancestors, subtree and ancestor queries
 
 - **Type:** feature
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 2 (High)
 - **Traces:** R34, R35, R36
 - **Scope:** Add `GET /api/issues/{id}/ancestors` and `GET /api/issues/{id}/tree`, and an `ancestor` query key. Read-only additions over the existing parent/child model. No other changes.
