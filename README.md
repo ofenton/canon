@@ -206,6 +206,10 @@ Every request needs an `X-Canon-Actor` header naming a registered actor.
 | `POST` | `/api/issues/{id}/transition` | `{"to": …, "evidence": …}` |
 | `PUT` | `/api/issues/{id}/parent` | Set or clear the parent |
 | `GET` | `/api/issues/{id}/children` | Direct children |
+| `GET` | `/api/proposals` | Open proposals awaiting a human (`?status=all` for history) |
+| `GET` | `/api/proposals/{id}` | One proposal |
+| `POST` | `/api/proposals/{id}/approve` | Apply it, on the approver's authority |
+| `POST` | `/api/proposals/{id}/reject` | Decline it, with an optional `reason` |
 | `GET` | `/api/actors` | Registered actor ids |
 | `POST` | `/api/actors` | Register a human or agent |
 | `GET` | `/api/actors/{id}` | An actor's roles and teams |
