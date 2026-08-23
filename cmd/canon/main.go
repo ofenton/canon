@@ -7,7 +7,10 @@ import (
 	"fmt"
 	"os"
 
+	"strings"
+
 	"github.com/ofenton/canon/internal/event"
+	"github.com/ofenton/canon/internal/schema"
 )
 
 // version is set at build time via -ldflags.
@@ -18,11 +21,15 @@ const usage = `canon — an issue tracker whose schema is versioned config
 usage:
   canon version                 print the build version
   canon events [flags]          print the event log as JSON
+  canon schema [flags]          validate canon.yaml and print a summary
 
 events flags:
   -db string        path to the event log (default "canon.db")
   -subject string   only events about this subject
   -since int        only events after this sequence number
+
+schema flags:
+  -schema string    path to canon.yaml (default "canon.yaml")
 `
 
 func main() {
@@ -43,12 +50,44 @@ func run(args []string) error {
 		return nil
 	case "events":
 		return events(args[1:])
+	case "schema":
+		return schemaCmd(args[1:])
 	case "help", "-h", "--help":
 		fmt.Print(usage)
 		return nil
 	default:
 		return fmt.Errorf("unknown command %q\n\n%s", args[0], usage)
 	}
+}
+
+// schemaCmd validates canon.yaml and summarises it.
+//
+// The summary exists so the aggregate is visible. Jira instances reach 800 fields
+// because nobody ever sees the total; printing it is the cheapest possible defence.
+func schemaCmd(args []string) error {
+	fs := flag.NewFlagSet("schema", flag.ContinueOnError)
+	path := fs.String("schema", "canon.yaml", "path to canon.yaml")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	s, err := schema.Load(*path)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s is valid\n\n", *path)
+	fmt.Printf("  %d states, %d transitions, %d fields, %d issue types\n\n",
+		len(s.States), len(s.Transitions), len(s.Fields), len(s.IssueTypes))
+	for _, st := range s.States {
+		evidence := ""
+		if st.RequiresEvidence {
+			evidence = "  (requires evidence)"
+		}
+		fmt.Printf("  %-14s %-8s -> %s%s\n", st.Name, st.Category,
+			strings.Join(s.PermittedFrom(st.Name), ", "), evidence)
+	}
+	return nil
 }
 
 // events renders the log in the human-readable form. Canonical CBOR is what is
