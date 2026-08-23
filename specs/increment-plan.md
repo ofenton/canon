@@ -297,7 +297,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-013: One-command self-host and single-file backup
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-progress
 - **Tier:** 1 (Critical)
 - **Traces:** R21, R22
 - **Scope:** `canon serve` starts a working instance with no external services. All data in one file that can be copied as a backup. README covering install, run and backup. No other changes.
