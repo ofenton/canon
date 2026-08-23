@@ -278,13 +278,13 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-012: Meet the latency budget at 10,000 issues
 
 - **Type:** perf
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 2 (High)
 - **Traces:** R17
 - **Scope:** Benchmark and tune reads against a seeded 10,000-issue dataset until the budget is met. Indexes and query plans only; no model changes. No other changes.
 - **Acceptance Criteria:**
-  - [ ] WHEN any read request is served against a 10,000-issue project THE SYSTEM SHALL respond in under 200ms at p95
-  - [ ] THE SYSTEM SHALL include a reproducible benchmark in the repository that fails CI if the budget regresses
+  - [x] WHEN any read request is served against a 10,000-issue project THE SYSTEM SHALL respond in under 200ms at p95
+  - [x] THE SYSTEM SHALL include a reproducible benchmark in the repository that fails CI if the budget regresses
 - **Test Strategy:**
   - Seed 10k issues, measure p95 across every read endpoint
   - Wire the benchmark into CI as a failing gate
@@ -292,7 +292,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Dependencies:** feat-009
 - **Rollback Plan:** Remove the CI latency gate; correctness is unaffected
 - **Risk:** Medium — if the projection shape is wrong this reveals it late, which is why the benchmark is written early
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/feat-012-meet-the-latency-budget-at-10000-issues.md`
 
 ## feat-013: One-command self-host and single-file backup
 

@@ -18,6 +18,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ofenton/canon/internal/enforce"
@@ -38,6 +39,13 @@ type Server struct {
 	log      *event.Store
 	schema   *schema.Schema
 	now      func() time.Time
+
+	// mu guards view. A single long-lived projection is caught up per request
+	// rather than rebuilt: rebuilding is O(all events), catching up is O(new
+	// events since the last read. At 30k events a rebuild costs ~40ms, which
+	// meets the budget today and would breach it at 150k.
+	mu   sync.Mutex
+	view *projection.Projection
 }
 
 // New returns a Server. now is injectable so tests can assert on timestamps.
@@ -45,7 +53,7 @@ func New(s *schema.Schema, log *event.Store, e *enforce.Enforcer, now func() tim
 	if now == nil {
 		now = time.Now
 	}
-	return &Server{enforcer: e, log: log, schema: s, now: now}
+	return &Server{enforcer: e, log: log, schema: s, now: now, view: projection.New(log)}
 }
 
 // Routes is the complete API surface, in one place.
@@ -152,7 +160,7 @@ func (s *Server) listEvents(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) listIssues(w http.ResponseWriter, r *http.Request) {
-	view, err := s.view()
+	view, err := s.currentView()
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
@@ -170,11 +178,27 @@ func (s *Server) listIssues(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"issues": q.Filter(view, s.schema)})
+
+	// Lists are bounded. Ten thousand issues in one response is slow to produce and
+	// useless to read; total is returned so a caller knows what it is not seeing.
+	matched := q.Filter(view, s.schema)
+	limit, offset, err := page(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	start := min(offset, len(matched))
+	end := min(start+limit, len(matched))
+	writeJSON(w, http.StatusOK, map[string]any{
+		"issues": matched[start:end],
+		"total":  len(matched),
+		"limit":  limit,
+		"offset": offset,
+	})
 }
 
 func (s *Server) getIssue(w http.ResponseWriter, r *http.Request) {
-	view, err := s.view()
+	view, err := s.currentView()
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
@@ -188,7 +212,7 @@ func (s *Server) getIssue(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) listChildren(w http.ResponseWriter, r *http.Request) {
-	view, err := s.view()
+	view, err := s.currentView()
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
@@ -263,7 +287,7 @@ func (s *Server) rejectProposal(w http.ResponseWriter, r *http.Request) {
 // metrics reports measured flow. There is nothing to configure and nothing to
 // estimate: the numbers come from transitions that were recorded anyway.
 func (s *Server) metrics(w http.ResponseWriter, r *http.Request) {
-	view, err := s.view()
+	view, err := s.currentView()
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
@@ -345,7 +369,7 @@ func (s *Server) renderBoard(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, err)
 		return
 	}
-	view, err := s.view()
+	view, err := s.currentView()
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
@@ -607,17 +631,26 @@ func (s *Server) removeFromTeam(w http.ResponseWriter, r *http.Request) {
 
 // ---------------------------------------------------------------- helpers
 
-func (s *Server) view() (*projection.Projection, error) {
-	p := projection.New(s.log)
-	if err := p.Rebuild(); err != nil {
-		return nil, err
+// currentView returns the projection, caught up to the end of the log.
+//
+// Callers must not hold it across requests: it is shared, and a later catchup will
+// mutate it. Every handler reads what it needs and returns.
+func (s *Server) currentView() (*projection.Projection, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.view.Catchup(); err != nil {
+		// A projection that failed to apply an event is not trustworthy, and
+		// serving stale state as if it were current would be worse than an error.
+		// Rebuild from scratch so the next request starts clean.
+		s.view = projection.New(s.log)
+		return nil, fmt.Errorf("projection is out of date and could not catch up: %w", err)
 	}
-	return p, nil
+	return s.view, nil
 }
 
 // nextID allocates the next sequential issue id.
 func (s *Server) nextID() (string, error) {
-	view, err := s.view()
+	view, err := s.currentView()
 	if err != nil {
 		return "", err
 	}
@@ -665,6 +698,33 @@ func decode(w http.ResponseWriter, r *http.Request, into any) bool {
 		return false
 	}
 	return true
+}
+
+// defaultLimit bounds an unqualified list. It is large enough that a normal project
+// fits in one response and small enough that a pathological one cannot stall a read.
+const defaultLimit = 200
+
+// maxLimit caps what a caller may ask for.
+const maxLimit = 1000
+
+func page(r *http.Request) (limit, offset int, err error) {
+	limit, offset = defaultLimit, 0
+	if raw := r.URL.Query().Get("limit"); raw != "" {
+		limit, err = strconv.Atoi(raw)
+		if err != nil || limit <= 0 {
+			return 0, 0, fmt.Errorf("limit must be a positive number, got %q", raw)
+		}
+		if limit > maxLimit {
+			return 0, 0, fmt.Errorf("limit may not exceed %d, got %d", maxLimit, limit)
+		}
+	}
+	if raw := r.URL.Query().Get("offset"); raw != "" {
+		offset, err = strconv.Atoi(raw)
+		if err != nil || offset < 0 {
+			return 0, 0, fmt.Errorf("offset must be zero or more, got %q", raw)
+		}
+	}
+	return limit, offset, nil
 }
 
 func intParam(r *http.Request, name string) (int64, error) {

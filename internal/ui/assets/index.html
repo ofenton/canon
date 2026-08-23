@@ -274,7 +274,20 @@ async function renderIssues(main) {
     return;
   }
   state.issues = res.body.issues ?? [];
-  if (state.query) say(`${state.issues.length} matching ${state.query}`);
+
+  // Lists are bounded server-side, so say what is being shown. This goes in the
+  // main region, not the status bar: the status bar reports the last action, and
+  // writing a list summary there wiped the refusal an action had just reported.
+  const total = res.body.total ?? state.issues.length;
+  const shown = state.issues.length;
+  const scope = state.query ? ` matching ${escape(state.query)}` : "";
+  const caption = document.createElement("p");
+  caption.className = "hint";
+  caption.id = "list-summary";
+  caption.textContent = shown < total
+    ? `showing ${shown} of ${total}${scope} — narrow it with /`
+    : `${total} issue${total === 1 ? "" : "s"}${scope}`;
+  main.append(caption);
   table(main, ["", "Title", "State", "Team"], state.issues.map((i) => ({
     id: i.ID,
     html: `<td class="id">${i.ID}</td><td>${escape(i.Title)}</td>` +
