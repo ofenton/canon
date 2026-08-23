@@ -72,6 +72,8 @@ func (s *Server) Routes() map[string]http.HandlerFunc {
 		"POST /api/issues/{id}/transition":     s.transition,
 		"PUT /api/issues/{id}/parent":          s.setParent,
 		"GET /api/issues/{id}/children":        s.listChildren,
+		"GET /api/issues/{id}/ancestors":       s.listAncestors,
+		"GET /api/issues/{id}/tree":            s.issueTree,
 		"GET /api/proposals":                   s.listProposals,
 		"GET /api/proposals/{id}":              s.getProposal,
 		"POST /api/proposals/{id}/approve":     s.approveProposal,
@@ -405,6 +407,78 @@ func (s *Server) deleteBoard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// listAncestors returns the chain from an issue up to its root, nearest first.
+func (s *Server) listAncestors(w http.ResponseWriter, r *http.Request) {
+	view, err := s.currentView()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	id := r.PathValue("id")
+	if _, ok := view.Issue(id); !ok {
+		writeError(w, http.StatusNotFound, fmt.Errorf("unknown issue %s", id))
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"ancestors": view.Ancestors(id),
+		"depth":     view.Depth(id),
+	})
+}
+
+// issueTree returns an issue's descendants, each with its depth so a caller can
+// render the shape without walking parents itself.
+func (s *Server) issueTree(w http.ResponseWriter, r *http.Request) {
+	view, err := s.currentView()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	id := r.PathValue("id")
+	root, ok := view.Issue(id)
+	if !ok {
+		writeError(w, http.StatusNotFound, fmt.Errorf("unknown issue %s", id))
+		return
+	}
+
+	depth := 0 // unlimited
+	if raw := r.URL.Query().Get("depth"); raw != "" {
+		depth, err = strconv.Atoi(raw)
+		if err != nil || depth < 0 {
+			writeError(w, http.StatusBadRequest,
+				fmt.Errorf("depth must be zero or more, got %q", raw))
+			return
+		}
+	}
+
+	all := view.Descendants(id, depth)
+	limit, offset, err := page(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	// A subtree can be larger than a page, so it is bounded like any other list and
+	// reports the total rather than silently truncating.
+	start := min(offset, len(all))
+	end := min(start+limit, len(all))
+
+	rootDepth := view.Depth(id)
+	nodes := make([]map[string]any, 0, end-start)
+	for _, childID := range all[start:end] {
+		issue, _ := view.Issue(childID)
+		nodes = append(nodes, map[string]any{
+			"issue": issue,
+			"depth": view.Depth(childID) - rootDepth,
+		})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"root":   root,
+		"nodes":  nodes,
+		"total":  len(all),
+		"limit":  limit,
+		"offset": offset,
+	})
 }
 
 func (s *Server) listActors(w http.ResponseWriter, r *http.Request) {

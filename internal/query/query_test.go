@@ -244,3 +244,45 @@ func TestBoardsHaveNoStoredMembership(t *testing.T) {
 	}
 	_ = e
 }
+
+// AC: WHEN a query names an ancestor THE SYSTEM SHALL return every issue beneath it
+// at any depth.
+func TestAncestorQuery(t *testing.T) {
+	s, e, log := fixture(t)
+	p, err := e.Principal("ollie")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"EPIC", "STORY", "SUB", "OTHER"} {
+		if err := e.CreateAs(p, id, "task", map[string]string{"title": id}, "platform", at(1)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, link := range [][2]string{{"STORY", "EPIC"}, {"SUB", "STORY"}} {
+		if err := e.Reparent(link[0], link[1], at(2), event.Actor{ID: "ollie", Kind: event.ActorHuman}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	v := view(t, log)
+
+	cases := map[string]string{
+		"ancestor=EPIC":            "STORY,SUB",
+		"ancestor=STORY":           "SUB",
+		"ancestor=SUB":             "",
+		"ancestor=NOPE":            "",
+		"!ancestor=EPIC":           "EPIC,OTHER",
+		"ancestor=EPIC state=todo": "STORY,SUB",
+	}
+	for raw, want := range cases {
+		t.Run(raw, func(t *testing.T) {
+			q, err := Parse(raw, s)
+			if err != nil {
+				t.Fatalf("parse: %v", err)
+			}
+			got := ids(q.Filter(v, s))
+			if strings.Join(got, ",") != want {
+				t.Errorf("got %v want %q", got, want)
+			}
+		})
+	}
+}
