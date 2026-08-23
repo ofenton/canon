@@ -238,7 +238,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-010: Flow metrics without estimation
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-progress
 - **Tier:** 2 (High)
 - **Traces:** R19, R20
 - **Scope:** Cycle time and throughput computed from recorded state transitions. No estimate field anywhere. No other changes.
