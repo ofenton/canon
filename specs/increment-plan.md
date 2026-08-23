@@ -14,7 +14,7 @@ _Your first increment. Commit the scaffold with `Increment: chore-001` in the tr
 mark this done — that is the whole loop, run once, on the workflow itself._
 
 - **Type:** chore
-- **Status:** approved
+- **Status:** done
 - **Traces:** none
 - **Tier:** 2 (High)
 - **Scope:** Add `AGENTS.md`, `skills/`, `.sdlc/` and `specs/` to the repository, and write the
@@ -23,15 +23,15 @@ mark this done — that is the whole loop, run once, on the workflow itself._
   - [x] THE SYSTEM SHALL provide an `AGENTS.md` naming the three planes, the two gates and the three tracks
   - [x] WHEN `validate-skills.py` runs THE SYSTEM SHALL report every skill valid
   - [x] WHEN `validate-plan.py` runs THE SYSTEM SHALL report the ledger well formed
-  - [ ] WHEN `check-traceability.py` runs THE SYSTEM SHALL report the ledger traces cleanly
-  - [ ] THE SYSTEM SHALL provide a `docs/constitution.md` agreed by a human
+  - [x] WHEN `check-traceability.py` runs THE SYSTEM SHALL report the ledger traces cleanly
+  - [x] THE SYSTEM SHALL provide a `docs/constitution.md` agreed by a human
 - **Test Strategy:**
   - Run both validators from a clean checkout
   - Start a fresh agent session and confirm it finds the ledger unprompted
 - **Dependencies:** none
 - **Rollback Plan:** Delete `.sdlc/`, `skills/`, `specs/` and `AGENTS.md`
 - **Risk:** Low — additive, touches no product code
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** the scaffold is in use; all three validators pass on every commit and in CI
 
 ## chore-002: Set up the Go module, licence and CI
 
@@ -136,7 +136,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-005: Issue entity with parent/child hierarchy
 
 - **Type:** feature
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 1 (Critical)
 - **Traces:** R7, R8, R10
 - **Scope:** One `Issue` entity with an optional parent, expressed as events. Epics, stories and sub-tasks are parent/child relations, not storage types. Deleting an issue re-parents its children. No other changes.
