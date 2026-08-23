@@ -95,21 +95,21 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-003: Load and validate canon.yaml
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-review
 - **Tier:** 1 (Critical)
 - **Traces:** R1, R2
 - **Scope:** Read the organisation schema — issue types, states, transitions, fields, permissions — from a single `canon.yaml`. Validate it on startup. No enforcement on writes yet. No other changes.
 - **Acceptance Criteria:**
-  - [ ] THE SYSTEM SHALL read the entire issue schema from one `canon.yaml` at a configured path
-  - [ ] WHEN `canon.yaml` is syntactically invalid THE SYSTEM SHALL refuse to start and name the offending line number
-  - [ ] WHEN `canon.yaml` references an undefined state in a transition THE SYSTEM SHALL refuse to start and name the transition
+  - [x] THE SYSTEM SHALL read the entire issue schema from one `canon.yaml` at a configured path
+  - [x] WHEN `canon.yaml` is syntactically invalid THE SYSTEM SHALL refuse to start and name the offending line number
+  - [x] WHEN `canon.yaml` references an undefined state in a transition THE SYSTEM SHALL refuse to start and name the transition
 - **Test Strategy:**
   - Table test over malformed schemas asserting the reported line number
   - Golden test: a realistic org schema loads and round-trips
 - **Dependencies:** chore-002
 - **Rollback Plan:** Fall back to a hardcoded default schema
 - **Risk:** Low — startup-time validation, fails loudly
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/feat-003-load-and-validate-canon-yaml.md`
 
 ## feat-004: Enforce the schema on every write
 

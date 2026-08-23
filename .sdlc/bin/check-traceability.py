@@ -47,6 +47,27 @@ def load_increments(path: pathlib.Path) -> list[dict]:
     return increments
 
 
+def log_refs() -> list[str]:
+    """Refs to read history from.
+
+    During a conflicted merge, HEAD is still the branch tip and the incoming commits
+    are only reachable from MERGE_HEAD. Reading HEAD alone makes every increment that
+    landed on the other side look unrecorded, which blocks the merge commit that would
+    have fixed it.
+    """
+    refs = ["HEAD"]
+    try:
+        git_dir = subprocess.run(
+            ["git", "rev-parse", "--git-dir"],
+            capture_output=True, text=True, check=True, timeout=10,
+        ).stdout.strip()
+    except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired, OSError):
+        return refs
+    if (pathlib.Path(git_dir) / "MERGE_HEAD").exists():
+        refs.append("MERGE_HEAD")
+    return refs
+
+
 def untracked_commits() -> tuple[int, int] | None:
     """Return (commits with no Increment trailer, total commits), excluding merges.
 
@@ -57,7 +78,7 @@ def untracked_commits() -> tuple[int, int] | None:
     """
     try:
         out = subprocess.run(
-            ["git", "log", "--no-merges", "--format=%H%x1f%B%x1e"],
+            ["git", "log", "--no-merges", "--format=%H%x1f%B%x1e", *log_refs()],
             capture_output=True, text=True, check=True, timeout=30,
         ).stdout
     except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired, OSError):
@@ -86,7 +107,7 @@ def git_trailers() -> dict[str, int] | None:
             # rather than a failure — an increment claimed done here is genuinely wrong.
             return {}
         out = subprocess.run(
-            ["git", "log", "--format=%B%x00"],
+            ["git", "log", "--format=%B%x00", *log_refs()],
             capture_output=True, text=True, check=True, timeout=30,
         ).stdout
     except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired, OSError):
