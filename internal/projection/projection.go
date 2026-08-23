@@ -34,6 +34,8 @@ type Issue struct {
 	LastActor event.Actor
 	// Transitions is the ordered state history, which is where cycle time comes from.
 	Transitions []Transition
+	// DependsOn lists the issues this one waits on, sorted.
+	DependsOn []string
 }
 
 // Transition records one state change.
@@ -196,6 +198,121 @@ func (p *Projection) Issue(id string) (*Issue, bool) {
 	return issue, ok
 }
 
+// Dependents returns the issues that depend on id, sorted.
+//
+// The reverse direction is the question people actually ask — "what am I holding
+// up?" — and it is the one Jira makes hardest. It is computed rather than stored:
+// a second index would be another thing to keep in step with the first.
+func (p *Projection) Dependents(id string) []string {
+	var out []string
+	for otherID, issue := range p.issues {
+		for _, on := range issue.DependsOn {
+			if on == id {
+				out = append(out, otherID)
+				break
+			}
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// Blocked reports whether any issue this one depends on is not closed, and names
+// them. Derived, never stored: a "blocked" field would be one more thing to get
+// wrong, and it is already implied by the data.
+func (p *Projection) Blocked(id string, closed func(state string) bool) (bool, []string) {
+	issue, ok := p.issues[id]
+	if !ok {
+		return false, nil
+	}
+	var blockers []string
+	for _, on := range issue.DependsOn {
+		other, exists := p.issues[on]
+		if !exists {
+			// A dependency on something deleted no longer blocks anything, but it
+			// is not silently dropped either — the relation stays in the log.
+			continue
+		}
+		if !closed(other.State) {
+			blockers = append(blockers, on)
+		}
+	}
+	sort.Strings(blockers)
+	return len(blockers) > 0, blockers
+}
+
+// DependencyCycles returns every cycle in the dependency graph, each as the path
+// that closes it, deduplicated and in a stable order.
+//
+// Cycles are permitted here, unlike in the hierarchy: a parent chain is a tree by
+// definition, so a cycle is meaningless, but two pieces of work genuinely can wait
+// on each other. Refusing to record that forces people to lie or to track it
+// somewhere else. Recording it and reporting it loudly is the honest option — a
+// cycle means nothing in it can start.
+func (p *Projection) DependencyCycles() [][]string {
+	var cycles [][]string
+	seenCycle := map[string]bool{}
+
+	const (
+		white = 0
+		grey  = 1
+		black = 2
+	)
+	colour := make(map[string]int, len(p.issues))
+
+	var visit func(id string, path []string)
+	visit = func(id string, path []string) {
+		colour[id] = grey
+		path = append(path, id)
+		issue := p.issues[id]
+		if issue != nil {
+			for _, on := range issue.DependsOn {
+				if _, exists := p.issues[on]; !exists {
+					continue
+				}
+				switch colour[on] {
+				case grey:
+					cycle := append([]string(nil), path[indexOf(path, on):]...)
+					if key := cycleKey(cycle); !seenCycle[key] {
+						seenCycle[key] = true
+						cycles = append(cycles, cycle)
+					}
+				case white:
+					visit(on, path)
+				}
+			}
+		}
+		colour[id] = black
+	}
+
+	for _, id := range p.IssueIDs() {
+		if colour[id] == white {
+			visit(id, nil)
+		}
+	}
+	sort.Slice(cycles, func(i, j int) bool {
+		return strings.Join(cycles[i], ",") < strings.Join(cycles[j], ",")
+	})
+	return cycles
+}
+
+func indexOf(path []string, id string) int {
+	for i, v := range path {
+		if v == id {
+			return i
+		}
+	}
+	return 0
+}
+
+// cycleKey identifies a cycle regardless of which member it was entered from, so
+// the same loop is not reported once per participant.
+func cycleKey(cycle []string) string {
+	sorted := append([]string(nil), cycle...)
+	sort.Strings(sorted)
+	return strings.Join(sorted, ",")
+}
+
 // Ancestors returns the chain from an issue's parent up to its root, nearest first.
 //
 // The walk carries a seen-set even though Reparent refuses cycles: a projection
@@ -304,6 +421,9 @@ func (p *Projection) Snapshot() string {
 		}
 		for _, t := range issue.Transitions {
 			fmt.Fprintf(h, "  %s>%s@%d\n", t.From, t.To, t.At.UnixNano())
+		}
+		for _, on := range issue.DependsOn {
+			fmt.Fprintf(h, "  depends>%s\n", on)
 		}
 	}
 	for _, proposal := range p.Proposals("") {
@@ -488,6 +608,26 @@ func (p *Projection) apply(e *event.Event) error {
 			return err
 		}
 		actor.Teams = remove(actor.Teams, str(e.Payload["team"]))
+
+	case "issue.dependency_added":
+		issue, err := p.require(e)
+		if err != nil {
+			return err
+		}
+		on := str(e.Payload["on"])
+		if on == "" {
+			return fmt.Errorf("event %s: dependency with no target", e.ID)
+		}
+		issue.DependsOn = addOnce(issue.DependsOn, on)
+		p.touch(issue, e)
+
+	case "issue.dependency_removed":
+		issue, err := p.require(e)
+		if err != nil {
+			return err
+		}
+		issue.DependsOn = remove(issue.DependsOn, str(e.Payload["on"]))
+		p.touch(issue, e)
 
 	case "issue.deleted":
 		// Deletion is a tombstone. The events stay in the log — history is not
