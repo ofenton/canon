@@ -218,7 +218,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-009: Queries and boards as saved queries
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-progress
 - **Tier:** 2 (High)
 - **Traces:** R9
 - **Scope:** A query language over issues, saved queries, and boards expressed as a saved query plus a grouping key. Boards hold no state. No other changes.
