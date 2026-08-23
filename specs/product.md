@@ -70,8 +70,13 @@ work through the same interface at speed. Self-hosted, free, and small enough to
 
 **Configuration is a versioned, org-owned artifact, not a per-project accretion.**
 
-The whole organisation's schema — issue types, states, fields, transitions, permissions — lives
-in one file, `canon.yaml`, versioned in git and changed by pull request. A team cannot
+The whole organisation's schema — issue types, states, fields, transitions, and the roles that
+may use them — lives in one file, `canon.yaml`, versioned in git and changed by pull request.
+
+Policy and membership are split deliberately. *Which roles exist and what they may do* is policy:
+it belongs in `canon.yaml`, changes rarely, and is reviewed. *Who is in which team* is state: it
+belongs in the event log, because making every joiner and leaver a pull request would be
+intolerable and would teach people to route around the system. A team cannot
 unilaterally add a status or a field, because there is nowhere local to add it. They open a PR
 against the org schema, someone reviews it, and the change applies everywhere at once.
 
@@ -124,6 +129,16 @@ EARS notation — `WHEN <trigger> THE SYSTEM SHALL <observable response>`.
 - **R15:** WHEN an agent lacks permission for a transition THE SYSTEM SHALL record the attempt as
   a proposal for human approval rather than silently failing.
 
+**Authorisation**
+- **R30:** THE SYSTEM SHALL define every role and the operations it permits in `canon.yaml`, with
+  no per-project or per-team override.
+- **R31:** WHEN an actor attempts an operation their role does not permit THE SYSTEM SHALL reject
+  it and name the roles that would permit it.
+- **R32:** WHEN a role is declared `scope: team` THE SYSTEM SHALL permit its operations only on
+  issues owned by a team that actor belongs to.
+- **R33:** THE SYSTEM SHALL record actor identities and team membership as events in the log, not
+  in `canon.yaml`, so that joining a team is not a pull request.
+
 **Speed**
 - **R16:** WHEN a user creates an issue THE SYSTEM SHALL require no more than a title.
 - **R17:** THE SYSTEM SHALL respond to any read request for a project of 10,000 issues in under
@@ -173,7 +188,11 @@ Stated explicitly, because refusing these *is* the product:
 - **Documents, chat, video, whiteboards.** Huly's play. Not ours.
 - **Gantt charts, time tracking, budgets, resource management.** OpenProject's play. Not ours.
 - **A plugin marketplace.** The mechanism by which trackers become unmaintainable.
-- **SSO/SAML, multi-org, audit exports.** Needed for enterprise adoption, not for v1.
+- **Authentication.** v1 authorises but does not authenticate: the actor identity supplied by a
+  caller is recorded and enforced against, but not verified. This is honest for a single-tenant
+  self-hosted instance that is not exposed to the internet, and dishonest for anything else. A
+  minimal token scheme may land at the end of the week if there is room; SSO/SAML will not.
+- **Multi-org and audit exports.** Needed for enterprise adoption, not for v1.
 - **Jira import.** Wanted eventually; not in the first week.
 - **Mobile app.** Responsive web only.
 

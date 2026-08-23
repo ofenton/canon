@@ -190,7 +190,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
   - Evidence test across every requires_evidence transition in the test schema
   - Proposal lifecycle test: create, approve, reject
   - Provenance test asserting model id survives a projection rebuild
-- **Dependencies:** feat-006
+- **Dependencies:** feat-006, feat-014, feat-015
 - **Rollback Plan:** Treat agents as ordinary actors with no proposal path
 - **Risk:** Medium — the proposal flow is new behaviour with no direct prior art to copy
 - **Evidence:** _(filled in at verify)_
@@ -332,19 +332,67 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Risk:** Low — read-only import, and the most convincing part of the demo
 - **Evidence:** _(filled in at verify)_
 
+
+## feat-014: Roles and permissions in canon.yaml
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 1 (Critical)
+- **Traces:** R30, R31, R32
+- **Scope:** Add a `roles:` section to `canon.yaml` defining each role, the operations it permits, and an optional `scope: team`. Enforce it on every write in `enforce`. Add an `owner_team` field concept to issues so team scope has something to resolve against. No other changes.
+- **Acceptance Criteria:**
+  - [ ] THE SYSTEM SHALL define every role and the operations it permits in `canon.yaml`, with no per-project override
+  - [ ] WHEN an actor attempts an operation their role does not permit THE SYSTEM SHALL reject it and name the roles that would permit it
+  - [ ] WHEN a role is declared `scope: team` THE SYSTEM SHALL permit its operations only on issues owned by a team that actor belongs to
+  - [ ] WHEN `canon.yaml` grants a role an operation that does not exist THE SYSTEM SHALL refuse to start and name it
+  - [ ] THE SYSTEM SHALL expose no runtime interface for creating or altering a role
+- **Test Strategy:**
+  - Table test over each role against each operation, permitted and refused
+  - Team-scope test: same role, two teams, one issue — permitted for the owner, refused for the other
+  - Source-assertion test that no AddRole or GrantPermission function exists
+  - Regression: the existing enforcement suite still passes
+- **Dependencies:** feat-004
+- **Rollback Plan:** Remove the roles section and the permission check; enforcement returns to schema-only
+- **Risk:** Medium — new schema surface, and the operation vocabulary must be right before roles reference it
+- **Evidence:** _(filled in at verify)_
+
+## feat-015: Actor registry and team membership
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 1 (Critical)
+- **Traces:** R33
+- **Scope:** Record actor identities and team membership as events (`actor.registered`, `team.member_added`, `team.member_removed`) and project them. Resolve an actor's roles and teams at write time. No authentication. No other changes.
+- **Acceptance Criteria:**
+  - [ ] THE SYSTEM SHALL record actor identities and team membership as events in the log, not in `canon.yaml`
+  - [ ] WHEN an actor is granted a role THE SYSTEM SHALL apply it to subsequent writes without a restart
+  - [ ] WHEN an unregistered actor attempts a write THE SYSTEM SHALL reject it naming the actor
+  - [ ] WHEN membership changes THE SYSTEM SHALL retain the prior membership in the log, so past events remain explicable
+- **Test Strategy:**
+  - Membership lifecycle test: add, act, remove, act — permitted then refused
+  - Projection test: rebuilding reproduces identical membership
+  - Test that a role granted mid-log applies only to events after it
+- **Dependencies:** feat-014
+- **Rollback Plan:** Treat every actor as holding a single default role
+- **Risk:** Medium — introduces a second projected entity alongside issues
+- **Evidence:** _(filled in at verify)_
 ---
 
 ## Sequencing
 
 | Day | Increments | Milestone |
 |---|---|---|
-| Mon | chore-002, feat-001 | Event schema settled — the one thing that cannot be migrated cheaply |
-| Tue | feat-002, feat-003 | State rebuilds from the log; org schema loads |
-| Wed | feat-004, feat-005 | Schema enforced on writes; the issue model exists |
-| Thu | feat-006, feat-007 | One API, agents have identity and provenance |
-| Fri | feat-008, feat-009 | MCP at parity; boards are queries |
-| Sat | feat-010, feat-011 | Metrics without estimates; keyboard UI |
-| Sun | feat-012, feat-013, chore-003 | Latency budget met, one-command self-host, dogfooded |
+| ~~Mon~~ | ~~chore-002, feat-001~~ | ✅ Event schema settled |
+| ~~Tue~~ | ~~feat-002, feat-003~~ | ✅ State rebuilds from the log; org schema loads |
+| ~~Wed~~ | ~~feat-004, feat-005~~ | ✅ Schema enforced on writes; issue model exists |
+| Thu | feat-014, feat-015 | Authorisation: roles in config, membership in the log |
+| Fri | feat-006, feat-007 | One API; agents have identity, provenance and proposals |
+| Sat | feat-008, feat-009, feat-010 | MCP at parity; boards are queries; metrics without estimates |
+| Sun | feat-011, feat-012, feat-013, chore-003 | UI, latency, one-command self-host, dogfooded |
+
+Authorisation was added on Wednesday after review found that R15 — an agent lacking permission
+records a proposal — had nothing to define "permission" against. The domain is built before the
+API so that `feat-006` exposes a finished model once rather than being revised twice.
 
 Risk is front-loaded deliberately. `feat-001` is first because the event schema is what federation
 depends on and the only thing that cannot be changed cheaply later. If it is wrong, Monday is when
