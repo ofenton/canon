@@ -88,8 +88,11 @@ Parses seven packages and fails on any function, type or field named `StoryPoint
 ### Scope
 
 `git diff --cached --stat main` — run. Metrics in `internal/metrics`, one route in `api`, the
-startup check in `cmd/canon`, an MCP description. No README changes: the documentation catch-up is
-`docs-002`, deliberately one increment rather than a patch per feature.
+startup check in `cmd/canon`, an MCP description, and a README section.
+
+The README section is here rather than in `docs-002` because it anchors on text this increment
+adds — the same exception feat-008's MCP section took. `docs-002` covers what was already merged;
+this covers what this increment introduces.
 
 ### Not verified
 
