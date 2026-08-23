@@ -419,15 +419,15 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-017: Hierarchy API: ancestors, subtree and ancestor queries
 
 - **Type:** feature
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 2 (High)
 - **Traces:** R34, R35, R36
 - **Scope:** Add `GET /api/issues/{id}/ancestors` and `GET /api/issues/{id}/tree`, and an `ancestor` query key. Read-only additions over the existing parent/child model. No other changes.
 - **Acceptance Criteria:**
-  - [ ] WHEN an operator requests an issue's ancestors THE SYSTEM SHALL return them from the issue to its root, in order
-  - [ ] WHEN an operator requests an issue's subtree THE SYSTEM SHALL return its descendants to a requested depth
-  - [ ] WHEN a query names an ancestor THE SYSTEM SHALL return every issue beneath it at any depth
-  - [ ] WHEN a requested subtree depth would return more than the list limit THE SYSTEM SHALL bound it and report the total
+  - [x] WHEN an operator requests an issue's ancestors THE SYSTEM SHALL return them from the issue to its root, in order
+  - [x] WHEN an operator requests an issue's subtree THE SYSTEM SHALL return its descendants to a requested depth
+  - [x] WHEN a query names an ancestor THE SYSTEM SHALL return every issue beneath it at any depth
+  - [x] WHEN a requested subtree depth would return more than the list limit THE SYSTEM SHALL bound it and report the total
 - **Test Strategy:**
   - Build a four-level tree and assert ancestors, subtree at each depth, and ancestor queries
   - Assert a deleted mid-tree node re-parents rather than orphaning, and the subtree reflects it
@@ -435,7 +435,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Dependencies:** feat-012
 - **Rollback Plan:** Remove the two routes and the ancestor query key; the parent/child model is unchanged
 - **Risk:** Low — read-only over a model that already holds the data
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/feat-017-hierarchy-api.md`
 
 ## feat-016: Dependencies with cycle warnings and reverse lookup
 
