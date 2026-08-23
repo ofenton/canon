@@ -6,10 +6,11 @@ import (
 	"flag"
 	"fmt"
 	"os"
-
 	"strings"
+	"time"
 
 	"github.com/ofenton/canon/internal/event"
+	"github.com/ofenton/canon/internal/projection"
 	"github.com/ofenton/canon/internal/schema"
 )
 
@@ -20,16 +21,20 @@ const usage = `canon — an issue tracker whose schema is versioned config
 
 usage:
   canon version                 print the build version
-  canon events [flags]          print the event log as JSON
   canon schema [flags]          validate canon.yaml and print a summary
+  canon events [flags]          print the event log as JSON
+  canon rebuild [flags]         discard projections and replay the log
+
+schema flags:
+  -schema string    path to canon.yaml (default "canon.yaml")
 
 events flags:
   -db string        path to the event log (default "canon.db")
   -subject string   only events about this subject
   -since int        only events after this sequence number
 
-schema flags:
-  -schema string    path to canon.yaml (default "canon.yaml")
+rebuild flags:
+  -db string        path to the event log (default "canon.db")
 `
 
 func main() {
@@ -48,10 +53,12 @@ func run(args []string) error {
 	case "version":
 		fmt.Println(version)
 		return nil
-	case "events":
-		return events(args[1:])
 	case "schema":
 		return schemaCmd(args[1:])
+	case "events":
+		return events(args[1:])
+	case "rebuild":
+		return rebuild(args[1:])
 	case "help", "-h", "--help":
 		fmt.Print(usage)
 		return nil
@@ -127,5 +134,37 @@ func events(args []string) error {
 			return fmt.Errorf("encoding event %s: %w", e.ID, err)
 		}
 	}
+	return nil
+}
+
+// rebuild discards the materialised state and replays the log from the beginning.
+//
+// The projection is a cache with no authority, so this is always safe: it is the
+// recovery path for a projection bug, and the proof that the log is the source of truth.
+func rebuild(args []string) error {
+	fs := flag.NewFlagSet("rebuild", flag.ContinueOnError)
+	path := fs.String("db", "canon.db", "path to the event log")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	store, err := event.Open(*path)
+	if err != nil {
+		return err
+	}
+	defer store.Close()
+
+	total, err := store.Count()
+	if err != nil {
+		return err
+	}
+
+	start := time.Now()
+	p := projection.New(store)
+	if err := p.Rebuild(); err != nil {
+		return fmt.Errorf("rebuild failed: %w", err)
+	}
+	fmt.Printf("replayed %d events in %s\ndigest %s\n",
+		total, time.Since(start).Round(time.Millisecond), p.Snapshot()[:16])
 	return nil
 }
