@@ -54,6 +54,10 @@ var descriptions = map[string]string{
 	"GET /api/proposals/{id}":              "Read one proposal, including who proposed it and why.",
 	"POST /api/proposals/{id}/approve":     "Approve a proposal and apply it. Humans only.",
 	"POST /api/proposals/{id}/reject":      "Reject a proposal, with an optional reason. Humans only.",
+	"GET /api/boards":                      "List saved boards and the keys a board may group by.",
+	"POST /api/boards":                     "Save a board: a name, a query and a grouping key. A board holds no membership of its own.",
+	"GET /api/boards/{name}":               "Render a saved board against current data, grouped into columns.",
+	"DELETE /api/boards/{name}":            "Delete a saved board. The issues it showed are unaffected.",
 	"GET /api/actors":                      "List registered actor ids.",
 	"POST /api/actors":                     "Register a human or agent actor.",
 	"GET /api/actors/{id}":                 "Read an actor's roles and team membership.",
@@ -73,6 +77,7 @@ var bodyHints = map[string]map[string]string{
 	"POST /api/actors":                 {"id": "required", "kind": "human or agent", "model": "required for agents"},
 	"POST /api/actors/{id}/roles":      {"role": "required"},
 	"POST /api/actors/{id}/teams":      {"team": "required"},
+	"POST /api/boards":                 {"name": "required", "query": "required, e.g. team=platform priority=p1", "group_by": "optional, defaults to state"},
 	"PATCH /api/issues/{id}/fields":    {"<field name>": "value, for any field in the schema"},
 }
 
