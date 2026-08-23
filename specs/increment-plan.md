@@ -198,14 +198,14 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-008: MCP server with parity test
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-review
 - **Tier:** 1 (Critical)
 - **Traces:** R13
 - **Scope:** Expose every API operation over MCP, with an automated test asserting the MCP tool list covers the full API surface. No other changes.
 - **Acceptance Criteria:**
-  - [ ] THE SYSTEM SHALL expose an MCP tool for every operation available in the HTTP API
-  - [ ] WHEN an API operation is added without a corresponding MCP tool THE SYSTEM SHALL fail its test suite
-  - [ ] WHEN an agent calls an MCP tool THE SYSTEM SHALL apply identical schema validation to the equivalent HTTP call
+  - [x] THE SYSTEM SHALL expose an MCP tool for every operation available in the HTTP API
+  - [x] WHEN an API operation is added without a corresponding MCP tool THE SYSTEM SHALL fail its test suite
+  - [x] WHEN an agent calls an MCP tool THE SYSTEM SHALL apply identical schema validation to the equivalent HTTP call
 - **Test Strategy:**
   - Parity test enumerating API routes against MCP tools
   - Negative test: add a route in the test fixture, assert the parity test fails
@@ -213,7 +213,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Dependencies:** feat-006
 - **Rollback Plan:** Remove the MCP server; agents fall back to the HTTP API
 - **Risk:** Low — mechanical once the API exists, and the parity test is the valuable part
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/feat-008-mcp-server-with-parity-test.md`
 
 ## feat-009: Queries and boards as saved queries
 
