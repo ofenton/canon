@@ -258,7 +258,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-011: Keyboard-first web UI
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-progress
 - **Tier:** 1 (Critical)
 - **Traces:** R18
 - **Scope:** List, detail and create views, embedded in the binary. Every action reachable by keyboard without pointer input. No other changes.
