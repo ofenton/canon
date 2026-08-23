@@ -177,7 +177,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-007: Agent identity, provenance and proposals
 
 - **Type:** feature
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 1 (Critical)
 - **Traces:** R12, R14, R15
 - **Scope:** Per-actor identity records with an id, kind and optional signing key. Transitions marked `requires_evidence` in the schema are rejected without evidence. An agent lacking permission creates a proposal for human approval rather than failing. No other changes.
@@ -379,7 +379,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## docs-001: Project README
 
 - **Type:** docs
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 2 (High)
 - **Traces:** none
 - **Scope:** Replace the inherited template README with one describing Canon: the problem, the wedge, how to run it, and the API. Documentation only. No other changes.
