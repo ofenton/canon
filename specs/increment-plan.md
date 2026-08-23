@@ -330,7 +330,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Dependencies:** feat-013
 - **Rollback Plan:** Continue tracking in specs/increment-plan.md
 - **Risk:** Low — read-only import, and the most convincing part of the demo
-- **Evidence:** PR #19, CI green; evidence file lands with the merge
+- **Evidence:** see `specs/increments/chore-003-dogfood-run-this-project-in-canon.md`
 
 
 ## feat-014: Roles and permissions in canon.yaml
