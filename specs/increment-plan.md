@@ -157,14 +157,14 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-006: HTTP API
 
 - **Type:** feature
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 1 (Critical)
 - **Traces:** R11, R16
 - **Scope:** The single API used by the UI, CLI and agents. Create, read, update, transition, list. Creating an issue requires only a title. No other changes.
 - **Acceptance Criteria:**
-  - [ ] WHEN a caller creates an issue supplying only a title THE SYSTEM SHALL create it successfully
-  - [ ] THE SYSTEM SHALL expose every read and write operation over one HTTP API
-  - [ ] THE SYSTEM SHALL contain no endpoint reachable only by the web UI
+  - [x] WHEN a caller creates an issue supplying only a title THE SYSTEM SHALL create it successfully
+  - [x] THE SYSTEM SHALL expose every read and write operation over one HTTP API
+  - [x] THE SYSTEM SHALL contain no endpoint reachable only by the web UI
 - **Test Strategy:**
   - Contract test covering every documented endpoint
   - Assertion test: the route table contains no UI-only route
@@ -172,7 +172,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Dependencies:** feat-005
 - **Rollback Plan:** Revert to the CLI as the only interface
 - **Risk:** Low — thin layer over the event log
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/feat-006-http-api.md`
 
 ## feat-007: Agent identity, provenance and proposals
 
