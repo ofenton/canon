@@ -27,6 +27,8 @@ var reserved = map[string]func(*projection.Issue) string{
 	// category groups states, so "category:closed" survives a schema that renames
 	// its closing states — which is the entire point of having categories.
 	"category": nil, // resolved against the schema, see value()
+	// ancestor is resolved against the projection in Filter, not from the issue.
+	ancestorKey: nil,
 }
 
 // term is one condition.
@@ -114,6 +116,10 @@ func checkValue(key, value string, s *schema.Schema) error {
 		default:
 			return fmt.Errorf("no category %q; categories are open, active, closed", value)
 		}
+	case ancestorKey:
+		// An issue id, not a schema value. A query for an issue that does not exist
+		// returns nothing, which is the honest answer rather than an error.
+		return nil
 	default:
 		if def, ok := s.Field(key); ok && def.Type == schema.Enum && value != "" {
 			for _, permitted := range def.Values {
@@ -139,9 +145,16 @@ func reservedNames() []string {
 // Raw returns the query as written.
 func (q *Query) Raw() string { return q.raw }
 
+// ancestorKey is resolved against the projection rather than the issue, since an
+// issue does not know its own lineage.
+const ancestorKey = "ancestor"
+
 // Match reports whether an issue satisfies every term.
 func (q *Query) Match(issue *projection.Issue, s *schema.Schema) bool {
 	for _, t := range q.terms {
+		if t.key == ancestorKey {
+			continue // resolved against the projection in Filter
+		}
 		got := value(t.key, issue, s)
 		var hit bool
 		switch {
@@ -159,12 +172,46 @@ func (q *Query) Match(issue *projection.Issue, s *schema.Schema) bool {
 
 // Filter returns the issues matching the query, in id order.
 func (q *Query) Filter(view *projection.Projection, s *schema.Schema) []*projection.Issue {
+	// ancestor= asks about the tree rather than the issue, so it is resolved once
+	// against the projection instead of per-issue during matching.
+	beneath := map[string]bool{}
+	var scoped bool
+	for _, t := range q.terms {
+		if t.key != ancestorKey {
+			continue
+		}
+		scoped = true
+		for _, id := range view.Descendants(t.value, 0) {
+			beneath[id] = true
+		}
+		if t.negated {
+			// Negation is applied per-issue below; record the set either way.
+			continue
+		}
+	}
+
 	out := make([]*projection.Issue, 0)
 	for _, id := range view.IssueIDs() {
 		issue, _ := view.Issue(id)
-		if q.Match(issue, s) {
-			out = append(out, issue)
+		if !q.Match(issue, s) {
+			continue
 		}
+		if scoped {
+			var ok = true
+			for _, t := range q.terms {
+				if t.key != ancestorKey {
+					continue
+				}
+				if beneath[id] == t.negated {
+					ok = false
+					break
+				}
+			}
+			if !ok {
+				continue
+			}
+		}
+		out = append(out, issue)
 	}
 	return out
 }

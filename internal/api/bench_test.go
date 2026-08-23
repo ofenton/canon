@@ -142,6 +142,9 @@ func TestReadLatencyBudget(t *testing.T) {
 		{"children of one issue", "GET", "/api/issues/CANON-5000/children"},
 		{"schema", "GET", "/api/schema"},
 		{"metrics, 30 days", "GET", "/api/metrics?days=30"},
+		{"ancestors of one issue", "GET", "/api/issues/CANON-5000/ancestors"},
+		{"subtree of one issue", "GET", "/api/issues/CANON-5000/tree"},
+		{"query by ancestor", "GET", "/api/issues?q=ancestor%3DCANON-1"},
 		{"proposals", "GET", "/api/proposals"},
 		{"actors", "GET", "/api/actors"},
 	}
