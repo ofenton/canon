@@ -136,7 +136,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-005: Issue entity with parent/child hierarchy
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-progress
 - **Tier:** 1 (Critical)
 - **Traces:** R7, R8, R10
 - **Scope:** One `Issue` entity with an optional parent, expressed as events. Epics, stories and sub-tasks are parent/child relations, not storage types. Deleting an issue re-parents its children. No other changes.
