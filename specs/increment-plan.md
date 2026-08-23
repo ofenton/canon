@@ -114,16 +114,16 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-004: Enforce the schema on every write
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-review
 - **Tier:** 1 (Critical)
 - **Traces:** R3, R4, R5, R6
 - **Scope:** Reject writes that use fields, states or transitions not in `canon.yaml`. Provide no runtime interface for adding them. Refuse schema changes that would orphan existing issues. Apply additive changes without downtime. No other changes.
 - **Acceptance Criteria:**
-  - [ ] WHEN a caller sets a field not defined in `canon.yaml` THE SYSTEM SHALL reject the write and name the valid fields
-  - [ ] WHEN a caller transitions to a state not permitted from the current state THE SYSTEM SHALL reject the write and name the permitted transitions
-  - [ ] THE SYSTEM SHALL expose no API or UI operation that adds a field, state or issue type at runtime
-  - [ ] WHEN a schema change would leave existing issues in an undefined state THE SYSTEM SHALL refuse to apply it and list the affected issue ids
-  - [ ] WHEN a schema change is purely additive THE SYSTEM SHALL apply it without restart or data migration
+  - [x] WHEN a caller sets a field not defined in `canon.yaml` THE SYSTEM SHALL reject the write and name the valid fields
+  - [x] WHEN a caller transitions to a state not permitted from the current state THE SYSTEM SHALL reject the write and name the permitted transitions
+  - [x] THE SYSTEM SHALL expose no API or UI operation that adds a field, state or issue type at runtime
+  - [x] WHEN a schema change would leave existing issues in an undefined state THE SYSTEM SHALL refuse to apply it and list the affected issue ids
+  - [x] WHEN a schema change is purely additive THE SYSTEM SHALL apply it without restart or data migration
 - **Test Strategy:**
   - Fuzz unknown field and state names against the write path
   - Orphan test: remove a state in use, assert refusal and the id list
@@ -131,7 +131,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Dependencies:** feat-003, feat-001
 - **Rollback Plan:** Disable enforcement, accepting any field — reverts Canon to a normal tracker
 - **Risk:** Medium — this is the product's central claim, so the tests matter more than the code
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/feat-004-enforce-the-schema-on-every-write.md`
 
 ## feat-005: Issue entity with parent/child hierarchy
 
