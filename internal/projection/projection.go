@@ -48,22 +48,37 @@ type Checkpoint struct {
 	Issues map[string]*Issue
 }
 
+// Actor is the projected identity of a human or agent: who they are, what roles
+// they hold and which teams they belong to.
+//
+// Identity is state, not policy. Which roles exist is declared in canon.yaml and
+// changed by pull request; who holds one changes weekly and belongs in the log.
+type Actor struct {
+	ID    string
+	Kind  event.ActorKind
+	Model string
+	Roles []string
+	Teams []string
+}
+
 // Projection is the materialised view over an event log.
 type Projection struct {
 	log    *event.Store
 	issues map[string]*Issue
+	actors map[string]*Actor
 	seq    int64
 	read   int64
 }
 
 // New returns an empty projection over log. Call Rebuild or Restore before reading.
 func New(log *event.Store) *Projection {
-	return &Projection{log: log, issues: map[string]*Issue{}}
+	return &Projection{log: log, issues: map[string]*Issue{}, actors: map[string]*Actor{}}
 }
 
 // Rebuild discards all state and replays the log from the beginning.
 func (p *Projection) Rebuild() error {
 	p.issues = map[string]*Issue{}
+	p.actors = map[string]*Actor{}
 	p.seq = 0
 	return p.Catchup()
 }
@@ -167,6 +182,12 @@ func (p *Projection) Snapshot() string {
 			fmt.Fprintf(h, "  %s>%s@%d\n", t.From, t.To, t.At.UnixNano())
 		}
 	}
+	for _, id := range p.ActorIDs() {
+		actor := p.actors[id]
+		fmt.Fprintf(h, "actor\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\n",
+			actor.ID, actor.Kind, actor.Model,
+			strings.Join(actor.Roles, ","), strings.Join(actor.Teams, ","))
+	}
 	return hex.EncodeToString(h.Sum(nil))
 }
 
@@ -235,6 +256,46 @@ func (p *Projection) apply(e *event.Event) error {
 		issue.Team = str(e.Payload["team"])
 		p.touch(issue, e)
 
+	case "actor.registered":
+		if _, exists := p.actors[e.Subject]; exists {
+			return fmt.Errorf("event %s registers %q, which already exists", e.ID, e.Subject)
+		}
+		p.actors[e.Subject] = &Actor{
+			ID:    e.Subject,
+			Kind:  event.ActorKind(str(e.Payload["kind"])),
+			Model: str(e.Payload["model"]),
+		}
+
+	case "actor.role_granted":
+		actor, err := p.requireActor(e)
+		if err != nil {
+			return err
+		}
+		actor.Roles = addOnce(actor.Roles, str(e.Payload["role"]))
+
+	case "actor.role_revoked":
+		actor, err := p.requireActor(e)
+		if err != nil {
+			return err
+		}
+		actor.Roles = remove(actor.Roles, str(e.Payload["role"]))
+
+	case "team.member_added":
+		actor, err := p.requireActor(e)
+		if err != nil {
+			return err
+		}
+		actor.Teams = addOnce(actor.Teams, str(e.Payload["team"]))
+
+	case "team.member_removed":
+		// Removal is an added fact, not an erased one: the join stays in the log so
+		// events made while a member remain explicable.
+		actor, err := p.requireActor(e)
+		if err != nil {
+			return err
+		}
+		actor.Teams = remove(actor.Teams, str(e.Payload["team"]))
+
 	case "issue.deleted":
 		// Deletion is a tombstone. The events stay in the log — history is not
 		// rewritten — but the issue leaves the projected present.
@@ -249,6 +310,56 @@ func (p *Projection) apply(e *event.Event) error {
 			e.ID, e.Seq, e.Type)
 	}
 	return nil
+}
+
+// Actor returns the projected identity of one actor.
+func (p *Projection) Actor(id string) (*Actor, bool) {
+	actor, ok := p.actors[id]
+	return actor, ok
+}
+
+// ActorIDs returns every registered actor id, sorted.
+func (p *Projection) ActorIDs() []string {
+	out := make([]string, 0, len(p.actors))
+	for id := range p.actors {
+		out = append(out, id)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func (p *Projection) requireActor(e *event.Event) (*Actor, error) {
+	actor, ok := p.actors[e.Subject]
+	if !ok {
+		return nil, fmt.Errorf("event %s (%s) refers to unregistered actor %q",
+			e.ID, e.Type, e.Subject)
+	}
+	return actor, nil
+}
+
+// addOnce appends a value if absent, keeping the slice sorted so the digest is stable.
+func addOnce(values []string, v string) []string {
+	if v == "" {
+		return values
+	}
+	for _, existing := range values {
+		if existing == v {
+			return values
+		}
+	}
+	values = append(values, v)
+	sort.Strings(values)
+	return values
+}
+
+func remove(values []string, v string) []string {
+	out := values[:0]
+	for _, existing := range values {
+		if existing != v {
+			out = append(out, existing)
+		}
+	}
+	return out
 }
 
 // require returns the issue an event is about, or an error naming the gap. An event
