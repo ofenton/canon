@@ -32,6 +32,7 @@ usage:
   canon serve [flags]           run the HTTP API
   canon mcp [flags]             serve MCP over stdio, for agents
   canon rebuild [flags]         discard projections and replay the log
+  canon backup -out <file>      write a consistent copy of the data, safe while running
 
 schema flags:
   -schema string    path to canon.yaml (default "canon.yaml")
@@ -58,6 +59,10 @@ mcp flags:
   -schema string    path to canon.yaml (default "canon.yaml")
 
 rebuild flags:
+  -db string        path to the event log (default "canon.db")
+
+backup flags:
+  -out string       destination file (required, never overwritten)
   -db string        path to the event log (default "canon.db")
 `
 
@@ -89,6 +94,8 @@ func run(args []string) error {
 		return mcpCmd(args[1:])
 	case "rebuild":
 		return rebuild(args[1:])
+	case "backup":
+		return backup(args[1:])
 	case "help", "-h", "--help":
 		fmt.Print(usage)
 		return nil
@@ -330,6 +337,47 @@ func mcpCmd(args []string) error {
 	apiSrv := api.New(sch, store, e, time.Now)
 	server := mcp.NewServer(apiSrv.Handler(), apiSrv.Routes(), *actor)
 	return server.Serve(os.Stdin, os.Stdout)
+}
+
+// backup writes a consistent single-file copy, safely while the server runs.
+//
+// Copying canon.db by hand does not work: WAL mode keeps recent commits in a sidecar
+// that has not been folded in yet, and on a young database that is most of the data.
+// This is measured in internal/event: a plain copy of a 500-event log recovered zero.
+func backup(args []string) error {
+	fs := flag.NewFlagSet("backup", flag.ContinueOnError)
+	out := fs.String("out", "", "destination file")
+	dbPath := fs.String("db", "canon.db", "path to the event log")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if *out == "" {
+		return fmt.Errorf("-out is required")
+	}
+
+	store, err := event.Open(*dbPath)
+	if err != nil {
+		return err
+	}
+	defer store.Close()
+
+	before, err := store.Count()
+	if err != nil {
+		return err
+	}
+	start := time.Now()
+	if err := store.Backup(*out); err != nil {
+		return err
+	}
+	info, err := os.Stat(*out)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("wrote %s (%d events, %.1f KiB) in %s\n",
+		*out, before, float64(info.Size())/1024, time.Since(start).Round(time.Millisecond))
+	fmt.Printf("restore with: canon serve -db %s\n", *out)
+	return nil
 }
 
 // rebuild discards the materialised state and replays the log from the beginning.
