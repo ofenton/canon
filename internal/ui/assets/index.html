@@ -1,0 +1,386 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Canon</title>
+<style>
+  :root {
+    --bg: #fbfbfa; --fg: #1c1c1a; --dim: #6b6b66; --line: #e3e3df;
+    --accent: #2f5d50; --warn: #8a5a2b; --sel: #eef3f1;
+    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16171a; --fg:#e6e6e3; --dim:#8d8d88; --line:#2a2c31;
+            --accent:#7fb3a2; --warn:#d3a06a; --sel:#20242a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.5 system-ui, sans-serif; }
+  header { display:flex; align-items:baseline; gap:1rem; padding:.6rem 1rem;
+           border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--bg); }
+  header b { font-size:1rem; letter-spacing:.02em; }
+  header .who { color:var(--dim); font-family:var(--mono); font-size:12px; }
+  nav { margin-left:auto; display:flex; gap:.75rem; }
+  nav button { background:none; border:none; color:var(--dim); cursor:pointer;
+               font:inherit; padding:.15rem .3rem; border-radius:3px; }
+  nav button[aria-current="true"] { color:var(--fg); background:var(--sel); }
+  main { padding:1rem; max-width:70rem; }
+  table { border-collapse:collapse; width:100%; }
+  th { text-align:left; font-weight:600; color:var(--dim); font-size:12px;
+       text-transform:uppercase; letter-spacing:.04em; padding:.35rem .5rem; }
+  td { padding:.35rem .5rem; border-top:1px solid var(--line); }
+  tr[aria-selected="true"] td { background:var(--sel); }
+  tr:focus { outline:2px solid var(--accent); outline-offset:-2px; }
+  .id { font-family:var(--mono); color:var(--dim); white-space:nowrap; }
+  .state { font-family:var(--mono); font-size:12px; }
+  .state.active { color:var(--accent); }
+  .state.closed { color:var(--dim); }
+  .cols { display:flex; gap:1rem; overflow-x:auto; align-items:flex-start; }
+  .col { min-width:15rem; flex:1; border:1px solid var(--line); border-radius:6px; }
+  .col h3 { margin:0; padding:.5rem .6rem; font-size:12px; text-transform:uppercase;
+            letter-spacing:.04em; color:var(--dim); border-bottom:1px solid var(--line); }
+  .col ul { list-style:none; margin:0; padding:.4rem; }
+  .col li { padding:.35rem .4rem; border-radius:4px; }
+  dialog { border:1px solid var(--line); border-radius:8px; background:var(--bg);
+           color:var(--fg); padding:1rem; min-width:22rem; }
+  dialog::backdrop { background:rgba(0,0,0,.35); }
+  input, select { font:inherit; padding:.4rem .5rem; border:1px solid var(--line);
+                  border-radius:4px; background:var(--bg); color:var(--fg); width:100%; }
+  kbd { font-family:var(--mono); font-size:11px; border:1px solid var(--line);
+        border-bottom-width:2px; border-radius:3px; padding:0 .3rem; color:var(--dim); }
+  .hint { color:var(--dim); font-size:12px; margin-top:.5rem; }
+  .err { color:var(--warn); font-family:var(--mono); font-size:12px; white-space:pre-wrap; }
+  .metrics dt { color:var(--dim); font-size:12px; }
+  .metrics dd { margin:0 0 .6rem; font-family:var(--mono); }
+  #status { position:fixed; bottom:0; left:0; right:0; padding:.4rem 1rem;
+            border-top:1px solid var(--line); background:var(--bg);
+            font-family:var(--mono); font-size:12px; color:var(--dim); }
+</style>
+
+<header>
+  <b>Canon</b>
+  <span class="who" id="who"></span>
+  <nav>
+    <button data-view="issues" data-key="g i">Issues <kbd>g i</kbd></button>
+    <button data-view="boards" data-key="g b">Boards <kbd>g b</kbd></button>
+    <button data-view="metrics" data-key="g m">Flow <kbd>g m</kbd></button>
+    <button data-view="proposals" data-key="g p">Proposals <kbd>g p</kbd></button>
+  </nav>
+</header>
+
+<main id="main" aria-live="polite"></main>
+<div id="status"></div>
+
+<dialog id="create">
+  <form method="dialog" id="create-form">
+    <label for="title">New issue</label>
+    <input id="title" name="title" autocomplete="off" placeholder="Title, and nothing else">
+    <p class="hint"><kbd>Enter</kbd> create · <kbd>Esc</kbd> cancel</p>
+  </form>
+</dialog>
+
+<dialog id="prompt">
+  <form method="dialog" id="prompt-form">
+    <label id="prompt-label" for="prompt-input"></label>
+    <input id="prompt-input" autocomplete="off">
+    <p class="hint" id="prompt-hint"></p>
+  </form>
+</dialog>
+
+<dialog id="help">
+  <h3 style="margin-top:0">Keyboard</h3>
+  <table id="help-table" role="presentation"></table>
+  <p class="hint"><kbd>Esc</kbd> close</p>
+</dialog>
+
+<script type="module">
+// Canon's UI is keyboard-first. Every action lives in this one registry: the help
+// dialog is generated from it, and a test asserts that no action exists outside it.
+// A pointer-only affordance would be a bug, not a gap.
+const actor = new URLSearchParams(location.search).get("actor") || "you";
+const api = async (method, path, body) => {
+  const res = await fetch("/api" + path, {
+    method,
+    headers: { "X-Canon-Actor": actor, "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const text = await res.text();
+  let parsed = null;
+  try { parsed = text ? JSON.parse(text) : null; } catch { /* not json */ }
+  return { ok: res.ok, status: res.status, body: parsed, text };
+};
+
+const state = { view: "issues", issues: [], cursor: 0, schema: null, boards: [], board: null };
+const el = (id) => document.getElementById(id);
+const say = (msg, isError) => {
+  const bar = el("status");
+  bar.textContent = msg;
+  bar.className = isError ? "err" : "";
+};
+
+// ---- actions ------------------------------------------------------------
+// key: the binding. Every one is reachable without a pointer.
+const ACTIONS = [
+  { key: "?",     name: "Keyboard help",        run: () => el("help").showModal() },
+  { key: "c",     name: "Create issue",         run: openCreate },
+  { key: "j",     name: "Next issue",           run: () => move(1) },
+  { key: "k",     name: "Previous issue",       run: () => move(-1) },
+  { key: "Enter", name: "Open selected",        run: openSelected },
+  { key: "t",     name: "Transition selected",  run: promptTransition },
+  { key: "/",     name: "Filter with a query",  run: promptQuery },
+  { key: "r",     name: "Reload",               run: render },
+  { key: "g i",   name: "Go to issues",         run: () => go("issues") },
+  { key: "g b",   name: "Go to boards",         run: () => go("boards") },
+  { key: "g m",   name: "Go to flow",           run: () => go("metrics") },
+  { key: "g p",   name: "Go to proposals",      run: () => go("proposals") },
+  { key: "a",     name: "Approve proposal",     run: decideProposal.bind(null, "approve") },
+  { key: "x",     name: "Reject proposal",      run: decideProposal.bind(null, "reject") },
+];
+
+function go(view) {
+  state.view = view;
+  state.cursor = 0;
+  render();
+}
+
+function move(delta) {
+  // Scoped to #main on purpose: an unscoped "tbody tr" also matches the help
+  // dialog's rows, and j/k would walk through the keyboard reference.
+  const rows = document.querySelectorAll("#main tbody tr, #main .col li");
+  if (!rows.length) return;
+  state.cursor = Math.max(0, Math.min(rows.length - 1, state.cursor + delta));
+  rows.forEach((r, i) => r.setAttribute("aria-selected", String(i === state.cursor)));
+  rows[state.cursor].focus();
+  rows[state.cursor].scrollIntoView({ block: "nearest" });
+}
+
+function selectedId() {
+  const row = document.querySelector('#main [aria-selected="true"]');
+  return row ? row.dataset.id : null;
+}
+
+function openSelected() {
+  const id = selectedId();
+  if (id) say(id + " — " + (state.issues.find((i) => i.ID === id)?.Title ?? ""));
+}
+
+// A dialog opened by keyboard must be ready to type into, or the shortcut has only
+// moved the work rather than removed it.
+function openCreate() {
+  const dialog = el("create");
+  el("title").value = "";
+  dialog.showModal();
+  el("title").focus();
+}
+
+el("create-form").addEventListener("submit", async () => {
+  const title = el("title").value.trim();
+  if (!title) return;
+  const res = await api("POST", "/issues", { title });
+  if (!res.ok) return say(res.body?.error ?? res.text, true);
+  say("created " + res.body.id);
+  render();
+});
+
+function ask(label, hint, onSubmit) {
+  el("prompt-label").textContent = label;
+  el("prompt-hint").textContent = hint;
+  el("prompt-input").value = "";
+  el("prompt").showModal();
+  el("prompt-input").focus();
+  el("prompt-form").onsubmit = () => onSubmit(el("prompt-input").value.trim());
+}
+
+function promptQuery() {
+  ask("Filter", "e.g. team=platform priority=p1 · Esc cancels", async (q) => {
+    state.query = q;
+    render();
+  });
+}
+
+function promptTransition() {
+  const id = selectedId();
+  if (!id) return say("nothing selected", true);
+  const issue = state.issues.find((i) => i.ID === id);
+  const to = (state.schema?.states ?? []).find((s) => s.name === issue?.State)?.to ?? [];
+  ask("Move " + id, to.length ? "to: " + to.join(", ") : "no transitions from here",
+    async (target) => {
+      if (!target) return;
+      const res = await api("POST", `/issues/${id}/transition`, { to: target });
+      if (res.status === 202) {
+        say(`proposal ${res.body.proposal_id}: ${res.body.operation} — awaiting a human`);
+      } else if (!res.ok) {
+        say(res.body?.error ?? res.text, true);
+      } else {
+        say(`${id} → ${target}`);
+      }
+      render();
+    });
+}
+
+async function decideProposal(decision) {
+  if (state.view !== "proposals") return say("go to proposals first (g p)", true);
+  const id = selectedId();
+  if (!id) return say("nothing selected", true);
+  const res = await api("POST", `/proposals/${id}/${decision}`, {});
+  if (!res.ok) return say(res.body?.error ?? res.text, true);
+  say(`${id} ${decision}d`);
+  render();
+}
+
+// ---- rendering ----------------------------------------------------------
+const categoryOf = (name) =>
+  (state.schema?.states ?? []).find((s) => s.name === name)?.category ?? "";
+
+async function render() {
+  el("who").textContent = actor;
+  document.querySelectorAll("nav button").forEach((b) =>
+    b.setAttribute("aria-current", String(b.dataset.view === state.view)));
+
+  if (!state.schema) {
+    const res = await api("GET", "/schema");
+    if (res.ok) state.schema = res.body;
+  }
+  const main = el("main");
+  main.innerHTML = "";
+
+  if (state.view === "issues") return renderIssues(main);
+  if (state.view === "boards") return renderBoards(main);
+  if (state.view === "metrics") return renderMetrics(main);
+  if (state.view === "proposals") return renderProposals(main);
+}
+
+function table(main, headers, rows) {
+  const t = document.createElement("table");
+  t.innerHTML = "<thead><tr>" + headers.map((h) => `<th>${h}</th>`).join("") + "</tr></thead>";
+  const body = document.createElement("tbody");
+  rows.forEach((cells, i) => {
+    const tr = document.createElement("tr");
+    tr.tabIndex = 0;
+    tr.dataset.id = cells.id;
+    tr.setAttribute("aria-selected", String(i === state.cursor));
+    tr.innerHTML = cells.html;
+    body.append(tr);
+  });
+  t.append(body);
+  main.append(t);
+  const rowEls = body.querySelectorAll("tr");
+  if (rowEls[state.cursor]) rowEls[state.cursor].focus();
+}
+
+async function renderIssues(main) {
+  const q = state.query ? "?q=" + encodeURIComponent(state.query) : "";
+  const res = await api("GET", "/issues" + q);
+  if (!res.ok) {
+    main.innerHTML = `<p class="err">${res.body?.error ?? res.text}</p>`;
+    return;
+  }
+  state.issues = res.body.issues ?? [];
+  if (state.query) say(`${state.issues.length} matching ${state.query}`);
+  table(main, ["", "Title", "State", "Team"], state.issues.map((i) => ({
+    id: i.ID,
+    html: `<td class="id">${i.ID}</td><td>${escape(i.Title)}</td>` +
+          `<td class="state ${categoryOf(i.State)}">${i.State}</td><td>${i.Team ?? ""}</td>`,
+  })));
+}
+
+async function renderBoards(main) {
+  const list = await api("GET", "/boards");
+  if (!list.ok) return;
+  state.boards = list.body.boards ?? [];
+  if (!state.boards.length) {
+    main.innerHTML = `<p class="hint">No boards yet. A board is a saved query and a grouping key.</p>`;
+    return;
+  }
+  const name = state.board ?? state.boards[0].Name;
+  const res = await api("GET", "/boards/" + encodeURIComponent(name));
+  if (!res.ok) {
+    main.innerHTML = `<p class="err">${res.body?.error ?? res.text}</p>`;
+    return;
+  }
+  const wrap = document.createElement("div");
+  wrap.className = "cols";
+  for (const col of res.body.columns ?? []) {
+    const div = document.createElement("div");
+    div.className = "col";
+    div.innerHTML = `<h3>${col.name} · ${col.count}</h3><ul>` +
+      col.issues.map((i) => `<li tabindex="0" data-id="${i.ID}">` +
+        `<span class="id">${i.ID}</span> ${escape(i.Title)}</li>`).join("") + "</ul>";
+    wrap.append(div);
+  }
+  main.append(wrap);
+  say(`${name} — ${res.body.query} grouped by ${res.body.group_by}`);
+}
+
+async function renderMetrics(main) {
+  const res = await api("GET", "/metrics?days=30");
+  if (!res.ok) return;
+  const f = res.body;
+  const dl = document.createElement("dl");
+  dl.className = "metrics";
+  const row = (k, v) => `<dt>${k}</dt><dd>${v}</dd>`;
+  const pct = (s) => `p50 ${s.p50_days}d · p85 ${s.p85_days}d · p95 ${s.p95_days}d (n=${s.count})`;
+  dl.innerHTML =
+    row("Completed (30d)", f.completed) +
+    row("In progress", f.in_progress) +
+    row("Cycle time", pct(f.cycle_time)) +
+    row("Lead time", pct(f.lead_time)) +
+    row("Ageing", (f.ageing ?? []).map((a) => `${a.id} ${a.days}d`).join(" · ") || "nothing ageing");
+  main.append(dl);
+  const note = document.createElement("p");
+  note.className = "hint";
+  note.textContent = "Measured from recorded transitions. Canon has no estimates.";
+  main.append(note);
+}
+
+async function renderProposals(main) {
+  const res = await api("GET", "/proposals");
+  if (!res.ok) return;
+  const proposals = res.body.proposals ?? [];
+  if (!proposals.length) {
+    main.innerHTML = `<p class="hint">No proposals awaiting a decision.</p>`;
+    return;
+  }
+  table(main, ["", "Operation", "On", "Proposed by"], proposals.map((p) => ({
+    id: p.ID,
+    html: `<td class="id">${p.ID}</td><td class="state">${p.Operation}</td>` +
+          `<td class="id">${p.Subject}</td><td>${p.ProposedBy}${p.Model ? " (" + p.Model + ")" : ""}</td>`,
+  })));
+  say("a approve · x reject");
+}
+
+const escape = (s) => String(s ?? "").replace(/[&<>"]/g,
+  (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+// ---- key handling -------------------------------------------------------
+let pending = "";
+document.addEventListener("keydown", (e) => {
+  const inField = ["INPUT", "SELECT", "TEXTAREA"].includes(e.target.tagName);
+  if (e.key === "Escape") {
+    document.querySelectorAll("dialog[open]").forEach((d) => d.close());
+    pending = "";
+    return;
+  }
+  if (inField) return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+  const combo = pending ? pending + " " + e.key : e.key;
+  const action = ACTIONS.find((a) => a.key === combo);
+  if (action) {
+    e.preventDefault();
+    pending = "";
+    action.run();
+    return;
+  }
+  // "g" opens a two-key sequence; anything else clears it.
+  pending = ACTIONS.some((a) => a.key.startsWith(e.key + " ")) ? e.key : "";
+});
+
+document.querySelectorAll("nav button").forEach((b) =>
+  b.addEventListener("click", () => go(b.dataset.view)));
+
+el("help-table").innerHTML = ACTIONS
+  .map((a) => `<tr><td><kbd>${a.key}</kbd></td><td>${a.name}</td></tr>`).join("");
+
+window.CANON = { ACTIONS, state };
+render();
+say("? for keyboard help");
+</script>
