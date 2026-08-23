@@ -92,11 +92,33 @@ Values are checked too: `state=shipped` and `priority=urgent` are refused, not j
 
 ### Scope
 
-`git diff --cached --stat main` — run. The language in `internal/query`, boards in `enforce` and
-`projection`, four routes and query support on the issue list in `api`, README. The projection
-bug fix is outside the strict scope but is the increment's own blocker; recorded above.
+`git diff --cached --stat main` — run:
+
+```
+ internal/api/api.go                    | 120 ++++   query support, four board routes
+ internal/api/api_test.go               |  79 +++    contract and board tests
+ internal/enforce/board.go              |  71 +++    saved boards
+ internal/projection/projection.go      |  76 +++    Board entity, the fields fix
+ internal/projection/projection_test.go |  37 +++    regression test for the fields bug
+ internal/query/query.go                | 229 +++    the language
+ internal/query/query_test.go           | 246 +++    tests
+ specs/increment-plan.md                |   2 +-    status
+```
+
+The projection fix is outside the strict scope but is this increment's own blocker; recorded above.
+
+**No README changes.** The intended documentation edit anchors on the `## Agents` section, which
+exists only on feat-008's branch (PR #12) and not on main. The patch asserted its anchor and
+failed rather than applying somewhere wrong — which is the behaviour I want, but it means the
+README still says queries and boards are "Planned".
 
 ### Not verified
+
+**The README is stale in two places**: queries and boards are still listed under "What is not
+built", and the four board routes are undocumented. This needs a follow-up commit once PR #12 and
+this one are both merged — the second time a cross-branch README edit has had to be deferred,
+which is an argument for documenting in a single increment at the end of the week rather than
+per feature.
 
 No pagination. A query returning ten thousand issues returns ten thousand issues. Fine at the
 current scale, wrong for `feat-012`'s dataset; noted rather than left to be discovered.
