@@ -394,10 +394,28 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Dependencies:** feat-006
 - **Rollback Plan:** Restore the previous README from git history
 - **Risk:** Low — documentation only, but it is the first thing anyone sees
+- **Evidence:** see `specs/increments/docs-001-project-readme.md`
 
+## docs-002: Documentation catch-up
+
+- **Type:** docs
+- **Status:** in-review
+- **Tier:** 2 (High)
+- **Traces:** none
+- **Scope:** Bring the README up to date with queries, boards, metrics and MCP, and document the estimate refusal. Documentation only. No other changes.
+- **Acceptance Criteria:**
+  - [x] THE SYSTEM SHALL document every API route currently implemented
+  - [x] THE SYSTEM SHALL list under "not built" only things that are genuinely not built
+  - [x] WHEN a reader follows any documented example THE SYSTEM SHALL behave as shown
+- **Test Strategy:**
+  - Cross-check documented routes against `Routes()` mechanically
+  - Run every example in the README against a running instance
+- **Dependencies:** feat-006
+- **Rollback Plan:** Restore the previous README from git history
+- **Risk:** Low — documentation only
+- **Evidence:** see `specs/increments/docs-002-documentation-catch-up.md`
 
 ---
-- **Evidence:** see `specs/increments/docs-001-project-readme.md`
 
 ## Sequencing
 
