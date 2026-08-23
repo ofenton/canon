@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -189,6 +190,7 @@ func events(args []string) error {
 func bootstrap(args []string) error {
 	fs := flag.NewFlagSet("bootstrap", flag.ContinueOnError)
 	actorID := fs.String("actor", "", "id of the first admin")
+	roleName := fs.String("role", "", "role to grant (default: the most permissive role in canon.yaml)")
 	team := fs.String("team", "", "team to add them to")
 	dbPath := fs.String("db", "canon.db", "path to the event log")
 	schemaPath := fs.String("schema", "canon.yaml", "path to canon.yaml")
@@ -220,12 +222,24 @@ func bootstrap(args []string) error {
 			len(existing), strings.Join(existing, ", "))
 	}
 
-	role := "admin"
-	if sch.Unrestricted() {
+	// The role to grant is not hardcoded. This command previously assumed "admin",
+	// which meant it failed on any schema that named its roles differently — found
+	// the first time Canon was pointed at its own schema, where the equivalent role
+	// is called "maintainer".
+	role := *roleName
+	switch {
+	case sch.Unrestricted():
 		role = ""
-	} else if _, ok := sch.Role(role); !ok {
-		return fmt.Errorf("canon.yaml defines no %q role; defined roles are %s",
-			role, strings.Join(sch.RoleNames(), ", "))
+	case role != "":
+		if _, ok := sch.Role(role); !ok {
+			return fmt.Errorf("canon.yaml defines no %q role; defined roles are %s",
+				role, strings.Join(sch.RoleNames(), ", "))
+		}
+	default:
+		var err error
+		if role, err = mostPermissiveRole(sch); err != nil {
+			return err
+		}
 	}
 
 	by := event.Actor{ID: "bootstrap", Kind: event.ActorSystem}
@@ -254,6 +268,58 @@ func bootstrap(args []string) error {
 	fmt.Printf("\n\nstart the server and act as them:\n  canon serve -db %s -schema %s\n  curl -H 'X-Canon-Actor: %s' http://localhost:8080/api/issues\n",
 		*dbPath, *schemaPath, *actorID)
 	return nil
+}
+
+// mostPermissiveRole picks the role a first administrator should hold: the one that
+// is granted outright everything any role is granted. If no single role dominates,
+// the choice is the operator's to make rather than this command's to guess.
+func mostPermissiveRole(sch *schema.Schema) (string, error) {
+	names := sch.RoleNames()
+	if len(names) == 0 {
+		return "", fmt.Errorf("canon.yaml defines no roles")
+	}
+
+	// Compare what roles can actually do, not how their grants are spelled.
+	// "transition:*" and "transition:approved->in_progress" are different strings
+	// and the first subsumes the second, so the concrete operation space is what
+	// matters — and the schema already knows how to decide against it.
+	var operations []string
+	operations = append(operations, schema.Verbs...)
+	for _, field := range sch.FieldNames() {
+		operations = append(operations, schema.FieldOp(field))
+	}
+	for _, t := range sch.Transitions {
+		operations = append(operations, schema.TransitionOp(t.From, t.To))
+	}
+
+	var candidates []string
+	for _, name := range names {
+		role, _ := sch.Role(name)
+		if role.Scope != schema.ScopeOrg {
+			continue
+		}
+		complete := true
+		for _, op := range operations {
+			if role.Decide(op) != schema.Allow {
+				complete = false
+				break
+			}
+		}
+		if complete {
+			candidates = append(candidates, name)
+		}
+	}
+
+	switch len(candidates) {
+	case 1:
+		return candidates[0], nil
+	case 0:
+		return "", fmt.Errorf("no single role in canon.yaml grants everything; choose one with -role (defined roles: %s)",
+			strings.Join(names, ", "))
+	default:
+		sort.Strings(candidates)
+		return candidates[0], nil
+	}
 }
 
 // serve runs the HTTP API.

@@ -317,20 +317,20 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## chore-003: Dogfood: run this project in Canon
 
 - **Type:** chore
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 2 (High)
 - **Traces:** none
 - **Scope:** Import this repository's increment ledger into Canon and track the remaining work there. No product code changes. No other changes.
 - **Acceptance Criteria:**
-  - [ ] WHEN the ledger is imported THE SYSTEM SHALL contain every increment with its status and history
-  - [ ] THE SYSTEM SHALL be the place this project's work is tracked from the import onward
+  - [x] WHEN the ledger is imported THE SYSTEM SHALL contain every increment with its status and history
+  - [x] THE SYSTEM SHALL be the place this project's work is tracked from the import onward
 - **Test Strategy:**
   - Import, then compare issue count and statuses against the ledger
   - Use it for one working day and record what broke
 - **Dependencies:** feat-013
 - **Rollback Plan:** Continue tracking in specs/increment-plan.md
 - **Risk:** Low — read-only import, and the most convincing part of the demo
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/chore-003-dogfood-run-this-project-in-canon.md`
 
 
 ## feat-014: Roles and permissions in canon.yaml
