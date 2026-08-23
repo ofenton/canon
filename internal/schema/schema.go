@@ -92,10 +92,12 @@ type Schema struct {
 	Transitions []Transition `yaml:"transitions"`
 	Fields      []Field      `yaml:"fields"`
 	IssueTypes  []IssueType  `yaml:"issue_types"`
+	Roles       []Role       `yaml:"roles"`
 
 	states      map[string]State
 	fields      map[string]Field
 	transitions map[string]map[string]bool
+	roles       map[string]Role
 }
 
 // Load reads and validates the schema at path.
@@ -141,7 +143,7 @@ func Load(path string) (*Schema, error) {
 func (s *Schema) checkUnknownKeys(root *yaml.Node, path string) error {
 	known := map[string]bool{
 		"version": true, "states": true, "transitions": true,
-		"fields": true, "issue_types": true,
+		"fields": true, "issue_types": true, "roles": true,
 	}
 	var unknown []string
 	for i := 0; i+1 < len(root.Content); i += 2 {
@@ -178,6 +180,10 @@ func (s *Schema) recordLines(root *yaml.Node) {
 			case "issue_types":
 				if j < len(s.IssueTypes) {
 					s.IssueTypes[j].line = item.Line
+				}
+			case "roles":
+				if j < len(s.Roles) {
+					s.Roles[j].line = item.Line
 				}
 			}
 		}
@@ -267,6 +273,10 @@ func (s *Schema) validate(path string) error {
 		}
 	}
 
+	// Roles reference fields and states, so index them before checking grants.
+	s.index()
+	s.validateRoles(add)
+
 	if len(problems) == 0 {
 		return nil
 	}
@@ -283,6 +293,10 @@ func (s *Schema) index() {
 	s.fields = make(map[string]Field, len(s.Fields))
 	for _, f := range s.Fields {
 		s.fields[f.Name] = f
+	}
+	s.roles = make(map[string]Role, len(s.Roles))
+	for _, r := range s.Roles {
+		s.roles[r.Name] = r
 	}
 	s.transitions = map[string]map[string]bool{}
 	for _, tr := range s.Transitions {
