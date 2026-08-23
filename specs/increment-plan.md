@@ -317,7 +317,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## chore-003: Dogfood: run this project in Canon
 
 - **Type:** chore
-- **Status:** approved
+- **Status:** in-progress
 - **Tier:** 2 (High)
 - **Traces:** none
 - **Scope:** Import this repository's increment ledger into Canon and track the remaining work there. No product code changes. No other changes.
