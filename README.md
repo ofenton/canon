@@ -376,7 +376,6 @@ Honest list, so nobody is surprised:
   which is a meaningful narrowing, but anyone who can reach the port can claim any registered
   identity. **Do not expose an instance to a network you do not control.**
 - **Web UI.** API, CLI and MCP only so far.
-- **Flow metrics.** Planned.
 - **Federated repo-local storage.** The event model is designed for it; the transport is not built.
 - **Jira import.** Wanted, not started.
 
