@@ -359,15 +359,15 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-015: Actor registry and team membership
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-review
 - **Tier:** 1 (Critical)
 - **Traces:** R33
 - **Scope:** Record actor identities and team membership as events (`actor.registered`, `team.member_added`, `team.member_removed`) and project them. Resolve an actor's roles and teams at write time. No authentication. No other changes.
 - **Acceptance Criteria:**
-  - [ ] THE SYSTEM SHALL record actor identities and team membership as events in the log, not in `canon.yaml`
-  - [ ] WHEN an actor is granted a role THE SYSTEM SHALL apply it to subsequent writes without a restart
-  - [ ] WHEN an unregistered actor attempts a write THE SYSTEM SHALL reject it naming the actor
-  - [ ] WHEN membership changes THE SYSTEM SHALL retain the prior membership in the log, so past events remain explicable
+  - [x] THE SYSTEM SHALL record actor identities and team membership as events in the log, not in `canon.yaml`
+  - [x] WHEN an actor is granted a role THE SYSTEM SHALL apply it to subsequent writes without a restart
+  - [x] WHEN an unregistered actor attempts a write THE SYSTEM SHALL reject it naming the actor
+  - [x] WHEN membership changes THE SYSTEM SHALL retain the prior membership in the log, so past events remain explicable
 - **Test Strategy:**
   - Membership lifecycle test: add, act, remove, act — permitted then refused
   - Projection test: rebuilding reproduces identical membership
@@ -375,7 +375,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Dependencies:** feat-014
 - **Rollback Plan:** Treat every actor as holding a single default role
 - **Risk:** Medium — introduces a second projected entity alongside issues
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/feat-015-actor-registry-and-team-membership.md`
 ---
 
 ## Sequencing
