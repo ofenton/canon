@@ -297,14 +297,14 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-013: One-command self-host and single-file backup
 
 - **Type:** feature
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 1 (Critical)
 - **Traces:** R21, R22
 - **Scope:** `canon serve` starts a working instance with no external services. All data in one file that can be copied as a backup. README covering install, run and backup. No other changes.
 - **Acceptance Criteria:**
-  - [ ] WHEN an operator runs `canon serve` THE SYSTEM SHALL start a working instance with no external service dependencies
-  - [ ] THE SYSTEM SHALL store all data in a single file that can be copied while running to produce a valid backup
-  - [ ] WHEN a copied data file is restored THE SYSTEM SHALL start with identical state
+  - [x] WHEN an operator runs `canon serve` THE SYSTEM SHALL start a working instance with no external service dependencies
+  - [x] THE SYSTEM SHALL store all data in a single file that can be copied while running to produce a valid backup
+  - [x] WHEN a copied data file is restored THE SYSTEM SHALL start with identical state
 - **Test Strategy:**
   - Fresh-container test: download the binary, run it, create an issue
   - Backup and restore test asserting state equality
@@ -312,7 +312,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Dependencies:** feat-011
 - **Rollback Plan:** Document a manual multi-step setup instead
 - **Risk:** Low — mostly packaging, but it is the whole self-host story
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/feat-013-one-command-self-host-and-single-file-backup.md`
 
 ## chore-003: Dogfood: run this project in Canon
 

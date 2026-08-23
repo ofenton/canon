@@ -237,6 +237,7 @@ canon mcp -actor <id>                     serve MCP over stdio, for agents
 canon schema                              validate canon.yaml and summarise it
 canon events [-subject <id>] [-since <n>] print the event log as JSON
 canon rebuild                             discard projections and replay the log
+canon backup -out <file>                  consistent copy, safe while running
 canon version
 ```
 
@@ -363,10 +364,26 @@ Events are canonical CBOR in a SQLite table with triggers that reject `UPDATE` a
 the log is append-only as a property of the database rather than a habit of its callers.
 `canon events` renders any of it as human-readable JSON.
 
-This buys three things at once: history is inherent rather than bolted on, backup is copying one
-file, and a second log home becomes a transport rather than a rewrite — appends commute, so two
+This buys three things at once: history is inherent rather than bolted on, backup is one command
+producing one file, and a second log home becomes a transport rather than a rewrite — appends commute, so two
 clones merge by concatenation. That last point is why the storage layer is shaped this way; see
 [ADR-0003](docs/decisions/0003-storage-history-and-federation.md).
+
+## Backing up
+
+```
+$ canon backup -out backup.db
+wrote backup.db (13 events, 20.0 KiB) in 1ms
+restore with: canon serve -db backup.db
+```
+
+Safe to run while the server is serving, and it never overwrites an existing file.
+
+**Do not simply copy `canon.db`.** SQLite runs in WAL mode, so recent commits live in a `-wal`
+sidecar that has not been folded into the main file yet — on a young database that is most of the
+data. A test in `internal/event` demonstrates it: a plain copy of a 500-event log recovered
+**zero events**. `canon backup` takes a read transaction and writes one internally consistent
+file, which is what makes "keep this one file" a true statement.
 
 ## What is not built
 
