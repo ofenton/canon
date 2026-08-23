@@ -35,9 +35,16 @@ type ProposalRequired struct {
 	Operation string
 	Subject   string
 	Role      string
+	// ProposalID is filled once the attempt has been recorded, so the caller can
+	// refer to it. An unrecorded proposal is just a refusal with extra words.
+	ProposalID string
 }
 
 func (p *ProposalRequired) Error() string {
+	if p.ProposalID != "" {
+		return fmt.Sprintf("%s may not %s on %s directly; recorded as proposal %s for human approval (role %q)",
+			p.Actor, p.Operation, p.Subject, p.ProposalID, p.Role)
+	}
 	return fmt.Sprintf("%s may not %s on %s directly, but may propose it for human approval (role %q)",
 		p.Actor, p.Operation, p.Subject, p.Role)
 }
@@ -157,7 +164,7 @@ func (e *Enforcer) TransitionAs(p Principal, id, to, evidence string, at time.Ti
 		return fmt.Errorf("unknown issue %s", id)
 	}
 	if err := e.authorise(p, schema.TransitionOp(issue.State, to), id, issue.Team); err != nil {
-		return err
+		return e.proposalFor(p, err, issue.State, to, evidence, at)
 	}
 	return e.Transition(id, to, evidence, at, p.Actor)
 }
