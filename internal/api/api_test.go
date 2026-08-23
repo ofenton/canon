@@ -154,6 +154,7 @@ func TestEveryRouteIsExercised(t *testing.T) {
 		{"POST /api/proposals/{id}/reject", "POST", "/api/proposals/PROP-2/reject", "ollie", map[string]string{"reason": "not ready"}, 204},
 
 		{"POST /api/boards", "POST", "/api/boards", "ollie", map[string]string{"name": "platform", "query": "team=platform", "group_by": "state"}, 201},
+		{"GET /api/metrics", "GET", "/api/metrics", "ollie", nil, 200},
 		{"GET /api/boards", "GET", "/api/boards", "ollie", nil, 200},
 		{"GET /api/boards/{name}", "GET", "/api/boards/platform", "ollie", nil, 200},
 		{"DELETE /api/boards/{name}", "DELETE", "/api/boards/platform", "ollie", nil, 204},

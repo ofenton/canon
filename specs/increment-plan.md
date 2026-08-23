@@ -238,14 +238,14 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-010: Flow metrics without estimation
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-review
 - **Tier:** 2 (High)
 - **Traces:** R19, R20
 - **Scope:** Cycle time and throughput computed from recorded state transitions. No estimate field anywhere. No other changes.
 - **Acceptance Criteria:**
-  - [ ] WHEN an operator requests flow metrics THE SYSTEM SHALL report cycle time and throughput derived from recorded state transitions
-  - [ ] THE SYSTEM SHALL provide no story point, velocity, estimate or burndown field in the schema, API or UI
-  - [ ] WHEN canon.yaml defines a field named as an estimate THE SYSTEM SHALL refuse to start
+  - [x] WHEN an operator requests flow metrics THE SYSTEM SHALL report cycle time and throughput derived from recorded state transitions
+  - [x] THE SYSTEM SHALL provide no story point, velocity, estimate or burndown field in the schema, API or UI
+  - [x] WHEN canon.yaml defines a field named as an estimate THE SYSTEM SHALL refuse to start
 - **Test Strategy:**
   - Metrics test against a fixture with known transition timestamps
   - Assertion test scanning schema, API and UI for estimate-shaped fields
@@ -253,7 +253,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Dependencies:** feat-009
 - **Rollback Plan:** Remove the metrics endpoint; transitions are still recorded so metrics can be added later
 - **Risk:** Low — pure derivation from data already recorded
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/feat-010-flow-metrics-without-estimation.md`
 
 ## feat-011: Keyboard-first web UI
 
