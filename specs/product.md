@@ -139,6 +139,33 @@ EARS notation — `WHEN <trigger> THE SYSTEM SHALL <observable response>`.
 - **R33:** THE SYSTEM SHALL record actor identities and team membership as events in the log, not
   in `canon.yaml`, so that joining a team is not a pull request.
 
+**Hierarchy**
+- **R34:** WHEN an operator requests an issue's ancestors THE SYSTEM SHALL return them from the
+  issue to its root, in order.
+- **R35:** WHEN an operator requests an issue's subtree THE SYSTEM SHALL return its descendants to
+  a requested depth.
+- **R36:** WHEN a query names an ancestor THE SYSTEM SHALL return every issue beneath it at any
+  depth.
+
+**Dependencies**
+- **R37:** THE SYSTEM SHALL record that one issue depends on another, as a single directed
+  relation with no other relation types.
+- **R38:** WHEN a dependency would create a cycle THE SYSTEM SHALL record it and report a warning
+  naming the cycle, rather than refusing the write.
+- **R39:** WHEN an operator requests an issue's dependencies THE SYSTEM SHALL return both what it
+  depends on and what depends on it.
+- **R40:** THE SYSTEM SHALL derive whether an issue is blocked from whether any issue it depends
+  on is not closed, without anyone maintaining a field.
+
+**Detail**
+- **R41:** WHEN a user opens an issue in the UI THE SYSTEM SHALL show its fields, its place in the
+  hierarchy and its dependencies, without leaving the keyboard.
+- **R42:** THE SYSTEM SHALL provide a checklist field whose items are individually checkable and
+  countable.
+- **R43:** WHEN a state is marked as requiring a complete checklist THE SYSTEM SHALL refuse
+  entry to it while any item is unchecked.
+- **R44:** THE SYSTEM SHALL provide a field type holding several values from a declared set.
+
 **Speed**
 - **R16:** WHEN a user creates an issue THE SYSTEM SHALL require no more than a title.
 - **R17:** THE SYSTEM SHALL respond to any read request for a project of 10,000 issues in under
