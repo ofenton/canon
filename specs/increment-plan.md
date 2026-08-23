@@ -157,7 +157,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-006: HTTP API
 
 - **Type:** feature
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 1 (Critical)
 - **Traces:** R11, R16
 - **Scope:** The single API used by the UI, CLI and agents. Create, read, update, transition, list. Creating an issue requires only a title. No other changes.
