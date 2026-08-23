@@ -415,6 +415,92 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Risk:** Low — documentation only
 - **Evidence:** see `specs/increments/docs-002-documentation-catch-up.md`
 
+
+## feat-017: Hierarchy API: ancestors, subtree and ancestor queries
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 2 (High)
+- **Traces:** R34, R35, R36
+- **Scope:** Add `GET /api/issues/{id}/ancestors` and `GET /api/issues/{id}/tree`, and an `ancestor` query key. Read-only additions over the existing parent/child model. No other changes.
+- **Acceptance Criteria:**
+  - [ ] WHEN an operator requests an issue's ancestors THE SYSTEM SHALL return them from the issue to its root, in order
+  - [ ] WHEN an operator requests an issue's subtree THE SYSTEM SHALL return its descendants to a requested depth
+  - [ ] WHEN a query names an ancestor THE SYSTEM SHALL return every issue beneath it at any depth
+  - [ ] WHEN a requested subtree depth would return more than the list limit THE SYSTEM SHALL bound it and report the total
+- **Test Strategy:**
+  - Build a four-level tree and assert ancestors, subtree at each depth, and ancestor queries
+  - Assert a deleted mid-tree node re-parents rather than orphaning, and the subtree reflects it
+  - Benchmark the ancestor query against the 10,000-issue dataset
+- **Dependencies:** feat-012
+- **Rollback Plan:** Remove the two routes and the ancestor query key; the parent/child model is unchanged
+- **Risk:** Low — read-only over a model that already holds the data
+- **Evidence:** _(filled in at verify)_
+
+## feat-016: Dependencies with cycle warnings and reverse lookup
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 1 (Critical)
+- **Traces:** R37, R38, R39, R40
+- **Scope:** One directed `depends_on` relation recorded as events, projected with a reverse index. Cycles are recorded and warned about, never refused. Derive `blocked` from whether any dependency is not closed. No other changes.
+- **Acceptance Criteria:**
+  - [ ] THE SYSTEM SHALL record that one issue depends on another, as a single directed relation with no other relation types
+  - [ ] WHEN a dependency would create a cycle THE SYSTEM SHALL record it and report a warning naming the cycle, rather than refusing the write
+  - [ ] WHEN an operator requests an issue's dependencies THE SYSTEM SHALL return both what it depends on and what depends on it
+  - [ ] THE SYSTEM SHALL derive whether an issue is blocked from whether any issue it depends on is not closed
+  - [ ] WHEN a query names blocked THE SYSTEM SHALL return issues whose dependencies are not all closed
+- **Test Strategy:**
+  - Table test over a dependency graph: direct, transitive and cyclic
+  - Assert a cycle is stored, warned about by name, and does not refuse the write
+  - Assert dependents are found in both directions and survive a projection rebuild
+  - Assert blocked is derived, never stored as a field
+- **Dependencies:** feat-017
+- **Rollback Plan:** Remove the dependency events and routes; issues are unaffected
+- **Risk:** Medium — a second graph over the same entities, and the cycle policy is the opposite of the hierarchy's
+- **Evidence:** _(filled in at verify)_
+
+## feat-018: Issue detail view showing hierarchy and dependencies
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 1 (Critical)
+- **Traces:** R41
+- **Scope:** A keyboard-reachable detail view in the UI showing an issue's fields, ancestors, children, dependencies and dependents, with warnings for cycles and blocked state. No other changes.
+- **Acceptance Criteria:**
+  - [ ] WHEN a user opens an issue in the UI THE SYSTEM SHALL show its fields, its place in the hierarchy and its dependencies, without leaving the keyboard
+  - [ ] WHEN an issue is blocked THE SYSTEM SHALL say so and name what is blocking it
+  - [ ] WHEN an issue is part of a dependency cycle THE SYSTEM SHALL show the cycle
+  - [ ] WHEN a user navigates to a related issue THE SYSTEM SHALL open it without a pointer
+- **Test Strategy:**
+  - Drive the detail view by keyboard only in the browser test
+  - Assert every action in the detail view is in the action registry
+  - Assert a blocked issue and a cyclic issue both display their warning
+- **Dependencies:** feat-016
+- **Rollback Plan:** Revert to the list view; the API still exposes everything
+- **Risk:** Medium — the UI is where scope creeps, and this is the first view with real structure
+- **Evidence:** _(filled in at verify)_
+
+## feat-019: Checklist and multi-value fields
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 2 (High)
+- **Traces:** R42, R43, R44
+- **Scope:** Add `checklist` and `multi_enum` field types to canon.yaml, a `requires_checklist` state flag, and API support for checking individual items. No other changes.
+- **Acceptance Criteria:**
+  - [ ] THE SYSTEM SHALL provide a checklist field whose items are individually checkable and countable
+  - [ ] WHEN a state is marked as requiring a complete checklist THE SYSTEM SHALL refuse entry to it while any item is unchecked
+  - [ ] THE SYSTEM SHALL provide a field type holding several values from a declared set
+  - [ ] WHEN a multi-value field is given a value outside its declared set THE SYSTEM SHALL reject the write naming the permitted values
+- **Test Strategy:**
+  - Table test over checklist operations: add, check, uncheck, count
+  - Assert a requires_checklist state is refused with any item unchecked, and permitted when complete
+  - Assert multi_enum rejects undeclared values and accepts several declared ones
+- **Dependencies:** feat-018
+- **Rollback Plan:** Remove the two field types and the state flag; existing schemas are unaffected
+- **Risk:** Low — additive to the schema, and schemas without them keep working
+- **Evidence:** _(filled in at verify)_
 ---
 
 ## Sequencing
