@@ -7,7 +7,10 @@ import (
 	"fmt"
 	"os"
 
+	"time"
+
 	"github.com/ofenton/canon/internal/event"
+	"github.com/ofenton/canon/internal/projection"
 )
 
 // version is set at build time via -ldflags.
@@ -18,11 +21,15 @@ const usage = `canon — an issue tracker whose schema is versioned config
 usage:
   canon version                 print the build version
   canon events [flags]          print the event log as JSON
+  canon rebuild [flags]         discard projections and replay the log
 
 events flags:
   -db string        path to the event log (default "canon.db")
   -subject string   only events about this subject
   -since int        only events after this sequence number
+
+rebuild flags:
+  -db string        path to the event log (default "canon.db")
 `
 
 func main() {
@@ -43,12 +50,46 @@ func run(args []string) error {
 		return nil
 	case "events":
 		return events(args[1:])
+	case "rebuild":
+		return rebuild(args[1:])
 	case "help", "-h", "--help":
 		fmt.Print(usage)
 		return nil
 	default:
 		return fmt.Errorf("unknown command %q\n\n%s", args[0], usage)
 	}
+}
+
+// rebuild discards the materialised state and replays the log from the beginning.
+//
+// The projection is a cache with no authority, so this is always safe: it is the
+// recovery path for a projection bug, and the proof that the log is the source of truth.
+func rebuild(args []string) error {
+	fs := flag.NewFlagSet("rebuild", flag.ContinueOnError)
+	path := fs.String("db", "canon.db", "path to the event log")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	store, err := event.Open(*path)
+	if err != nil {
+		return err
+	}
+	defer store.Close()
+
+	total, err := store.Count()
+	if err != nil {
+		return err
+	}
+
+	start := time.Now()
+	p := projection.New(store)
+	if err := p.Rebuild(); err != nil {
+		return fmt.Errorf("rebuild failed: %w", err)
+	}
+	fmt.Printf("replayed %d events in %s\ndigest %s\n",
+		total, time.Since(start).Round(time.Millisecond), p.Snapshot()[:16])
+	return nil
 }
 
 // events renders the log in the human-readable form. Canonical CBOR is what is
