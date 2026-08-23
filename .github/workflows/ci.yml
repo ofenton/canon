@@ -59,6 +59,7 @@ jobs:
           python3 .sdlc/bin/validate-plan.py
           python3 .sdlc/bin/validate-skills.py
           python3 .sdlc/bin/check-traceability.py
+          python3 .sdlc/bin/check-tracked.py
 
       - name: Validate workflow syntax
         run: make lint-ci
