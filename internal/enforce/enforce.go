@@ -148,6 +148,10 @@ func (e *Enforcer) Transition(id, to, evidence string, at time.Time, actor event
 }
 
 // Reparent sets or clears an issue's parent.
+//
+// Depth in Canon is a parent reference and nothing else: epics, stories and sub-tasks
+// are the same entity at different heights. That keeps the model small, but it means
+// the only structural invariant worth enforcing is that the graph stays a tree.
 func (e *Enforcer) Reparent(id, parent string, at time.Time, actor event.Actor) error {
 	if err := e.refresh(); err != nil {
 		return err
@@ -159,11 +163,67 @@ func (e *Enforcer) Reparent(id, parent string, at time.Time, actor event.Actor) 
 		if _, ok := e.view.Issue(parent); !ok {
 			return fmt.Errorf("unknown parent %s", parent)
 		}
-		if parent == id {
-			return fmt.Errorf("%s cannot be its own parent", id)
+		if path, cyclic := e.wouldCycle(id, parent); cyclic {
+			return fmt.Errorf("making %s a child of %s would create a cycle: %s",
+				id, parent, strings.Join(path, " -> "))
 		}
 	}
 	return e.append("issue.reparented", id, at, actor, map[string]any{"parent": parent})
+}
+
+// Delete removes an issue and lifts its children to the deleted issue's parent.
+//
+// Cascading would destroy work nobody asked to destroy; orphaning would leave
+// children pointing at something that no longer exists. Lifting preserves both the
+// children and the shape of the tree around them.
+//
+// Each child's move is recorded as its own issue.reparented event rather than being
+// inferred by the projection, so the history says why a child changed parent. In an
+// append-only log the audit trail is the whole point of the storage model.
+func (e *Enforcer) Delete(id string, at time.Time, actor event.Actor) error {
+	if err := e.refresh(); err != nil {
+		return err
+	}
+	issue, ok := e.view.Issue(id)
+	if !ok {
+		return fmt.Errorf("unknown issue %s", id)
+	}
+
+	for _, child := range e.view.Children(id) {
+		if err := e.append("issue.reparented", child, at, actor,
+			map[string]any{"parent": issue.Parent, "because": "parent " + id + " was deleted"}); err != nil {
+			return fmt.Errorf("lifting child %s: %w", child, err)
+		}
+	}
+	return e.append("issue.deleted", id, at, actor, nil)
+}
+
+// wouldCycle reports whether making child a descendant of parent closes a loop,
+// returning the offending path so the error can show it.
+func (e *Enforcer) wouldCycle(child, parent string) ([]string, bool) {
+	path := []string{parent}
+	seen := map[string]bool{parent: true}
+	for current := parent; current != ""; {
+		if current == child {
+			// path already ends at child, having walked up to it.
+			return path, true
+		}
+		issue, ok := e.view.Issue(current)
+		if !ok {
+			return nil, false
+		}
+		current = issue.Parent
+		if current == "" {
+			return nil, false
+		}
+		if seen[current] {
+			// An existing loop; refuse rather than walk it forever.
+			return append(path, current), true
+		}
+		seen[current] = true
+		path = append(path, current)
+	}
+	return nil, false
 }
 
 // CheckMigration reports whether a new schema can be applied to an existing log.
