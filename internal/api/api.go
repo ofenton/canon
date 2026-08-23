@@ -15,12 +15,15 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ofenton/canon/internal/enforce"
 	"github.com/ofenton/canon/internal/event"
 	"github.com/ofenton/canon/internal/projection"
+	"github.com/ofenton/canon/internal/query"
 	"github.com/ofenton/canon/internal/schema"
 )
 
@@ -63,6 +66,10 @@ func (s *Server) Routes() map[string]http.HandlerFunc {
 		"GET /api/proposals/{id}":              s.getProposal,
 		"POST /api/proposals/{id}/approve":     s.approveProposal,
 		"POST /api/proposals/{id}/reject":      s.rejectProposal,
+		"GET /api/boards":                      s.listBoards,
+		"POST /api/boards":                     s.saveBoard,
+		"GET /api/boards/{name}":               s.renderBoard,
+		"DELETE /api/boards/{name}":            s.deleteBoard,
 		"GET /api/actors":                      s.listActors,
 		"POST /api/actors":                     s.registerActor,
 		"GET /api/actors/{id}":                 s.getActor,
@@ -132,19 +139,20 @@ func (s *Server) listIssues(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	state, team := r.URL.Query().Get("state"), r.URL.Query().Get("team")
-	issues := make([]*projection.Issue, 0)
-	for _, id := range view.IssueIDs() {
-		issue, _ := view.Issue(id)
-		if state != "" && issue.State != state {
-			continue
+	// ?q= is the query language; ?state= and ?team= remain as shorthands for the
+	// two filters people reach for most, and compose with it.
+	raw := r.URL.Query().Get("q")
+	for _, shorthand := range []string{"state", "team"} {
+		if v := r.URL.Query().Get(shorthand); v != "" {
+			raw = strings.TrimSpace(raw + " " + shorthand + "=" + v)
 		}
-		if team != "" && issue.Team != team {
-			continue
-		}
-		issues = append(issues, issue)
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"issues": issues})
+	q, err := query.Parse(raw, s.schema)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"issues": q.Filter(view, s.schema)})
 }
 
 func (s *Server) getIssue(w http.ResponseWriter, r *http.Request) {
@@ -227,6 +235,96 @@ func (s *Server) rejectProposal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.enforcer.RejectProposal(p, r.PathValue("id"), body.Reason, s.now()); err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// listBoards returns the saved boards.
+func (s *Server) listBoards(w http.ResponseWriter, r *http.Request) {
+	boards, err := s.enforcer.Boards()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"boards": boards, "group_keys": query.GroupKeys(s.schema),
+	})
+}
+
+func (s *Server) saveBoard(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Name    string `json:"name"`
+		Query   string `json:"query"`
+		GroupBy string `json:"group_by"`
+	}
+	if !decode(w, r, &body) {
+		return
+	}
+	p, ok := s.principal(w, r)
+	if !ok {
+		return
+	}
+	validate := func(raw string) error {
+		_, err := query.Parse(raw, s.schema)
+		return err
+	}
+	if body.GroupBy != "" && !slices.Contains(query.GroupKeys(s.schema), body.GroupBy) {
+		writeError(w, http.StatusUnprocessableEntity,
+			fmt.Errorf("cannot group by %q; valid keys are %s",
+				body.GroupBy, strings.Join(query.GroupKeys(s.schema), ", ")))
+		return
+	}
+	if err := s.enforcer.SaveBoard(p, body.Name, body.Query, body.GroupBy, validate, s.now()); err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"name": body.Name})
+}
+
+// renderBoard resolves a saved board against the current data.
+//
+// Nothing is stored per board: the columns are computed on every read, which is why
+// an issue leaves a board the moment it stops matching.
+func (s *Server) renderBoard(w http.ResponseWriter, r *http.Request) {
+	board, err := s.enforcer.BoardByName(r.PathValue("name"))
+	if err != nil {
+		writeError(w, http.StatusNotFound, err)
+		return
+	}
+	view, err := s.view()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	q, err := query.Parse(board.Query, s.schema)
+	if err != nil {
+		// The schema may have moved under a saved board. Say so rather than
+		// returning an empty board that looks like "no work".
+		writeError(w, http.StatusUnprocessableEntity,
+			fmt.Errorf("board %q no longer parses against the current schema: %w", board.Name, err))
+		return
+	}
+	order, buckets := query.Group(q.Filter(view, s.schema), board.GroupBy, s.schema)
+	columns := make([]map[string]any, 0, len(order))
+	for _, name := range order {
+		columns = append(columns, map[string]any{
+			"name": name, "count": len(buckets[name]), "issues": buckets[name],
+		})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"name": board.Name, "query": board.Query,
+		"group_by": board.GroupBy, "columns": columns,
+	})
+}
+
+func (s *Server) deleteBoard(w http.ResponseWriter, r *http.Request) {
+	p, ok := s.principal(w, r)
+	if !ok {
+		return
+	}
+	if err := s.enforcer.DeleteBoard(p, r.PathValue("name"), s.now()); err != nil {
 		writeDomainError(w, err)
 		return
 	}

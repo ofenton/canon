@@ -249,3 +249,40 @@ func contains(h, n string) bool {
 	}
 	return false
 }
+
+// Fields supplied at creation must survive into the projection. They did not: the
+// handler read only title and state, so a create carrying a priority silently lost
+// it, and nothing noticed until a query tried to filter on one.
+func TestFieldsSetAtCreationArePreserved(t *testing.T) {
+	log := newLog(t)
+	if err := log.Append(event.New("issue.created", "CANON-1", at(0), human("ollie"),
+		map[string]any{
+			"title": "Search is slow", "state": "todo", "type": "bug",
+			"priority": "p1", "component": "search",
+		})); err != nil {
+		t.Fatal(err)
+	}
+	p := New(log)
+	if err := p.Rebuild(); err != nil {
+		t.Fatal(err)
+	}
+	issue, ok := p.Issue("CANON-1")
+	if !ok {
+		t.Fatal("missing")
+	}
+	if issue.Fields["priority"] != "p1" {
+		t.Errorf("priority: got %q want p1", issue.Fields["priority"])
+	}
+	if issue.Fields["component"] != "search" {
+		t.Errorf("component: got %q want search", issue.Fields["component"])
+	}
+	if issue.Type != "bug" {
+		t.Errorf("type: got %q want bug", issue.Type)
+	}
+	// The reserved payload keys must not leak into Fields as duplicates.
+	for _, reserved := range []string{"title", "state", "type"} {
+		if _, dup := issue.Fields[reserved]; dup {
+			t.Errorf("%q should not appear in Fields", reserved)
+		}
+	}
+}
