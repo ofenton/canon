@@ -238,7 +238,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-010: Flow metrics without estimation
 
 - **Type:** feature
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 2 (High)
 - **Traces:** R19, R20
 - **Scope:** Cycle time and throughput computed from recorded state transitions. No estimate field anywhere. No other changes.
@@ -399,7 +399,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## docs-002: Documentation catch-up
 
 - **Type:** docs
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 2 (High)
 - **Traces:** none
 - **Scope:** Bring the README up to date with queries, boards, metrics and MCP, and document the estimate refusal. Documentation only. No other changes.
