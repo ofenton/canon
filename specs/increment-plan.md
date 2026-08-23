@@ -278,7 +278,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-012: Meet the latency budget at 10,000 issues
 
 - **Type:** perf
-- **Status:** approved
+- **Status:** in-progress
 - **Tier:** 2 (High)
 - **Traces:** R17
 - **Scope:** Benchmark and tune reads against a seeded 10,000-issue dataset until the budget is met. Indexes and query plans only; no model changes. No other changes.
