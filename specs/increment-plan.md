@@ -75,14 +75,14 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-002: Projection engine with snapshots
 
 - **Type:** feature
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 1 (Critical)
 - **Traces:** R12
 - **Scope:** Replay events into current-state projections, with periodic snapshots to bound replay cost, and a `canon rebuild` command that discards and rebuilds every projection from the log. No other changes.
 - **Acceptance Criteria:**
-  - [ ] WHEN `canon rebuild` runs THE SYSTEM SHALL discard all projections and reproduce identical state from the event log
-  - [ ] WHEN a snapshot exists THE SYSTEM SHALL replay only events after it
-  - [ ] THE SYSTEM SHALL rebuild projections for 10,000 events in under 5 seconds
+  - [x] WHEN `canon rebuild` runs THE SYSTEM SHALL discard all projections and reproduce identical state from the event log
+  - [x] WHEN a snapshot exists THE SYSTEM SHALL replay only events after it
+  - [x] THE SYSTEM SHALL rebuild projections for 10,000 events in under 5 seconds
 - **Test Strategy:**
   - Determinism test: rebuild twice, assert byte-identical projections
   - Snapshot test: state with and without snapshots matches
@@ -90,7 +90,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Dependencies:** feat-001
 - **Rollback Plan:** Revert to replaying the full log on every read
 - **Risk:** Medium — projection bugs are recoverable by rebuild, which is the point
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/feat-002-projection-engine-with-snapshots.md`
 
 ## feat-003: Load and validate canon.yaml
 
