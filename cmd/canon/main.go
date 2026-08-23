@@ -13,6 +13,7 @@ import (
 	"github.com/ofenton/canon/internal/api"
 	"github.com/ofenton/canon/internal/enforce"
 	"github.com/ofenton/canon/internal/event"
+	"github.com/ofenton/canon/internal/mcp"
 	"github.com/ofenton/canon/internal/projection"
 	"github.com/ofenton/canon/internal/schema"
 )
@@ -28,6 +29,7 @@ usage:
   canon events [flags]          print the event log as JSON
   canon bootstrap [flags]       create the first admin on an empty log
   canon serve [flags]           run the HTTP API
+  canon mcp [flags]             serve MCP over stdio, for agents
   canon rebuild [flags]         discard projections and replay the log
 
 schema flags:
@@ -48,6 +50,11 @@ serve flags:
   -db string        path to the event log (default "canon.db")
   -schema string    path to canon.yaml (default "canon.yaml")
   -addr string      address to listen on (default ":8080")
+
+mcp flags:
+  -actor string     actor to act as (required)
+  -db string        path to the event log (default "canon.db")
+  -schema string    path to canon.yaml (default "canon.yaml")
 
 rebuild flags:
   -db string        path to the event log (default "canon.db")
@@ -77,6 +84,8 @@ func run(args []string) error {
 		return bootstrap(args[1:])
 	case "serve":
 		return serve(args[1:])
+	case "mcp":
+		return mcpCmd(args[1:])
 	case "rebuild":
 		return rebuild(args[1:])
 	case "help", "-h", "--help":
@@ -276,6 +285,44 @@ func serve(args []string) error {
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 	return server.ListenAndServe()
+}
+
+// mcpCmd serves MCP over stdio.
+//
+// It dispatches through the same HTTP handler the network serves, so an agent and a
+// human take an identical path through authorisation. -actor is required and not
+// defaulted: an agent silently acting as whoever happens to be first in the registry
+// would be worse than a clear error.
+func mcpCmd(args []string) error {
+	fs := flag.NewFlagSet("mcp", flag.ContinueOnError)
+	actor := fs.String("actor", "", "actor to act as")
+	dbPath := fs.String("db", "canon.db", "path to the event log")
+	schemaPath := fs.String("schema", "canon.yaml", "path to canon.yaml")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if *actor == "" {
+		return fmt.Errorf("-actor is required: every event records who caused it")
+	}
+
+	sch, err := schema.Load(*schemaPath)
+	if err != nil {
+		return err
+	}
+	store, err := event.Open(*dbPath)
+	if err != nil {
+		return err
+	}
+	defer store.Close()
+
+	e := enforce.New(sch, store)
+	if _, err := e.Principal(*actor); err != nil {
+		return err
+	}
+
+	apiSrv := api.New(sch, store, e, time.Now)
+	server := mcp.NewServer(apiSrv.Handler(), apiSrv.Routes(), *actor)
+	return server.Serve(os.Stdin, os.Stdout)
 }
 
 // rebuild discards the materialised state and replays the log from the beginning.

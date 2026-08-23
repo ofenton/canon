@@ -227,6 +227,7 @@ a human — a different outcome from a refusal, and worth handling differently.
 ```
 canon bootstrap -actor <id> [-team <t>]   create the first admin on an empty log
 canon serve [-addr :8080]                 run the HTTP API
+canon mcp -actor <id>                     serve MCP over stdio, for agents
 canon schema                              validate canon.yaml and summarise it
 canon events [-subject <id>] [-since <n>] print the event log as JSON
 canon rebuild                             discard projections and replay the log
@@ -234,6 +235,34 @@ canon version
 ```
 
 All accept `-db` (default `canon.db`) and, where relevant, `-schema` (default `canon.yaml`).
+
+## Agents
+
+Canon speaks MCP over stdio. Point an agent at it:
+
+```json
+{ "mcpServers": { "canon": {
+    "command": "/path/to/canon",
+    "args": ["mcp", "-actor", "agent:one", "-db", "/path/to/canon.db",
+             "-schema", "/path/to/canon.yaml"]
+} } }
+```
+
+The tools are **derived from the HTTP route table**, so an agent can do everything a human can —
+21 routes, 21 tools, verified by a test rather than by discipline. Calls dispatch through the same
+handler the network serves, so an agent and a human take an identical path through authorisation.
+
+A refusal comes back as an error an agent can act on; a proposal does not:
+
+```
+create_issue         {"title":"Search is slow"}          → {"id":"CANON-1"}
+update_issue_fields  {"id":"CANON-1","storyPoints":"8"}  → isError, field "storyPoints" is not
+                                                            defined in the schema
+transition_issue     {"id":"CANON-1","to":"done"}        → proposal_required, PROP-1
+```
+
+The last one is not an error. The attempt was recorded for a human, which from the agent's point
+of view succeeded.
 
 ## How it stores things
 
@@ -259,7 +288,7 @@ Honest list, so nobody is surprised:
   which is a meaningful narrowing, but anyone who can reach the port can claim any registered
   identity. **Do not expose an instance to a network you do not control.**
 - **Web UI.** API and CLI only so far.
-- **MCP server.** Planned; the API parity test exists to make it mechanical.
+
 - **Queries, boards and flow metrics.** Planned.
 - **Federated repo-local storage.** The event model is designed for it; the transport is not built.
 - **Jira import.** Wanted, not started.
