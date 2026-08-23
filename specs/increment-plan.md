@@ -114,7 +114,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-004: Enforce the schema on every write
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-progress
 - **Tier:** 1 (Critical)
 - **Traces:** R3, R4, R5, R6
 - **Scope:** Reject writes that use fields, states or transitions not in `canon.yaml`. Provide no runtime interface for adding them. Refuse schema changes that would orphan existing issues. Apply additive changes without downtime. No other changes.
