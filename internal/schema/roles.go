@@ -43,7 +43,10 @@ const (
 // Verbs are the operations a role may be granted, beyond the parameterised
 // field: and transition: forms. Keeping this list short and closed is the point:
 // a permission vocabulary that grows per project is how 40 schemes become 100.
-var Verbs = []string{"create", "delete", "reparent"}
+var Verbs = []string{"create", "delete", "reparent", "depend"}
+
+// DependOp is the operation of adding or removing a dependency.
+const DependOp = "depend"
 
 // Role is one named set of grants. Roles are org-wide policy and live in canon.yaml;
 // who holds a role is state and lives in the event log.
