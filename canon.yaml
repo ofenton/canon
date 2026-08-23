@@ -1,0 +1,71 @@
+# The organisation's entire issue schema. One file, versioned, changed by pull request.
+# There is no per-project override — that absence is the product.
+version: 1
+
+states:
+  - name: todo
+    category: open
+  - name: in_progress
+    category: active
+  - name: in_review
+    category: active
+    requires_evidence: true
+  - name: done
+    category: closed
+  - name: abandoned
+    category: closed
+
+transitions:
+  - from: todo
+    to: in_progress
+  - from: in_progress
+    to: in_review
+  - from: in_review
+    to: done
+  - from: in_review
+    to: in_progress
+  - from: todo
+    to: abandoned
+  - from: in_progress
+    to: abandoned
+
+fields:
+  - name: title
+    type: string
+    required: true
+  - name: priority
+    type: enum
+    values: [p1, p2, p3, p4]
+  - name: component
+    type: string
+  - name: evidence
+    type: text
+
+issue_types:
+  - name: bug
+    fields: [title, priority, component]
+  - name: task
+    fields: [title, priority]
+  - name: epic
+    fields: [title]
+
+# Roles are org-wide policy: which roles exist and what each may do. Membership —
+# who holds which role, and which team they are in — is state, and lives in the
+# event log (feat-015). Making a joiner a pull request would teach people to route
+# around the system.
+roles:
+  - name: admin
+    can: [create, delete, reparent, "field:*", "transition:*"]
+
+  - name: member
+    scope: team
+    can: [create, reparent, "field:*", "transition:*"]
+
+  - name: agent
+    scope: team
+    can: [create, "field:*", "transition:todo->in_progress", "transition:in_progress->in_review"]
+    # Anything an agent may not do outright becomes a proposal for a human (feat-007).
+    propose: [delete, reparent, "transition:*"]
+
+  - name: reporter
+    can: [create, "field:title", "field:component"]
