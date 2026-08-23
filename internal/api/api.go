@@ -62,34 +62,38 @@ func New(s *schema.Schema, log *event.Store, e *enforce.Enforcer, now func() tim
 // can enumerate it, and so a reader can see the whole interface at once.
 func (s *Server) Routes() map[string]http.HandlerFunc {
 	return map[string]http.HandlerFunc{
-		"GET /api/schema":                      s.getSchema,
-		"GET /api/events":                      s.listEvents,
-		"GET /api/issues":                      s.listIssues,
-		"POST /api/issues":                     s.createIssue,
-		"GET /api/issues/{id}":                 s.getIssue,
-		"DELETE /api/issues/{id}":              s.deleteIssue,
-		"PATCH /api/issues/{id}/fields":        s.setFields,
-		"POST /api/issues/{id}/transition":     s.transition,
-		"PUT /api/issues/{id}/parent":          s.setParent,
-		"GET /api/issues/{id}/children":        s.listChildren,
-		"GET /api/issues/{id}/ancestors":       s.listAncestors,
-		"GET /api/issues/{id}/tree":            s.issueTree,
-		"GET /api/proposals":                   s.listProposals,
-		"GET /api/proposals/{id}":              s.getProposal,
-		"POST /api/proposals/{id}/approve":     s.approveProposal,
-		"POST /api/proposals/{id}/reject":      s.rejectProposal,
-		"GET /api/metrics":                     s.metrics,
-		"GET /api/boards":                      s.listBoards,
-		"POST /api/boards":                     s.saveBoard,
-		"GET /api/boards/{name}":               s.renderBoard,
-		"DELETE /api/boards/{name}":            s.deleteBoard,
-		"GET /api/actors":                      s.listActors,
-		"POST /api/actors":                     s.registerActor,
-		"GET /api/actors/{id}":                 s.getActor,
-		"POST /api/actors/{id}/roles":          s.grantRole,
-		"DELETE /api/actors/{id}/roles/{role}": s.revokeRole,
-		"POST /api/actors/{id}/teams":          s.addToTeam,
-		"DELETE /api/actors/{id}/teams/{team}": s.removeFromTeam,
+		"GET /api/schema":                           s.getSchema,
+		"GET /api/events":                           s.listEvents,
+		"GET /api/issues":                           s.listIssues,
+		"POST /api/issues":                          s.createIssue,
+		"GET /api/issues/{id}":                      s.getIssue,
+		"DELETE /api/issues/{id}":                   s.deleteIssue,
+		"PATCH /api/issues/{id}/fields":             s.setFields,
+		"POST /api/issues/{id}/transition":          s.transition,
+		"PUT /api/issues/{id}/parent":               s.setParent,
+		"GET /api/issues/{id}/children":             s.listChildren,
+		"GET /api/issues/{id}/ancestors":            s.listAncestors,
+		"GET /api/issues/{id}/tree":                 s.issueTree,
+		"GET /api/issues/{id}/dependencies":         s.listDependencies,
+		"PUT /api/issues/{id}/dependencies":         s.addDependency,
+		"DELETE /api/issues/{id}/dependencies/{on}": s.removeDependency,
+		"GET /api/cycles":                           s.listCycles,
+		"GET /api/proposals":                        s.listProposals,
+		"GET /api/proposals/{id}":                   s.getProposal,
+		"POST /api/proposals/{id}/approve":          s.approveProposal,
+		"POST /api/proposals/{id}/reject":           s.rejectProposal,
+		"GET /api/metrics":                          s.metrics,
+		"GET /api/boards":                           s.listBoards,
+		"POST /api/boards":                          s.saveBoard,
+		"GET /api/boards/{name}":                    s.renderBoard,
+		"DELETE /api/boards/{name}":                 s.deleteBoard,
+		"GET /api/actors":                           s.listActors,
+		"POST /api/actors":                          s.registerActor,
+		"GET /api/actors/{id}":                      s.getActor,
+		"POST /api/actors/{id}/roles":               s.grantRole,
+		"DELETE /api/actors/{id}/roles/{role}":      s.revokeRole,
+		"POST /api/actors/{id}/teams":               s.addToTeam,
+		"DELETE /api/actors/{id}/teams/{team}":      s.removeFromTeam,
 	}
 }
 
@@ -479,6 +483,76 @@ func (s *Server) issueTree(w http.ResponseWriter, r *http.Request) {
 		"limit":  limit,
 		"offset": offset,
 	})
+}
+
+// listDependencies returns both directions plus why the issue is blocked.
+func (s *Server) listDependencies(w http.ResponseWriter, r *http.Request) {
+	got, err := s.enforcer.DependenciesOf(r.PathValue("id"))
+	if err != nil {
+		writeError(w, http.StatusNotFound, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, got)
+}
+
+// addDependency records a dependency. A cycle is a 200 with a warning, not an error:
+// the write succeeded, and the caller needs to know what it just created.
+func (s *Server) addDependency(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		On string `json:"on"`
+	}
+	if !decode(w, r, &body) {
+		return
+	}
+	p, ok := s.principal(w, r)
+	if !ok {
+		return
+	}
+	res, err := s.enforcer.AddDependency(p, r.PathValue("id"), body.On, s.now())
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	out := map[string]any{"id": r.PathValue("id"), "on": body.On}
+	if warning := res.Warning(); warning != "" {
+		out["warning"] = warning
+		out["cycle"] = res.Cycle
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+func (s *Server) removeDependency(w http.ResponseWriter, r *http.Request) {
+	p, ok := s.principal(w, r)
+	if !ok {
+		return
+	}
+	if err := s.enforcer.RemoveDependency(p, r.PathValue("id"), r.PathValue("on"), s.now()); err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// listCycles reports every dependency cycle in the project.
+//
+// A cycle is recorded rather than refused, so it needs somewhere to be seen. This is
+// the aggregate view — the same reasoning as showing unused fields or untracked
+// commits: the individual decision is reasonable, and only the total is alarming.
+func (s *Server) listCycles(w http.ResponseWriter, r *http.Request) {
+	cycles, err := s.enforcer.Cycles()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	out := make([]map[string]any, 0, len(cycles))
+	for _, cycle := range cycles {
+		out = append(out, map[string]any{
+			"cycle": cycle,
+			"warning": fmt.Sprintf("%s → %s. Nothing in this cycle can start until one of these dependencies is removed.",
+				strings.Join(cycle, " → "), cycle[0]),
+		})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"cycles": out, "total": len(out)})
 }
 
 func (s *Server) listActors(w http.ResponseWriter, r *http.Request) {

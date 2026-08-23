@@ -29,6 +29,9 @@ var reserved = map[string]func(*projection.Issue) string{
 	"category": nil, // resolved against the schema, see value()
 	// ancestor is resolved against the projection in Filter, not from the issue.
 	ancestorKey: nil,
+	// blocked and depends_on are relations, resolved in Filter for the same reason.
+	blockedKey:   nil,
+	dependsOnKey: nil,
 }
 
 // term is one condition.
@@ -116,9 +119,14 @@ func checkValue(key, value string, s *schema.Schema) error {
 		default:
 			return fmt.Errorf("no category %q; categories are open, active, closed", value)
 		}
-	case ancestorKey:
+	case ancestorKey, dependsOnKey:
 		// An issue id, not a schema value. A query for an issue that does not exist
 		// returns nothing, which is the honest answer rather than an error.
+		return nil
+	case blockedKey:
+		if value != "true" && value != "false" {
+			return fmt.Errorf("blocked takes true or false, got %q", value)
+		}
 		return nil
 	default:
 		if def, ok := s.Field(key); ok && def.Type == schema.Enum && value != "" {
@@ -149,11 +157,19 @@ func (q *Query) Raw() string { return q.raw }
 // issue does not know its own lineage.
 const ancestorKey = "ancestor"
 
+// blockedKey and dependsOnKey ask about the dependency graph, which an issue does
+// not carry on its own.
+const (
+	blockedKey   = "blocked"
+	dependsOnKey = "depends_on"
+)
+
 // Match reports whether an issue satisfies every term.
 func (q *Query) Match(issue *projection.Issue, s *schema.Schema) bool {
 	for _, t := range q.terms {
-		if t.key == ancestorKey {
-			continue // resolved against the projection in Filter
+		switch t.key {
+		case ancestorKey, blockedKey, dependsOnKey:
+			continue // relations, resolved against the projection in Filter
 		}
 		got := value(t.key, issue, s)
 		var hit bool
@@ -168,6 +184,18 @@ func (q *Query) Match(issue *projection.Issue, s *schema.Schema) bool {
 		}
 	}
 	return true
+}
+
+// Closed reports whether a state is in the schema's closed category.
+func Closed(s *schema.Schema) func(string) bool {
+	return func(state string) bool {
+		for _, st := range s.States {
+			if st.Name == state {
+				return st.Category == schema.Closed
+			}
+		}
+		return false
+	}
 }
 
 // Filter returns the issues matching the query, in id order.
@@ -210,6 +238,10 @@ func (q *Query) Filter(view *projection.Projection, s *schema.Schema) []*project
 			if !ok {
 				continue
 			}
+		}
+
+		if !q.matchesRelations(view, s, issue) {
+			continue
 		}
 		out = append(out, issue)
 	}
@@ -273,4 +305,30 @@ func Group(issues []*projection.Issue, key string, s *schema.Schema) ([]string, 
 	}
 	sort.Strings(order)
 	return order, buckets
+}
+
+// matchesRelations checks the terms that ask about the dependency graph.
+func (q *Query) matchesRelations(view *projection.Projection, s *schema.Schema, issue *projection.Issue) bool {
+	for _, t := range q.terms {
+		switch t.key {
+		case blockedKey:
+			blocked, _ := view.Blocked(issue.ID, Closed(s))
+			want := t.value == "true"
+			if (blocked == want) == t.negated {
+				return false
+			}
+		case dependsOnKey:
+			var found bool
+			for _, on := range issue.DependsOn {
+				if on == t.value {
+					found = true
+					break
+				}
+			}
+			if found == t.negated {
+				return false
+			}
+		}
+	}
+	return true
 }

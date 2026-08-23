@@ -286,3 +286,58 @@ func TestAncestorQuery(t *testing.T) {
 		})
 	}
 }
+
+// AC: WHEN a query names blocked THE SYSTEM SHALL return issues whose dependencies
+// are not all closed.
+func TestBlockedAndDependsOnQueries(t *testing.T) {
+	s, e, log := fixture(t)
+	p, err := e.Principal("ollie")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"API", "UI", "DOCS", "FREE"} {
+		if err := e.CreateAs(p, id, "task", map[string]string{"title": id}, "platform", at(1)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, dep := range [][2]string{{"UI", "API"}, {"DOCS", "API"}} {
+		if _, err := e.AddDependency(p, dep[0], dep[1], at(2)); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	check := func(raw, want string) {
+		t.Helper()
+		q, err := Parse(raw, s)
+		if err != nil {
+			t.Fatalf("parse %q: %v", raw, err)
+		}
+		got := ids(q.Filter(view(t, log), s))
+		if strings.Join(got, ",") != want {
+			t.Errorf("%s = %v want %q", raw, got, want)
+		}
+	}
+
+	check("blocked=true", "DOCS,UI")
+	check("blocked=false", "API,FREE")
+	check("depends_on=API", "DOCS,UI")
+	check("!depends_on=API", "API,FREE")
+	check("blocked=true depends_on=API", "DOCS,UI")
+
+	// Closing the blocker changes the answer with nothing else written.
+	for _, to := range []string{"in_progress", "in_review", "done"} {
+		evidence := ""
+		if to == "in_review" {
+			evidence = "ok"
+		}
+		if err := e.TransitionAs(p, "API", to, evidence, at(3)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	check("blocked=true", "")
+	check("blocked=false", "API,DOCS,FREE,UI")
+
+	if _, err := Parse("blocked=maybe", s); err == nil {
+		t.Error("blocked must take true or false")
+	}
+}
