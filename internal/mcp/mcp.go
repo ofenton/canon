@@ -54,6 +54,7 @@ var descriptions = map[string]string{
 	"GET /api/proposals/{id}":              "Read one proposal, including who proposed it and why.",
 	"POST /api/proposals/{id}/approve":     "Approve a proposal and apply it. Humans only.",
 	"POST /api/proposals/{id}/reject":      "Reject a proposal, with an optional reason. Humans only.",
+	"GET /api/metrics":                     "Measured flow: cycle time, lead time, throughput and the ageing of unfinished work. Derived from recorded transitions; Canon has no estimates.",
 	"GET /api/boards":                      "List saved boards and the keys a board may group by.",
 	"POST /api/boards":                     "Save a board: a name, a query and a grouping key. A board holds no membership of its own.",
 	"GET /api/boards/{name}":               "Render a saved board against current data, grouped into columns.",
