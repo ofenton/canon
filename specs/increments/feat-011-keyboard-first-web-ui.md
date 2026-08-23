@@ -101,11 +101,27 @@ the work rather than removed it.
 browser test in `e2e/`, and a CI job to run it. No README changes: documentation is `docs-003`
 at the end of the week, per the process settled in docs-002.
 
-### Not verified
+## Second bug, found by CI
 
-The CI job has not run yet — it installs Playwright and a headless browser on `ubuntu-latest`,
-which works locally on macOS but is unproven on that runner. It will be exercised by this pull
-request.
+The first CI run failed where local runs passed. The test hardcoded `?actor=you`; CI bootstraps
+`ci`. Every write returned 401, and the test **timed out after thirty seconds on a symptom**
+rather than reporting the cause.
+
+Two fixes, and the second matters more:
+
+1. The actor is now an argument, passed as `ci` in the workflow.
+2. The test checks the actor is registered before doing anything, and reports the create's failure
+   text instead of waiting for a row that will never appear:
+
+```
+FAIL  actor you is not registered on this instance (404).
+      Bootstrap it, or pass the right id as argv[3].
+```
+
+A test that fails slowly and says nothing is barely better than no test. This one now fails in a
+second and names the cause.
+
+### Not verified
 
 No accessibility audit beyond keyboard reachability: `aria-selected`, `tabindex` and focus
 management are in place, but screen readers have not been tested.

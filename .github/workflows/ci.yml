@@ -77,7 +77,7 @@ jobs:
             curl -sf http://localhost:8093/ >/dev/null && break
             sleep 1
           done
-          node e2e/keyboard.mjs http://localhost:8093
+          node e2e/keyboard.mjs http://localhost:8093 ci
 
   ledger:
     runs-on: ubuntu-latest

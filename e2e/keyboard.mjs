@@ -5,6 +5,10 @@
 import { chromium } from "playwright";
 
 const base = process.argv[2] ?? "http://localhost:8093";
+// The actor must be one the instance has registered. Hardcoding it made this test
+// pass locally and time out in CI, where a different id had been bootstrapped —
+// and the timeout said nothing about why.
+const actor = process.argv[3] ?? "you";
 const failures = [];
 const check = (name, ok, detail = "") => {
   console.log(`  ${ok ? "PASS" : "FAIL"}  ${name}${detail ? "  — " + detail : ""}`);
@@ -28,8 +32,24 @@ page.on("console", (m) => {
 });
 page.on("pageerror", (e) => consoleErrors.push("uncaught: " + String(e)));
 
-await page.goto(`${base}/?actor=you`);
+await page.goto(`${base}/?actor=${encodeURIComponent(actor)}`);
 await page.waitForFunction(() => window.CANON !== undefined);
+
+// Fail early and clearly if the actor is not registered, rather than timing out
+// thirty seconds later on a symptom.
+const whoami = await page.evaluate(async (id) => {
+  const res = await fetch("/api/actors/" + encodeURIComponent(id), {
+    headers: { "X-Canon-Actor": id },
+  });
+  return { status: res.status, body: await res.text() };
+}, actor);
+if (whoami.status !== 200) {
+  console.log(`  FAIL  actor ${actor} is not registered on this instance ` +
+              `(${whoami.status}). Bootstrap it, or pass the right id as argv[3].`);
+  await browser.close();
+  process.exit(1);
+}
+console.log(`  using actor ${actor}`);
 
 // The mouse is never used. Every interaction below is a keystroke.
 await page.keyboard.press("?");
@@ -46,8 +66,14 @@ check("create asks for a title and nothing else", inputs === 1, `${inputs} input
 
 await page.keyboard.type("Search is slow");
 await page.keyboard.press("Enter");
-await page.waitForFunction(() => document.querySelectorAll("#main tbody tr").length > 0, { timeout: 5000 });
-check("issue created by keyboard alone", (await page.locator("#main tbody tr").count()) === 1);
+try {
+  await page.waitForFunction(
+    () => document.querySelectorAll("#main tbody tr").length > 0, { timeout: 5000 });
+  check("issue created by keyboard alone", (await page.locator("#main tbody tr").count()) === 1);
+} catch {
+  check("issue created by keyboard alone", false,
+    "status bar said: " + (await page.locator("#status").textContent()));
+}
 
 await page.keyboard.press("c");
 await page.keyboard.type("Second issue");
