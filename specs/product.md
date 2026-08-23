@@ -147,6 +147,16 @@ EARS notation — `WHEN <trigger> THE SYSTEM SHALL <observable response>`.
 - **R36:** WHEN a query names an ancestor THE SYSTEM SHALL return every issue beneath it at any
   depth.
 
+**Typed hierarchy**
+- **R45:** THE SYSTEM SHALL declare the permitted nesting of issue types as ordered levels in
+  `canon.yaml`, with several types allowed at one level.
+- **R46:** WHEN `canon.yaml` declares a hierarchy THE SYSTEM SHALL require every issue type to
+  appear in exactly one level.
+- **R47:** WHEN a caller sets a parent whose type is not the level immediately above the child's
+  THE SYSTEM SHALL reject the write and name the permitted parent types.
+- **R48:** WHEN deleting an issue would lift a child to a parent the hierarchy does not permit THE
+  SYSTEM SHALL refuse the delete and name the children in the way.
+
 **Dependencies**
 - **R37:** THE SYSTEM SHALL record that one issue depends on another, as a single directed
   relation with no other relation types.

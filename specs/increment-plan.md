@@ -501,6 +501,30 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Rollback Plan:** Remove the two field types and the state flag; existing schemas are unaffected
 - **Risk:** Low — additive to the schema, and schemas without them keep working
 - **Evidence:** _(filled in at verify)_
+## feat-020: Typed hierarchy levels
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 1 (Critical)
+- **Traces:** R45, R46, R47, R48
+- **Scope:** Declare permitted nesting as ordered levels of issue types in `canon.yaml`, enforce it on reparent and on delete, and remove the generic cycle check that becomes unreachable once ordering is enforced.
+- **Acceptance Criteria:**
+  - [ ] THE SYSTEM SHALL declare the permitted nesting of issue types as ordered levels in `canon.yaml`, with several types allowed at one level
+  - [ ] WHEN `canon.yaml` declares a hierarchy THE SYSTEM SHALL require every issue type to appear in exactly one level
+  - [ ] WHEN a caller sets a parent whose type is not the level immediately above the child's THE SYSTEM SHALL reject the write and name the permitted parent types
+  - [ ] WHEN deleting an issue would lift a child to a parent the hierarchy does not permit THE SYSTEM SHALL refuse the delete and name the children in the way
+  - [ ] WHEN a schema declares no hierarchy THE SYSTEM SHALL refuse to set any parent, naming the missing declaration
+- **Test Strategy:**
+  - Table test over legal and illegal nestings across four levels, including two types sharing a level
+  - Assert a schema whose levels omit an issue type refuses to load
+  - Assert delete refuses when lifting would break the hierarchy, and names the children
+  - Assert the generic cycle path is unreachable and removed, not merely bypassed
+- **Dependencies:** feat-016
+- **Rollback Plan:** Remove the hierarchy block and restore the generic cycle check
+- **Risk:** Medium — changes the meaning of an existing relation, and deletes a guard that has been in place since feat-005
+- **Evidence:** _(filled in at verify)_
+
+
 ---
 
 ## Sequencing
