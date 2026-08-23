@@ -95,7 +95,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-003: Load and validate canon.yaml
 
 - **Type:** feature
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 1 (Critical)
 - **Traces:** R1, R2
 - **Scope:** Read the organisation schema — issue types, states, transitions, fields, permissions — from a single `canon.yaml`. Validate it on startup. No enforcement on writes yet. No other changes.
