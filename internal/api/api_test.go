@@ -131,6 +131,8 @@ func TestEveryRouteIsExercised(t *testing.T) {
 		{"POST /api/issues", "POST", "/api/issues", "ollie", map[string]string{"id": "CANON-2", "title": "two", "team": "platform"}, 201},
 		{"PUT /api/issues/{id}/parent", "PUT", "/api/issues/CANON-2/parent", "ollie", map[string]string{"parent": "CANON-1"}, 204},
 		{"GET /api/issues/{id}/children", "GET", "/api/issues/CANON-1/children", "ollie", nil, 200},
+		{"GET /api/issues/{id}/ancestors", "GET", "/api/issues/CANON-2/ancestors", "ollie", nil, 200},
+		{"GET /api/issues/{id}/tree", "GET", "/api/issues/CANON-1/tree", "ollie", nil, 200},
 		{"DELETE /api/issues/{id}", "DELETE", "/api/issues/CANON-2", "ollie", nil, 204},
 		{"POST /api/issues", "POST", "/api/issues", "ollie", map[string]string{"id": "CANON-3", "title": "three", "team": "platform"}, 201},
 		{"POST /api/issues/{id}/transition", "POST", "/api/issues/CANON-3/transition", "agent:one", map[string]string{"to": "in_progress"}, 204},

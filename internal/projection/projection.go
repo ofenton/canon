@@ -188,6 +188,59 @@ func (p *Projection) Issue(id string) (*Issue, bool) {
 	return issue, ok
 }
 
+// Ancestors returns the chain from an issue's parent up to its root, nearest first.
+//
+// The walk carries a seen-set even though Reparent refuses cycles: a projection
+// replaying a log written by an older build must not spin, and an infinite loop in
+// a read path is worse than a wrong answer.
+func (p *Projection) Ancestors(id string) []string {
+	var out []string
+	seen := map[string]bool{id: true}
+	issue, ok := p.issues[id]
+	for ok && issue.Parent != "" {
+		if seen[issue.Parent] {
+			break
+		}
+		seen[issue.Parent] = true
+		out = append(out, issue.Parent)
+		issue, ok = p.issues[issue.Parent]
+	}
+	return out
+}
+
+// Descendants returns every issue beneath id, to maxDepth levels. A maxDepth of
+// zero or less means unlimited.
+//
+// The order is depth-first, so a child immediately follows its parent and a caller
+// can render a tree by indenting each entry by its depth. Returning them sorted by
+// id instead would put siblings together but separate them from their parents, which
+// makes the one thing callers want to do with a subtree unnecessarily hard.
+// Siblings are visited in id order, so the result is still deterministic.
+func (p *Projection) Descendants(id string, maxDepth int) []string {
+	var out []string
+	seen := map[string]bool{id: true}
+
+	var walk func(parent string, depth int)
+	walk = func(parent string, depth int) {
+		if maxDepth > 0 && depth >= maxDepth {
+			return
+		}
+		for _, child := range p.Children(parent) {
+			if seen[child] {
+				continue
+			}
+			seen[child] = true
+			out = append(out, child)
+			walk(child, depth+1)
+		}
+	}
+	walk(id, 0)
+	return out
+}
+
+// Depth returns how far an issue sits below its root.
+func (p *Projection) Depth(id string) int { return len(p.Ancestors(id)) }
+
 // Children returns the ids of issues whose parent is id, in sorted order.
 func (p *Projection) Children(id string) []string {
 	var out []string
