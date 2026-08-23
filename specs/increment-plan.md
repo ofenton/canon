@@ -75,7 +75,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-002: Projection engine with snapshots
 
 - **Type:** feature
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 1 (Critical)
 - **Traces:** R12
 - **Scope:** Replay events into current-state projections, with periodic snapshots to bound replay cost, and a `canon rebuild` command that discards and rebuilds every projection from the log. No other changes.
