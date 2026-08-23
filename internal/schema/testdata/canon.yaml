@@ -55,15 +55,15 @@ issue_types:
 # around the system.
 roles:
   - name: admin
-    can: [create, delete, reparent, "field:*", "transition:*"]
+    can: [create, delete, reparent, depend, "field:*", "transition:*"]
 
   - name: member
     scope: team
-    can: [create, reparent, "field:*", "transition:*"]
+    can: [create, reparent, depend, "field:*", "transition:*"]
 
   - name: agent
     scope: team
-    can: [create, "field:*", "transition:todo->in_progress", "transition:in_progress->in_review"]
+    can: [create, depend, "field:*", "transition:todo->in_progress", "transition:in_progress->in_review"]
     # Anything an agent may not do outright becomes a proposal for a human (feat-007).
     propose: [delete, reparent, "transition:*"]
 

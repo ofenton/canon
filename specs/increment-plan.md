@@ -440,16 +440,16 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-016: Dependencies with cycle warnings and reverse lookup
 
 - **Type:** feature
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 1 (Critical)
 - **Traces:** R37, R38, R39, R40
 - **Scope:** One directed `depends_on` relation recorded as events, projected with a reverse index. Cycles are recorded and warned about, never refused. Derive `blocked` from whether any dependency is not closed. No other changes.
 - **Acceptance Criteria:**
-  - [ ] THE SYSTEM SHALL record that one issue depends on another, as a single directed relation with no other relation types
-  - [ ] WHEN a dependency would create a cycle THE SYSTEM SHALL record it and report a warning naming the cycle, rather than refusing the write
-  - [ ] WHEN an operator requests an issue's dependencies THE SYSTEM SHALL return both what it depends on and what depends on it
-  - [ ] THE SYSTEM SHALL derive whether an issue is blocked from whether any issue it depends on is not closed
-  - [ ] WHEN a query names blocked THE SYSTEM SHALL return issues whose dependencies are not all closed
+  - [x] THE SYSTEM SHALL record that one issue depends on another, as a single directed relation with no other relation types
+  - [x] WHEN a dependency would create a cycle THE SYSTEM SHALL record it and report a warning naming the cycle, rather than refusing the write
+  - [x] WHEN an operator requests an issue's dependencies THE SYSTEM SHALL return both what it depends on and what depends on it
+  - [x] THE SYSTEM SHALL derive whether an issue is blocked from whether any issue it depends on is not closed
+  - [x] WHEN a query names blocked THE SYSTEM SHALL return issues whose dependencies are not all closed
 - **Test Strategy:**
   - Table test over a dependency graph: direct, transitive and cyclic
   - Assert a cycle is stored, warned about by name, and does not refuse the write
@@ -458,7 +458,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Dependencies:** feat-017
 - **Rollback Plan:** Remove the dependency events and routes; issues are unaffected
 - **Risk:** Medium — a second graph over the same entities, and the cycle policy is the opposite of the hierarchy's
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/feat-016-dependencies-with-cycle-warnings.md`
 
 ## feat-018: Issue detail view showing hierarchy and dependencies
 
