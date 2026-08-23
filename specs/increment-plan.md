@@ -440,7 +440,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-016: Dependencies with cycle warnings and reverse lookup
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-progress
 - **Tier:** 1 (Critical)
 - **Traces:** R37, R38, R39, R40
 - **Scope:** One directed `depends_on` relation recorded as events, projected with a reverse index. Cycles are recorded and warned about, never refused. Derive `blocked` from whether any dependency is not closed. No other changes.
