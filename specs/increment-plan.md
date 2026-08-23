@@ -177,15 +177,15 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-007: Agent identity, provenance and proposals
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-review
 - **Tier:** 1 (Critical)
 - **Traces:** R12, R14, R15
 - **Scope:** Per-actor identity records with an id, kind and optional signing key. Transitions marked `requires_evidence` in the schema are rejected without evidence. An agent lacking permission creates a proposal for human approval rather than failing. No other changes.
 - **Acceptance Criteria:**
-  - [ ] WHEN an agent performs any mutation THE SYSTEM SHALL record its actor id and model identifier on the resulting event
-  - [ ] WHEN an agent transitions an issue to a state marked requires_evidence without supplying evidence THE SYSTEM SHALL reject the transition
-  - [ ] WHEN an agent attempts a transition it lacks permission for THE SYSTEM SHALL record a proposal awaiting human approval and return the proposal id
-  - [ ] WHEN a human approves a proposal THE SYSTEM SHALL apply the original transition with both actors recorded
+  - [x] WHEN an agent performs any mutation THE SYSTEM SHALL record its actor id and model identifier on the resulting event
+  - [x] WHEN an agent transitions an issue to a state marked requires_evidence without supplying evidence THE SYSTEM SHALL reject the transition
+  - [x] WHEN an agent attempts a transition it lacks permission for THE SYSTEM SHALL record a proposal awaiting human approval and return the proposal id
+  - [x] WHEN a human approves a proposal THE SYSTEM SHALL apply the original transition with both actors recorded
 - **Test Strategy:**
   - Evidence test across every requires_evidence transition in the test schema
   - Proposal lifecycle test: create, approve, reject
@@ -193,7 +193,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Dependencies:** feat-006, feat-014, feat-015
 - **Rollback Plan:** Treat agents as ordinary actors with no proposal path
 - **Risk:** Medium — the proposal flow is new behaviour with no direct prior art to copy
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/feat-007-agent-identity-provenance-and-proposals.md`
 
 ## feat-008: MCP server with parity test
 
