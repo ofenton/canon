@@ -504,7 +504,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-020: Typed hierarchy levels
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-progress
 - **Tier:** 1 (Critical)
 - **Traces:** R45, R46, R47, R48
 - **Scope:** Declare permitted nesting as ordered levels of issue types in `canon.yaml`, enforce it on reparent and on delete, and remove the generic cycle check that becomes unreachable once ordering is enforced.
