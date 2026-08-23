@@ -37,19 +37,22 @@ def main() -> int:
         input=tracked, capture_output=True, timeout=30,
     )
 
-    offenders = [line for line in result.stdout.decode().split("\0") if line.strip()]
+    # With -z, check-ignore -v emits four NUL-separated *fields* per record —
+    # source, line, pattern, path — not colon-separated as it does without -z.
+    fields = result.stdout.decode().split("\0")
+    offenders = [
+        (fields[i], fields[i + 1], fields[i + 2], fields[i + 3])
+        for i in range(0, len(fields) - 3, 4)
+        if fields[i + 3].strip()
+    ]
     if not offenders:
         print("index clean — no tracked file matches an ignore rule")
         return 0
 
     print(f"{len(offenders)} tracked file(s) match an ignore rule:\n", file=sys.stderr)
-    for entry in offenders:
-        parts = entry.split(":")
-        if len(parts) >= 4:
-            source, line, pattern, path = parts[0], parts[1], parts[2], ":".join(parts[3:])
-            print(f"  ✗ {path}\n      matched by {source}:{line} ({pattern})", file=sys.stderr)
-        else:
-            print(f"  ✗ {entry}", file=sys.stderr)
+    for source, line, pattern, path in offenders:
+        where = f"{source}:{line}" if source else "an ignore rule"
+        print(f"  ✗ {path}\n      matched by {where} ({pattern})", file=sys.stderr)
     print("\n  fix with: git rm --cached <path>", file=sys.stderr)
     return 1
 
