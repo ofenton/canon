@@ -129,6 +129,16 @@ func (p *Projection) Children(id string) []string {
 	return out
 }
 
+// IssueIDs returns every projected issue id, sorted.
+func (p *Projection) IssueIDs() []string {
+	out := make([]string, 0, len(p.issues))
+	for id := range p.issues {
+		out = append(out, id)
+	}
+	sort.Strings(out)
+	return out
+}
+
 // Snapshot returns a stable digest of the whole projection.
 //
 // Determinism is the property that makes a rebuildable cache trustworthy: if two
