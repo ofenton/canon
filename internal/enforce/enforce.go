@@ -12,6 +12,7 @@
 package enforce
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -409,4 +410,37 @@ func (e *Enforcer) stateNames() []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// NextIssueID returns the id a new issue should take.
+//
+// This lives here rather than in the HTTP layer because `canon new` needs the same
+// answer. Two implementations of "what is the next id" is precisely the kind of drift
+// this product exists to argue against, and the CLI and the API disagreeing about it
+// would be a collision waiting to happen.
+func (e *Enforcer) NextIssueID() (string, error) {
+	if err := e.refresh(); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("CANON-%d", len(e.view.IssueIDs())+1), nil
+}
+
+// DefaultIssueType returns the type an issue takes when the caller does not say.
+//
+// The most granular type in the hierarchy: someone who has not thought about it is
+// filing a task, not an epic, and a wrong guess at the bottom is cheap to reparent
+// upward while a wrong guess at the top drags a tree with it.
+func (e *Enforcer) DefaultIssueType() (string, error) {
+	if len(e.schema.IssueTypes) == 0 {
+		return "", errors.New("schema defines no issue types")
+	}
+	if levels := e.schema.Hierarchy.Levels; len(levels) > 0 {
+		deepest := levels[len(levels)-1]
+		if len(deepest) > 0 {
+			// Several types can share the bottom level; take them in declared order
+			// so the choice is the schema author's, not alphabetical accident.
+			return deepest[0], nil
+		}
+	}
+	return e.schema.IssueTypes[0].Name, nil
 }

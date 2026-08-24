@@ -80,9 +80,11 @@ func (e *Enforcer) LinkCommit(p Principal, id string, c Commit, now time.Time) (
 	if at.IsZero() {
 		at = now
 	} else if at.Before(now) {
-		// A commit's author time is nearly always in the past, so linking is the
-		// ordinary case of a backdated write and is checked the same way. Without
-		// this, `canon link` over an old range would be a way around the grant.
+		// A commit's author time is nearly always in the past, so linking needs the
+		// backdate grant; without it, `canon link` over an old range would be a way
+		// around the permission. It does *not* get the before-creation check: a
+		// commit routinely predates the issue that tracks it, which is exactly the
+		// case this feature exists to record.
 		if err := e.AuthoriseBackdate(p, id, at, now); err != nil {
 			return false, err
 		}
