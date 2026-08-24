@@ -718,7 +718,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## fix-003: One naming convention across the API
 
 - **Type:** fix
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 2 (High)
 - **Traces:** R14
 - **Scope:** Give the projection's exported types JSON tags so every response uses snake_case, matching the hand-written responses that already do. Update the UI, which is the only client. No change to what is returned, only to what the keys are called.
