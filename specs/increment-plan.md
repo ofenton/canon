@@ -528,7 +528,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-021: Validate the hierarchy against an existing log
 
 - **Type:** fix
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 1 (Critical)
 - **Traces:** R49
 - **Scope:** Extend `CheckMigration` so a tightened hierarchy is checked against existing nestings, as it already is for removed states. Refuse startup and name the offending issues.
