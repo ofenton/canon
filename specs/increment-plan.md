@@ -854,21 +854,21 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-032: A familiar visual language
 
 - **Type:** feature
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 3 (Medium)
 - **Traces:** R21
 - **Scope:** Restyle the web UI to the visual conventions people already know from GitHub — its neutral palette, type scale, 6px radii, bordered surfaces and state pills — keeping the existing single-file, no-build, no-dependency structure. Presentation only: no change to what any screen shows or to any keyboard behaviour.
 - **Acceptance Criteria:**
-  - [ ] THE SYSTEM SHALL render in light and dark following the reader's system preference
-  - [ ] THE SYSTEM SHALL remain one embedded file with no external requests
-  - [ ] THE SYSTEM SHALL pass every existing keyboard check unchanged
+  - [x] THE SYSTEM SHALL render in light and dark following the reader's system preference
+  - [x] THE SYSTEM SHALL remain one embedded file with no external requests
+  - [x] THE SYSTEM SHALL pass every existing keyboard check unchanged
 - **Test Strategy:**
   - The keyboard suite must pass with no edits, since nothing about behaviour changes
   - Screenshots of every view in both colour schemes
 - **Dependencies:** none
 - **Rollback Plan:** Restore the previous style block; the markup is unchanged
 - **Risk:** Low — presentation only, and the keyboard suite is the guard
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/feat-032-a-familiar-visual-language.md`
 
 ## feat-033: Usable with a mouse
 
