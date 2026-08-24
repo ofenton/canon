@@ -463,7 +463,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-018: Issue detail view showing hierarchy and dependencies
 
 - **Type:** feature
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 1 (Critical)
 - **Traces:** R41
 - **Scope:** A keyboard-reachable detail view in the UI showing an issue's fields, ancestors, children, dependencies and dependents, with warnings for cycles and blocked state. No other changes.
