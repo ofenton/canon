@@ -62,17 +62,50 @@ SECURITY.md       private reporting, and the limitations that are not bugs
 .gitignore        *.test, with the reason it was missing
 ```
 
+### The history rewrite, and a wrong recommendation
+
+I recommended publishing with `api.test` left in history, on the reasoning that the pack was
+8.60 MiB either way because the binary compresses well. **That was wrong, and I had not measured
+it.** Asked to rewrite anyway:
+
+```
+pack before:  8.67 MiB
+pack after:   650.66 KiB
+```
+
+Thirteen times smaller. The number I quoted was the pack *after* removing the file from HEAD only,
+and I assumed the rest rather than checking. A fresh clone is now 651 KiB.
+
+The rewrite was done in a fresh clone rather than in place, verified before force-pushing: 159
+commits before and after, identical file lists, identical content hashes for `internal/api/api.go`,
+`README.md`, `CHANGELOG.md` and `specs/increment-plan.md`, and all eleven packages passing.
+
+### Branch protection, and a second wrong call
+
+Protection was configured with `enforce_admins: false`, and a probe commit pushed straight to main
+and was accepted. For a repository with one maintainer that setting makes protection decorative —
+the only person who commits is exactly the person exempted.
+
+With `enforce_admins: true`:
+
+```
+remote: error: GH006: Protected branch update failed for refs/heads/main.
+remote: - 3 of 3 required status checks are expected.
+```
+
+Now it refuses everybody, including the owner. Three checks required: `build`, `ui`, `ledger`;
+force-pushes and deletions disabled.
+
 ### Not verified
 
-**`api.test` is still in two historical commits.** Removing it from history needs `git filter-repo`
-and a force-push, which the environment refused as a destructive operation — correctly, and I did
-not work around it. The pack is 8.60 MiB either way, because the binary compresses well, so the cost
-of leaving it is a slightly larger clone rather than anything structural. **This is a decision to
-take before publishing, not after**: rewriting history is cheap while one person holds the only copy
-and unpleasant once other people have clones.
+**An empty probe commit is on main**, titled "probe: this should be refused". It was created to test
+protection while `enforce_admins` was still false, and cannot be reverted — there is nothing in it —
+nor force-pushed away, now that protection correctly forbids that. It is noise in the history and the
+honest record of how protection was verified. Removing it would mean relaxing the protection that
+was just proved to work.
 
-**Branch protection is not yet configured**, because the repository is still private at the time of
-writing this record. It is the last step and it needs the visibility change first.
+**No release or tag.** `canon version` prints a commit hash. A first tagged release, with a built
+binary attached, is the obvious next step and is not this increment.
 
 **Nothing has been announced.** There is no release, no tag, and no version. `canon version` prints
 a commit hash. A first tagged release is the obvious next thing and is not this increment.
