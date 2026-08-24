@@ -927,6 +927,25 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Risk:** Low — process and documentation only
 - **Evidence:** see `specs/increments/chore-005-sync-the-template.md`
 
+## docs-004: ADR-0009, Canon as aggregator
+
+- **Type:** docs
+- **Status:** in-progress
+- **Tier:** 2 (High)
+- **Traces:** R31
+- **Scope:** Record the decision to make Canon read-only over repositories that follow the template: what it enforces, what identity remains, what the approval gate is, and what gets deleted. Measured, not estimated. No code changes.
+- **Acceptance Criteria:**
+  - [x] THE SYSTEM SHALL state what enforcement means when writes happen elsewhere
+  - [x] THE SYSTEM SHALL measure the code affected rather than describing it
+  - [x] THE SYSTEM SHALL state what the product gives up, not only what it gains
+- **Test Strategy:**
+  - Derive increment time from the ledger's git history and compare it against the mechanism in use
+  - Count non-test lines per package to size the deletion
+- **Dependencies:** none
+- **Rollback Plan:** Mark the ADR withdrawn; no code depends on it
+- **Risk:** Low — a decision document, though it proposes deleting roughly half the codebase
+- **Evidence:** see `specs/increments/docs-004-adr-0009-canon-as-aggregator.md`
+
 ## Sequencing
 
 | Day | Increments | Milestone |
