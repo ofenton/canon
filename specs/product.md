@@ -157,6 +157,9 @@ EARS notation — `WHEN <trigger> THE SYSTEM SHALL <observable response>`.
 - **R48:** WHEN deleting an issue would lift a child to a parent the hierarchy does not permit THE
   SYSTEM SHALL refuse the delete and name the children in the way.
 
+- **R49:** WHEN a schema change would leave existing issues nested in a way the hierarchy does not
+  permit THE SYSTEM SHALL refuse to apply it and name the offending issues.
+
 **Dependencies**
 - **R37:** THE SYSTEM SHALL record that one issue depends on another, as a single directed
   relation with no other relation types.

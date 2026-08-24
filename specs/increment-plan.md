@@ -525,6 +525,27 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Evidence:** see `specs/increments/feat-020-typed-hierarchy-levels.md`
 
 
+## feat-021: Validate the hierarchy against an existing log
+
+- **Type:** fix
+- **Status:** approved
+- **Tier:** 1 (Critical)
+- **Traces:** R49
+- **Scope:** Extend `CheckMigration` so a tightened hierarchy is checked against existing nestings, as it already is for removed states. Refuse startup and name the offending issues.
+- **Acceptance Criteria:**
+  - [ ] WHEN a schema change would leave existing issues nested in a way the hierarchy does not permit THE SYSTEM SHALL refuse to apply it and name the offending issues
+  - [ ] WHEN a schema removes the hierarchy entirely THE SYSTEM SHALL refuse to apply it while any issue has a parent
+  - [ ] WHEN a schema change is compatible with every existing nesting THE SYSTEM SHALL apply it
+- **Test Strategy:**
+  - Build a valid tree, then narrow the hierarchy and assert the refusal names the offending pairs
+  - Assert removing the hierarchy is refused while parents exist, and permitted once they are cleared
+  - Assert widening the hierarchy is always applicable
+- **Dependencies:** feat-020
+- **Rollback Plan:** Remove the nesting check from CheckMigration; state checking is unaffected
+- **Risk:** Low — one more check in a function that already exists for exactly this purpose
+- **Evidence:** _(filled in at verify)_
+
+
 ---
 
 ## Sequencing
