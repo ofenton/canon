@@ -47,6 +47,9 @@ var descriptions = map[string]string{
 	"GET /api/issues/{id}":                      "Read one issue's current state, fields, parent and last actor.",
 	"DELETE /api/issues/{id}":                   "Delete an issue. Its children are lifted to its parent, never orphaned.",
 	"PATCH /api/issues/{id}/fields":             "Set one or more fields. Fields not defined in the schema are refused.",
+	"PUT /api/issues/{id}/multi/{field}":        "Replace the values of a multi-valued field. Every value must be one the schema declares.",
+	"PUT /api/issues/{id}/checklist/{field}":    "Add a checklist item, or mark one met. Omit checked to add; pass checked true or false to mark an existing item.",
+	"DELETE /api/issues/{id}/checklist/{field}": "Remove a checklist item from an issue.",
 	"POST /api/issues/{id}/transition":          "Move an issue to a new state. Some states require evidence. If your role may only propose the transition, this returns a proposal for a human to approve.",
 	"PUT /api/issues/{id}/parent":               "Set or clear an issue's parent. Cycles are refused.",
 	"GET /api/issues/{id}/children":             "List an issue's direct children.",
@@ -77,16 +80,19 @@ var descriptions = map[string]string{
 // bodyHints describe the JSON body each write expects, so an agent does not have to
 // guess field names from a URL.
 var bodyHints = map[string]map[string]string{
-	"POST /api/issues":                  {"title": "required", "type": "optional", "team": "optional", "id": "optional"},
-	"POST /api/issues/{id}/transition":  {"to": "required, target state", "evidence": "required for some states"},
-	"PUT /api/issues/{id}/parent":       {"parent": "issue id, or empty to clear"},
-	"POST /api/proposals/{id}/reject":   {"reason": "optional"},
-	"POST /api/actors":                  {"id": "required", "kind": "human or agent", "model": "required for agents"},
-	"POST /api/actors/{id}/roles":       {"role": "required"},
-	"POST /api/actors/{id}/teams":       {"team": "required"},
-	"PUT /api/issues/{id}/dependencies": {"on": "required, the issue this one waits on"},
-	"POST /api/boards":                  {"name": "required", "query": "required, e.g. team=platform priority=p1", "group_by": "optional, defaults to state"},
-	"PATCH /api/issues/{id}/fields":     {"<field name>": "value, for any field in the schema"},
+	"POST /api/issues":                          {"title": "required", "type": "optional", "team": "optional", "id": "optional"},
+	"POST /api/issues/{id}/transition":          {"to": "required, target state", "evidence": "required for some states"},
+	"PUT /api/issues/{id}/parent":               {"parent": "issue id, or empty to clear"},
+	"POST /api/proposals/{id}/reject":           {"reason": "optional"},
+	"POST /api/actors":                          {"id": "required", "kind": "human or agent", "model": "required for agents"},
+	"POST /api/actors/{id}/roles":               {"role": "required"},
+	"POST /api/actors/{id}/teams":               {"team": "required"},
+	"PUT /api/issues/{id}/dependencies":         {"on": "required, the issue this one waits on"},
+	"PUT /api/issues/{id}/multi/{field}":        {"values": "required, a list of declared values"},
+	"PUT /api/issues/{id}/checklist/{field}":    {"text": "required, the criterion", "checked": "omit to add; true or false to mark an existing item"},
+	"DELETE /api/issues/{id}/checklist/{field}": {"text": "required, the criterion to remove"},
+	"POST /api/boards":                          {"name": "required", "query": "required, e.g. team=platform priority=p1", "group_by": "optional, defaults to state"},
+	"PATCH /api/issues/{id}/fields":             {"<field name>": "value, for any field in the schema"},
 }
 
 // ToolsFrom derives the tool list from an HTTP route table.
