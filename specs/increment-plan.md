@@ -696,6 +696,25 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Risk:** Medium — an outbound call on the write path, so the async boundary is the increment
 - **Evidence:** _(filled in at verify)_
 
+## fix-001: Resolve issue references case-insensitively
+
+- **Type:** fix
+- **Status:** in-progress
+- **Tier:** 2 (High)
+- **Traces:** R27, R28
+- **Scope:** Make `canon link` and `canon trace` agree about which reference names which issue, by resolving a commit's reference against the ids Canon actually holds rather than assuming a casing. No change to how references are found.
+- **Acceptance Criteria:**
+  - [x] WHEN a commit names an issue in different case from the id THE SYSTEM SHALL link it to that issue
+  - [x] THE SYSTEM SHALL classify a reference as tracked exactly when linking it would succeed
+  - [x] WHEN a reference names no known issue THE SYSTEM SHALL report it as written
+- **Test Strategy:**
+  - CLI test over a repository whose commits name lower-case ids against upper-case issues and the reverse
+  - The existing trace and link suites must still pass unchanged
+- **Dependencies:** none
+- **Rollback Plan:** Restore the unconditional upper-casing in `issueFrom`
+- **Risk:** Low — one resolution step, no new surface
+- **Evidence:** see `specs/increments/fix-001-resolve-issue-references-case-insensitively.md`
+
 ## Sequencing
 
 | Day | Increments | Milestone |
