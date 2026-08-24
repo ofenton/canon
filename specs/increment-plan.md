@@ -573,22 +573,22 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-023: Backdated writes with an explicit timestamp
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-progress
 - **Tier:** 2 (High)
 - **Traces:** R27
 - **Scope:** Accept an optional `at` timestamp on write routes, authorised as its own permission, rejected if in the future or before the issue's creation. Records the supplied time as `Event.At` while `Seq` continues to record arrival order. No import tooling, no UI.
 - **Acceptance Criteria:**
-  - [ ] WHEN a caller supplies `at` on a write THE SYSTEM SHALL record that instant as the event time
-  - [ ] WHEN a caller supplies `at` in the future THE SYSTEM SHALL refuse the write and say so
-  - [ ] WHEN a caller lacks the backdate permission THE SYSTEM SHALL refuse the write
-  - [ ] THE SYSTEM SHALL order the log by arrival, not by the supplied time
+  - [x] WHEN a caller supplies `at` on a write THE SYSTEM SHALL record that instant as the event time
+  - [x] WHEN a caller supplies `at` in the future THE SYSTEM SHALL refuse the write and say so
+  - [x] WHEN a caller lacks the backdate permission THE SYSTEM SHALL refuse the write
+  - [x] THE SYSTEM SHALL order the log by arrival, not by the supplied time
 - **Test Strategy:**
   - Unit: accepted, future-dated, unauthorised, and before-creation cases
   - Replay: a backdated event rebuilds to the same projection
 - **Dependencies:** none
 - **Rollback Plan:** Ignore the `at` field in the API layer; events already written stay valid
 - **Risk:** Medium — an unauthorised backdate would let history be rewritten, so the permission is the increment
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/feat-023-backdated-writes-with-an-explicit-timestamp.md`
 
 ## feat-024: Create an issue from a repository in one command
 

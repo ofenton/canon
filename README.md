@@ -167,7 +167,7 @@ issue_types:
 
 roles:
   - name: admin
-    can: [create, delete, reparent, "field:*", "transition:*"]
+    can: [create, delete, reparent, backdate, "field:*", "transition:*"]
   - name: member
     scope: team                       # only issues owned by a team you belong to
     can: [create, reparent, "field:*", "transition:*"]
@@ -183,6 +183,15 @@ sixteen spellings": without a fixed grouping, no cross-team question has a true 
 Every grant is validated against the rest of the schema at load. `field:storyPoints` or
 `transition:todo->shipped` is refused by name, because a typo in a permission grants nothing and
 is invisible at runtime.
+
+**Recording history: `backdate`.** Every write is stamped with the server's clock unless the
+caller adds `?at=<RFC 3339>`, which records the instant the thing actually happened. That is how
+an import replays a tracker that predates Canon, and how a commit is linked with the timestamp it
+carried. `backdate` is a grant of its own because the risk differs in kind: permission to
+transition an issue says nothing about whether you may record that it happened last Tuesday. No
+existing schema has the verb, so it is refused until somebody adds it deliberately. Events are
+still ordered by arrival, so a backdated event replays *after* what was already there — it adds to
+history rather than rewriting it.
 
 **Roles are policy; membership is state.** Which roles exist lives in `canon.yaml` and changes by
 pull request. Who holds one, and which team they are in, lives in the event log and changes by
