@@ -596,14 +596,14 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Status:** approved
 - **Tier:** 2 (High)
 - **Traces:** R26
-- **Scope:** `canon new` takes a title and creates an issue from the current branch or commit, requiring nothing but a title, and prints the id and the trailer to paste. Reads the remote to record the repository. CLI only.
+- **Scope:** `canon new` takes a title and creates an issue from the current branch or commit, requiring nothing but a title, and prints the id and the trailer to paste. Records the repository, branch and commit as a link, using feat-025's mechanism rather than schema fields the org may not define. CLI only.
 - **Acceptance Criteria:**
   - [ ] WHEN a developer runs one command with only a title THE SYSTEM SHALL create an issue and print its id
-  - [ ] THE SYSTEM SHALL record the branch and repository the command was run in
+  - [ ] THE SYSTEM SHALL record the branch, repository and commit the command was run in
   - [ ] WHEN the command is run outside a git repository THE SYSTEM SHALL still create the issue
 - **Test Strategy:**
   - CLI test in a temporary git repository, and in a directory that is not one
-- **Dependencies:** none
+- **Dependencies:** feat-025
 - **Rollback Plan:** Remove the `new` subcommand; nothing else depends on it
 - **Risk:** Low — additive subcommand
 - **Evidence:** _(filled in at verify)_
@@ -708,7 +708,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 | Sat | feat-008, feat-009, feat-010 | MCP at parity; boards are queries; metrics without estimates |
 | Sun | feat-011, feat-012, feat-013, chore-003 | UI, latency, one-command self-host, dogfooded |
 | ~~Mon~~ | ~~feat-014 – feat-022~~ | ✅ Roles, hierarchy, dependencies, detail view |
-| Tue | feat-023, feat-024, feat-025 | Backdating, one-command create, commits linked after the fact |
+| Tue | feat-023, feat-025, feat-024 | Backdating, commits linked after the fact, one-command create |
 | Wed | feat-026, feat-027 | Untracked work counted; unused configuration visible |
 | Thu | feat-028, feat-029 | Search and webhooks — the first two to cut |
 
@@ -723,6 +723,11 @@ API so that `feat-006` exposes a finished model once rather than being revised t
 Risk is front-loaded deliberately. `feat-001` is first because the event schema is what federation
 depends on and the only thing that cannot be changed cheaply later. If it is wrong, Monday is when
 that should hurt, not Saturday.
+
+`feat-024` was planned before `feat-025` and is built after it. An issue created from a repository
+has to record where it came from, and the only place to put a repository and branch was schema
+fields the org may not have defined — which R3 rightly refuses. `feat-025`'s commit link is that
+place, so the order inverted rather than the design bending.
 
 ## What gets cut first
 
