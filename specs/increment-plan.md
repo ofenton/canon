@@ -611,7 +611,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-025: Link commits to issues, including after the fact
 
 - **Type:** feature
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 2 (High)
 - **Traces:** R27
 - **Scope:** Record a commit against an issue with its original author timestamp, via API and `canon link`. Links are events, so a commit links once and the link is history. Reads `Increment:`-style trailers from a supplied range.
