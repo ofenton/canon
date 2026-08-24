@@ -276,6 +276,13 @@ await page.waitForFunction(() => document.querySelector("#main .check li.met") =
 check("Space unticks it again", true);
 
 // Multi-value fields render every value.
+//
+// Waited for rather than read straight away: unticking triggers a re-render, and
+// reading the tags in the same tick catches a cleared #main on a slower machine. It
+// passed locally and failed in CI, which is the signature of a missing wait rather
+// than a broken feature.
+await page.waitForFunction(() => document.querySelectorAll("#main .tag").length >= 2,
+  { timeout: 5000 });
 const tags = await page.locator("#main .tag").allTextContents();
 check("multi-value fields show every value",
   tags.includes("conversion") && tags.includes("p95_latency"), tags.join(", "));

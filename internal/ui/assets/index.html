@@ -247,8 +247,8 @@ function promptQuery() {
 function promptTransition() {
   const id = state.detail ?? selectedId();
   if (!id) return say("nothing selected", true);
-  const issue = state.detail ? state.detailData?.issue : state.issues.find((i) => i.ID === id);
-  const to = (state.schema?.states ?? []).find((s) => s.name === issue?.State)?.to ?? [];
+  const issue = state.detail ? state.detailData?.issue : state.issues.find((i) => i.id === id);
+  const to = (state.schema?.states ?? []).find((s) => s.name === issue?.state)?.to ?? [];
   ask("Move " + id, to.length ? "to: " + to.join(", ") : "no transitions from here",
     async (target) => {
       if (!target) return;
@@ -267,8 +267,8 @@ function promptTransition() {
 function promptParent() {
   const id = state.detail ?? selectedId();
   if (!id) return say("nothing selected", true);
-  const issue = state.detailData?.issue ?? state.issues.find((i) => i.ID === id);
-  const allowed = state.schema?.parent_types?.[issue?.Type] ?? [];
+  const issue = state.detailData?.issue ?? state.issues.find((i) => i.id === id);
+  const allowed = state.schema?.parent_types?.[issue?.type] ?? [];
   ask("Parent of " + id,
     allowed.length ? "must be " + allowed.join(" or ") + " · blank to clear" : "this type has no permitted parent",
     async (parent) => {
@@ -307,7 +307,7 @@ async function toggleChecklistItem() {
 function promptChecklistItem() {
   const id = state.detail;
   if (!id) return say("open an issue first", true);
-  const fields = Object.keys(state.detailData?.issue?.Checklists ?? {});
+  const fields = Object.keys(state.detailData?.issue?.checklists ?? {});
   const field = fields[0] ?? checklistFieldFor(state.detailData?.issue);
   if (!field) return say("this issue type has no checklist field", true);
   ask(`Add to ${field}`, "one criterion · EARS reads well here", async (text) => {
@@ -323,10 +323,10 @@ function promptChecklistItem() {
 // whatever checklist field its type declares.
 function checklistFieldFor(issue) {
   if (!issue) return null;
-  const type = (state.schema?.issue_types ?? []).find((t) => t.Name === issue.Type);
+  const type = (state.schema?.issue_types ?? []).find((t) => t.name === issue.type);
   const checklists = (state.schema?.fields ?? [])
-    .filter((f) => f.Type === "checklist").map((f) => f.Name);
-  return (type?.Fields ?? []).find((f) => checklists.includes(f)) ?? null;
+    .filter((f) => f.type === "checklist").map((f) => f.name);
+  return (type?.fields ?? []).find((f) => checklists.includes(f)) ?? null;
 }
 
 async function decideProposal(decision) {
@@ -403,9 +403,9 @@ async function renderIssues(main) {
     : `${total} issue${total === 1 ? "" : "s"}${scope}`;
   main.append(caption);
   table(main, ["", "Title", "State", "Team"], state.issues.map((i) => ({
-    id: i.ID,
-    html: `<td class="id">${i.ID}</td><td>${escape(i.Title)}</td>` +
-          `<td class="state ${categoryOf(i.State)}">${i.State}</td><td>${i.Team ?? ""}</td>`,
+    id: i.id,
+    html: `<td class="id">${i.id}</td><td>${escape(i.title)}</td>` +
+          `<td class="state ${categoryOf(i.state)}">${i.state}</td><td>${i.team ?? ""}</td>`,
   })));
 }
 
@@ -432,8 +432,8 @@ async function renderDetail(main, id) {
   // Breadcrumb: the chain reads root-first, which is how people say it aloud.
   const chain = (ancestors.body?.ancestors ?? []).slice().reverse();
   wrap.innerHTML =
-    `<p class="crumbs">${chain.length ? chain.map(escape).join(" › ") + " › " : ""}<b>${escape(d.ID)}</b></p>` +
-    `<h2>${escape(d.Title)}</h2>`;
+    `<p class="crumbs">${chain.length ? chain.map(escape).join(" › ") + " › " : ""}<b>${escape(d.id)}</b></p>` +
+    `<h2>${escape(d.title)}</h2>`;
 
   const deps = dependencies.body ?? {};
   // Blocking and cycles are stated before anything else. They are the reason the
@@ -456,14 +456,14 @@ async function renderDetail(main, id) {
     return el;
   };
 
-  const fields = Object.entries(d.Fields ?? {}).filter(([, v]) => v !== "");
+  const fields = Object.entries(d.fields ?? {}).filter(([, v]) => v !== "");
   section("Detail",
     `<dl>` +
-    `<dt>Type</dt><dd>${escape(d.Type || "—")}</dd>` +
-    `<dt>State</dt><dd class="state ${categoryOf(d.State)}">${escape(d.State)}</dd>` +
-    `<dt>Team</dt><dd>${escape(d.Team || "—")}</dd>` +
-    `<dt>Last touched</dt><dd>${escape(d.LastActor?.ID ?? "—")}` +
-      (d.LastActor?.Model ? ` <span class="id">(${escape(d.LastActor.Model)})</span>` : "") + `</dd>` +
+    `<dt>Type</dt><dd>${escape(d.type || "—")}</dd>` +
+    `<dt>State</dt><dd class="state ${categoryOf(d.state)}">${escape(d.state)}</dd>` +
+    `<dt>Team</dt><dd>${escape(d.team || "—")}</dd>` +
+    `<dt>Last touched</dt><dd>${escape(d.last_actor?.id ?? "—")}` +
+      (d.last_actor?.Model ? ` <span class="id">(${escape(d.last_actor.Model)})</span>` : "") + `</dd>` +
     fields.map(([k, v]) => `<dt>${escape(k)}</dt><dd>${escape(v)}</dd>`).join("") +
     `</dl>`);
 
@@ -481,9 +481,9 @@ async function renderDetail(main, id) {
   // Checklists come before the relationships: they are the work itself, and on a
   // story with acceptance criteria they are what someone opened the issue to see.
   const blockingChecklists = new Set(
-    ((state.schema?.states ?? []).find((st) => st.name === d.State)?.requires_checklist) ?? []);
-  for (const [field, items] of Object.entries(d.Checklists ?? {})) {
-    const met = items.filter((i) => i.Checked).length;
+    ((state.schema?.states ?? []).find((st) => st.name === d.state)?.requires_checklist) ?? []);
+  for (const [field, items] of Object.entries(d.checklists ?? {})) {
+    const met = items.filter((i) => i.checked).length;
     const gate = (state.schema?.states ?? [])
       .filter((st) => (st.requires_checklist ?? []).includes(field))
       .map((st) => st.name);
@@ -491,26 +491,26 @@ async function renderDetail(main, id) {
     section(`${escape(field)} <span class="${cls}">${met} of ${items.length} met` +
       (gate.length && met < items.length ? ` · blocks ${gate.map(escape).join(", ")}` : "") + `</span>`,
       `<ul class="check">` + items.map((item) =>
-        `<li tabindex="0" class="${item.Checked ? "met" : ""}" data-field="${escape(field)}" ` +
-        `data-text="${escape(item.Text)}" data-checked="${item.Checked}">` +
-        `<span class="box">[${item.Checked ? "x" : " "}]</span>` +
-        `<span class="text">${escape(item.Text)}</span>` +
-        (item.CheckedBy ? `<span class="who">${escape(item.CheckedBy)}</span>` : "") +
+        `<li tabindex="0" class="${item.checked ? "met" : ""}" data-field="${escape(field)}" ` +
+        `data-text="${escape(item.text)}" data-checked="${item.checked}">` +
+        `<span class="box">[${item.checked ? "x" : " "}]</span>` +
+        `<span class="text">${escape(item.text)}</span>` +
+        (item.checked_by ? `<span class="who">${escape(item.checked_by)}</span>` : "") +
         `</li>`).join("") + `</ul>`);
   }
   const emptyChecklist = checklistFieldFor(d);
-  if (emptyChecklist && !(d.Checklists ?? {})[emptyChecklist]) {
+  if (emptyChecklist && !(d.checklists ?? {})[emptyChecklist]) {
     section(escape(emptyChecklist), `<p class="hint">no criteria yet — <kbd>n</kbd> to add one</p>`);
   }
 
-  for (const [field, values] of Object.entries(d.Multi ?? {})) {
+  for (const [field, values] of Object.entries(d.multi ?? {})) {
     if (!values.length) continue;
     section(escape(field),
       `<div class="tags">` + values.map((v) => `<span class="tag">${escape(v)}</span>`).join("") + `</div>`);
   }
   void blockingChecklists;
 
-  related("Parent", d.Parent ? [d.Parent] : [], "no parent");
+  related("Parent", d.parent ? [d.parent] : [], "no parent");
   related("Children", children.body?.children ?? [], "nothing beneath this");
   related("Waits on", deps.depends_on ?? [], "nothing");
   related("Waited on by", deps.dependents ?? [], "nothing");
@@ -540,7 +540,7 @@ async function renderBoards(main) {
     main.innerHTML = `<p class="hint">No boards yet. A board is a saved query and a grouping key.</p>`;
     return;
   }
-  const name = state.board ?? state.boards[0].Name;
+  const name = state.board ?? state.boards[0].name;
   const res = await api("GET", "/boards/" + encodeURIComponent(name));
   if (!res.ok) {
     main.innerHTML = `<p class="err">${res.body?.error ?? res.text}</p>`;
@@ -552,8 +552,8 @@ async function renderBoards(main) {
     const div = document.createElement("div");
     div.className = "col";
     div.innerHTML = `<h3>${col.name} · ${col.count}</h3><ul>` +
-      col.issues.map((i) => `<li tabindex="0" data-id="${i.ID}">` +
-        `<span class="id">${i.ID}</span> ${escape(i.Title)}</li>`).join("") + "</ul>";
+      col.issues.map((i) => `<li tabindex="0" data-id="${i.id}">` +
+        `<span class="id">${i.id}</span> ${escape(i.title)}</li>`).join("") + "</ul>";
     wrap.append(div);
   }
   const caption = document.createElement("p");
@@ -594,8 +594,8 @@ async function renderProposals(main) {
     return;
   }
   table(main, ["", "Operation", "On", "Proposed by"], proposals.map((p) => ({
-    id: p.ID,
-    html: `<td class="id">${p.ID}</td><td class="state">${p.Operation}</td>` +
+    id: p.id,
+    html: `<td class="id">${p.id}</td><td class="state">${p.Operation}</td>` +
           `<td class="id">${p.Subject}</td><td>${p.ProposedBy}${p.Model ? " (" + p.Model + ")" : ""}</td>`,
   })));
   const hints = document.createElement("p");
