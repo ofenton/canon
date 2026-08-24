@@ -914,7 +914,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Status:** in-review
 - **Tier:** 3 (Medium)
 - **Traces:** R31
-- **Scope:** Bring this repository up to the template's current state — the `design-architecture` skill, `check-architecture.py`, the updated `verify-increment` — and backport `lint-workflows.py`, which was written here and never reached the template. Add ADR-0005 and ADR-0006 recording where work should live and how the template should be distributed. No product code changes.
+- **Scope:** Record ADR-0007 (a repository holds one component; a release composes component versions), and bring this repository up to the template's current state — the `design-architecture` skill, `check-architecture.py`, the updated `verify-increment` — and backport `lint-workflows.py`, which was written here and never reached the template. Add ADR-0005 and ADR-0006 recording where work should live and how the template should be distributed. No product code changes.
 - **Acceptance Criteria:**
   - [x] THE SYSTEM SHALL run the same skills and checks as the template it came from
   - [x] THE SYSTEM SHALL record the reconciliation as decisions, with the alternatives that were rejected
