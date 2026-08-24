@@ -571,13 +571,22 @@ async function renderMetrics(main) {
   const dl = document.createElement("dl");
   dl.className = "metrics";
   const row = (k, v) => `<dt>${k}</dt><dd>${v}</dd>`;
-  const pct = (s) => `p50 ${s.p50_days}d · p85 ${s.p85_days}d · p95 ${s.p95_days}d (n=${s.count})`;
+  // Days are what the API reports; hours and minutes are what a reader can act on.
+  // A team shipping in an afternoon should not be told its cycle time is 0d.
+  const dur = (d) => {
+    if (d >= 1) return `${Math.round(d * 10) / 10}d`;
+    const hours = d * 24;
+    if (hours >= 1) return `${Math.round(hours * 10) / 10}h`;
+    const mins = Math.round(hours * 60);
+    return mins > 0 ? `${mins}m` : "under a minute";
+  };
+  const pct = (s) => `p50 ${dur(s.p50_days)} · p85 ${dur(s.p85_days)} · p95 ${dur(s.p95_days)} (n=${s.count})`;
   dl.innerHTML =
     row("Completed (30d)", f.completed) +
     row("In progress", f.in_progress) +
     row("Cycle time", pct(f.cycle_time)) +
     row("Lead time", pct(f.lead_time)) +
-    row("Ageing", (f.ageing ?? []).map((a) => `${a.id} ${a.days}d`).join(" · ") || "nothing ageing");
+    row("Ageing", (f.ageing ?? []).map((a) => `${a.id} ${dur(a.days)}`).join(" · ") || "nothing ageing");
   main.append(dl);
   const note = document.createElement("p");
   note.className = "hint";

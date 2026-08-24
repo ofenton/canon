@@ -733,6 +733,26 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Risk:** Medium — a breaking change to response shape, caught by a test that reads every route
 - **Evidence:** see `specs/increments/fix-003-one-naming-convention-across-the-api.md`
 
+## fix-002: Imported history carries real timestamps
+
+- **Type:** fix
+- **Status:** in-progress
+- **Tier:** 3 (Medium)
+- **Traces:** R20
+- **Scope:** Make `scripts/import-ledger.py` date each write from the increment's commits using feat-023's `?at=`, so imported flow metrics measure when work happened. Keep enough precision in durations for work that takes hours, and render it in units a reader can act on. The API keeps its `*_days` keys and numeric type.
+- **Acceptance Criteria:**
+  - [x] WHEN history is imported THE SYSTEM SHALL date each transition from the commits that carry the increment
+  - [x] WHEN work completes in under a day THE SYSTEM SHALL report a duration greater than zero
+  - [x] THE SYSTEM SHALL render a sub-day duration in hours or minutes rather than as 0d
+  - [x] WHEN the importing actor may not backdate THE SYSTEM SHALL report that rather than silently landing history at import time
+- **Test Strategy:**
+  - Unit: durations of minutes and hours survive the rounding
+  - Re-import Canon's own ledger and compare the resulting cycle times against the real commit history
+- **Dependencies:** none
+- **Rollback Plan:** Restore the two-decimal rounding in `days()`
+- **Risk:** Low — precision and presentation only
+- **Evidence:** see `specs/increments/fix-002-imported-history-carries-real-timestamps.md`
+
 ## Sequencing
 
 | Day | Increments | Milestone |
