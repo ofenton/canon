@@ -699,7 +699,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## fix-001: Resolve issue references case-insensitively
 
 - **Type:** fix
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 2 (High)
 - **Traces:** R27, R28
 - **Scope:** Make `canon link` and `canon trace` agree about which reference names which issue, by resolving a commit's reference against the ids Canon actually holds rather than assuming a casing. No change to how references are found.
