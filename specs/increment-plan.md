@@ -774,7 +774,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-030: Teams are declared, not invented
 
 - **Type:** feature
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 1 (Critical)
 - **Traces:** R1, R3
 - **Scope:** Declare the organisation's teams in `canon.yaml` and refuse any team not declared, on issues and on membership alike. Membership stays in the event log. A schema change that would orphan issues owned by a removed team is refused, as with states and types.
