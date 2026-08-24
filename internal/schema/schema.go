@@ -103,12 +103,14 @@ type Schema struct {
 	Fields      []Field      `yaml:"fields"`
 	IssueTypes  []IssueType  `yaml:"issue_types"`
 	Roles       []Role       `yaml:"roles"`
+	Teams       []Team       `yaml:"teams"`
 	Hierarchy   Hierarchy    `yaml:"hierarchy"`
 
 	states      map[string]State
 	fields      map[string]Field
 	transitions map[string]map[string]bool
 	roles       map[string]Role
+	teams       map[string]Team
 }
 
 // Load reads and validates the schema at path.
@@ -155,6 +157,7 @@ func (s *Schema) checkUnknownKeys(root *yaml.Node, path string) error {
 	known := map[string]bool{
 		"version": true, "states": true, "transitions": true,
 		"fields": true, "issue_types": true, "roles": true, "hierarchy": true,
+		"teams": true,
 	}
 	var unknown []string
 	for i := 0; i+1 < len(root.Content); i += 2 {
@@ -305,6 +308,7 @@ func (s *Schema) validate(path string) error {
 	s.index()
 	s.validateRoles(add)
 	s.validateHierarchy(add)
+	s.validateTeams(add)
 
 	if len(problems) == 0 {
 		return nil
@@ -326,6 +330,10 @@ func (s *Schema) index() {
 	s.roles = make(map[string]Role, len(s.Roles))
 	for _, r := range s.Roles {
 		s.roles[r.Name] = r
+	}
+	s.teams = make(map[string]Team, len(s.Teams))
+	for _, t := range s.Teams {
+		s.teams[t.Name] = t
 	}
 	s.transitions = map[string]map[string]bool{}
 	for _, tr := range s.Transitions {

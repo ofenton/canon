@@ -65,6 +65,11 @@ hierarchy:
   levels:
     - [increment]
 
+# One team: this repository is worked by one crew, and declaring it is what stops a
+# typo becoming a second one.
+teams:
+  - {name: canon, description: Everyone working on Canon}
+
 roles:
   # A human may do anything, including both gates, and may record work that
   # happened before it was tracked — an import, or a commit linked after the fact.
