@@ -192,46 +192,55 @@ func TestLargeListIsPaginated(t *testing.T) {
 	}
 }
 
-// The point of catching up rather than rebuilding is that read cost stops tracking
-// the size of the log. This asserts the shape: a five-fold larger log must not make
-// reads five times slower.
+// The point of catching up rather than rebuilding, and of paginating during the scan
+// rather than after it, is that a read's cost stops tracking the size of the log.
+//
+// This is asserted on allocations, not on wall-clock time. Two earlier versions
+// compared timings between dataset sizes and both flaked in CI while measuring flat
+// locally — a shared runner's contention swamps a two-millisecond baseline. A
+// profile confirmed the read path was never the problem: the allocations the
+// benchmark attributed to it were the fixture's. Allocations per read are
+// deterministic and machine-independent, which is what an algorithmic claim needs.
 func TestReadCostDoesNotTrackLogSize(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipped in short mode")
 	}
-	small, _ := seedLarge(t, 10_000)
-	large, _ := seedLarge(t, 50_000)
-
-	_, p95Small := measure(t, small, "GET", "/api/issues?q=team%3Dplatform", 20)
-	_, p95Large := measure(t, large, "GET", "/api/issues?q=team%3Dplatform", 20)
-
-	perIssueSmall := p95Small / 10_000 * 1000
-	perIssueLarge := p95Large / 50_000 * 1000
-	t.Logf("  10k issues: p95 %.2fms  (%.3fms per 1k)", p95Small, perIssueSmall)
-	t.Logf("  50k issues: p95 %.2fms  (%.3fms per 1k)", p95Large, perIssueLarge)
-
-	// The requirement is the absolute budget, and it is the assertion that always
-	// applies.
-	if p95Large > 200 {
-		t.Errorf("p95 at 50k issues is %.1fms, over the 200ms budget", p95Large)
+	measureAllocs := func(n int) float64 {
+		h, _ := seedLarge(t, n)
+		request := func() *http.Request {
+			r := httptest.NewRequest(http.MethodGet, "/api/issues?q=team%3Dplatform", nil)
+			r.Header.Set(ActorHeader, "ollie")
+			return r
+		}
+		// Warm the projection so catch-up is not counted as steady-state cost.
+		h.ServeHTTP(httptest.NewRecorder(), request())
+		return testing.AllocsPerRun(10, func() {
+			h.ServeHTTP(httptest.NewRecorder(), request())
+		})
 	}
 
-	// The shape claim is that cost tracks matches, not the size of the event log.
-	// It is checked per-issue rather than as a ratio between two measurements: on a
-	// shared CI runner the 10k baseline is a couple of milliseconds, small enough
-	// that fixed overhead dominates and the ratio swings wildly. An earlier version
-	// of this test compared p95 directly and failed in CI at 12x while measuring
-	// 4.6x locally — noise, not a regression.
-	//
-	// Below the floor the numbers are too small to say anything, so the shape check
-	// is skipped rather than asserted on noise.
-	const meaningful = 1.0 // ms
-	if p95Small < meaningful {
-		t.Logf("  baseline below %.0fms; shape check skipped as unmeasurable", meaningful)
-		return
+	small := measureAllocs(10_000)
+	large := measureAllocs(50_000)
+	t.Logf("  10k issues: %.0f allocs/read", small)
+	t.Logf("  50k issues: %.0f allocs/read", large)
+
+	// A read returns one page whatever the dataset, so its allocations should be
+	// near-constant. A little slack absorbs map iteration order and encoder reuse.
+	if large > small*1.5 {
+		t.Errorf("allocations grew from %.0f to %.0f for a 5x larger log; a read should cost the page, not the log",
+			small, large)
 	}
-	if perIssueLarge > perIssueSmall*3 {
-		t.Errorf("per-issue cost grew from %.3f to %.3f ms/1k; reads should track matches, not log size",
-			perIssueSmall, perIssueLarge)
+
+	// The absolute budget is the requirement, and is checked on time.
+	_, p95 := measure(t, mustSeed(t, 50_000), "GET", "/api/issues?q=team%3Dplatform", 20)
+	t.Logf("  50k issues: p95 %.2fms", p95)
+	if p95 > 200 {
+		t.Errorf("p95 at 50k issues is %.1fms, over the 200ms budget", p95)
 	}
+}
+
+func mustSeed(t *testing.T, n int) http.Handler {
+	t.Helper()
+	h, _ := seedLarge(t, n)
+	return h
 }

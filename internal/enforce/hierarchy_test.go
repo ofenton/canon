@@ -270,3 +270,140 @@ func TestDeletedIssueCannotBeWrittenTo(t *testing.T) {
 		t.Error("a deleted issue must not accept transitions")
 	}
 }
+
+// AC: WHEN a schema change would leave existing issues nested in a way the hierarchy
+// does not permit THE SYSTEM SHALL refuse to apply it and name the offending issues.
+func TestMigrationRefusesANarrowedHierarchy(t *testing.T) {
+	e, log := fixture(t)
+	tree(t, e) // epic → feature → story → task, bug
+
+	// A hierarchy without "feature": the story under it becomes illegal, and so
+	// does the feature under the epic.
+	narrowed := loadSchema(t, `version: 1
+states:
+  - {name: todo, category: open}
+  - {name: in_progress, category: active}
+  - {name: in_review, category: active, requires_evidence: true}
+  - {name: done, category: closed}
+  - {name: abandoned, category: closed}
+transitions:
+  - {from: todo, to: in_progress}
+  - {from: in_progress, to: in_review}
+  - {from: in_review, to: done}
+fields:
+  - {name: title, type: string, required: true}
+  - {name: priority, type: enum, values: [p1, p2, p3, p4]}
+  - {name: component, type: string}
+  - {name: evidence, type: text}
+issue_types:
+  - {name: epic, fields: [title]}
+  - {name: feature, fields: [title, priority]}
+  - {name: story, fields: [title, priority]}
+  - {name: task, fields: [title, priority]}
+  - {name: bug, fields: [title, priority, component]}
+hierarchy:
+  levels: [[epic], [story], [task, bug], [feature]]
+`)
+	err := CheckMigration(log, narrowed)
+	if err == nil {
+		t.Fatal("a hierarchy change that invalidates existing nestings must be refused")
+	}
+	msg := err.Error()
+	for _, want := range []string{"feature under epic", "story under feature", "FEATURE", "STORY"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("the refusal must name %q; got:\n%v", want, err)
+		}
+	}
+	// The legal nestings must not be reported.
+	if strings.Contains(msg, "task under story") || strings.Contains(msg, "bug under story") {
+		t.Errorf("a still-legal nesting was reported as a problem:\n%v", err)
+	}
+}
+
+// AC: WHEN a schema removes the hierarchy entirely THE SYSTEM SHALL refuse to apply
+// it while any issue has a parent.
+func TestMigrationRefusesRemovingTheHierarchy(t *testing.T) {
+	e, log := fixture(t)
+	tree(t, e)
+
+	flat := loadSchema(t, `version: 1
+states: [{name: todo, category: open}, {name: done, category: closed}]
+transitions: [{from: todo, to: done}]
+fields: [{name: title, type: string, required: true}]
+issue_types:
+  - {name: epic, fields: [title]}
+  - {name: feature, fields: [title]}
+  - {name: story, fields: [title]}
+  - {name: task, fields: [title]}
+  - {name: bug, fields: [title]}
+`)
+	if err := CheckMigration(log, flat); err == nil {
+		t.Fatal("removing the hierarchy while issues are nested must be refused")
+	}
+
+	// Clear every parent, and the same change becomes applicable.
+	for _, id := range []string{"FEATURE", "STORY", "SUB-1", "SUB-2"} {
+		if err := e.Reparent(id, "", at(20), human()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := CheckMigration(log, flat); err != nil {
+		t.Errorf("with no parents left, the change must be applicable: %v", err)
+	}
+}
+
+// AC: WHEN a schema change is compatible with every existing nesting THE SYSTEM SHALL
+// apply it.
+func TestMigrationAllowsAWiderHierarchy(t *testing.T) {
+	e, log := fixture(t)
+	tree(t, e)
+
+	// Same levels, but skipping permitted: strictly more permissive.
+	wider := loadSchema(t, mustRead(t, filepath.Join("..", "schema", "testdata", "canon.yaml"))+
+		"\n")
+	if err := CheckMigration(log, wider); err != nil {
+		t.Errorf("an unchanged schema must be applicable: %v", err)
+	}
+
+	extended := loadSchema(t, strings.Replace(
+		mustRead(t, filepath.Join("..", "schema", "testdata", "canon.yaml")),
+		"  allow_skipping: false", "  allow_skipping: true", 1))
+	if err := CheckMigration(log, extended); err != nil {
+		t.Errorf("permitting skipping is strictly wider and must be applicable: %v", err)
+	}
+}
+
+// Both kinds of problem must be reported together, so one run tells an operator
+// everything they have to fix.
+func TestMigrationReportsStatesAndNestingsTogether(t *testing.T) {
+	e, log := fixture(t)
+	tree(t, e)
+	if err := e.Transition("SUB-1", "in_progress", "", at(21), human()); err != nil {
+		t.Fatal(err)
+	}
+
+	breaking := loadSchema(t, `version: 1
+states: [{name: todo, category: open}, {name: done, category: closed}]
+transitions: [{from: todo, to: done}]
+fields: [{name: title, type: string, required: true}]
+issue_types:
+  - {name: epic, fields: [title]}
+  - {name: feature, fields: [title]}
+  - {name: story, fields: [title]}
+  - {name: task, fields: [title]}
+  - {name: bug, fields: [title]}
+hierarchy:
+  levels: [[epic], [feature], [task, bug], [story]]
+`)
+	err := CheckMigration(log, breaking)
+	if err == nil {
+		t.Fatal("expected refusal")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "in_progress") {
+		t.Errorf("the removed state must be reported; got:\n%v", err)
+	}
+	if !strings.Contains(msg, "hierarchy does not permit") {
+		t.Errorf("the illegal nesting must be reported; got:\n%v", err)
+	}
+}

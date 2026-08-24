@@ -198,54 +198,80 @@ func Closed(s *schema.Schema) func(string) bool {
 	}
 }
 
-// Filter returns the issues matching the query, in id order.
+// FilterPage returns one page of matches and the total number that matched.
+//
+// Collecting every match and then slicing allocates a pointer per match — at fifty
+// thousand issues that is megabytes per read, to return two hundred. Counting as we
+// go and keeping only the page allocates the page. The total still has to be exact,
+// so the scan is not short-circuited.
+func (q *Query) FilterPage(view *projection.Projection, s *schema.Schema, limit, offset int) ([]*projection.Issue, int) {
+	beneath, scoped := q.subtree(view)
+
+	page := make([]*projection.Issue, 0, min(limit, 256))
+	total := 0
+	for _, id := range view.IssueIDs() {
+		issue, _ := view.Issue(id)
+		if !q.matches(view, s, issue, beneath, scoped) {
+			continue
+		}
+		if total >= offset && len(page) < limit {
+			page = append(page, issue)
+		}
+		total++
+	}
+	return page, total
+}
+
+// Filter returns every issue matching the query, in id order. Prefer FilterPage for
+// anything user-facing; this exists for callers that genuinely need the whole set,
+// such as metrics.
 func (q *Query) Filter(view *projection.Projection, s *schema.Schema) []*projection.Issue {
-	// ancestor= asks about the tree rather than the issue, so it is resolved once
-	// against the projection instead of per-issue during matching.
-	beneath := map[string]bool{}
+	beneath, scoped := q.subtree(view)
+	out := make([]*projection.Issue, 0)
+	for _, id := range view.IssueIDs() {
+		issue, _ := view.Issue(id)
+		if q.matches(view, s, issue, beneath, scoped) {
+			out = append(out, issue)
+		}
+	}
+	return out
+}
+
+// subtree resolves any ancestor= term once, since an issue does not know its lineage.
+func (q *Query) subtree(view *projection.Projection) (map[string]bool, bool) {
+	var beneath map[string]bool
 	var scoped bool
 	for _, t := range q.terms {
 		if t.key != ancestorKey {
 			continue
 		}
+		if beneath == nil {
+			beneath = map[string]bool{}
+		}
 		scoped = true
 		for _, id := range view.Descendants(t.value, 0) {
 			beneath[id] = true
 		}
-		if t.negated {
-			// Negation is applied per-issue below; record the set either way.
-			continue
-		}
 	}
+	return beneath, scoped
+}
 
-	out := make([]*projection.Issue, 0)
-	for _, id := range view.IssueIDs() {
-		issue, _ := view.Issue(id)
-		if !q.Match(issue, s) {
-			continue
-		}
-		if scoped {
-			var ok = true
-			for _, t := range q.terms {
-				if t.key != ancestorKey {
-					continue
-				}
-				if beneath[id] == t.negated {
-					ok = false
-					break
-				}
-			}
-			if !ok {
+// matches applies every kind of term: fields, subtree scoping and relations.
+func (q *Query) matches(view *projection.Projection, s *schema.Schema, issue *projection.Issue, beneath map[string]bool, scoped bool) bool {
+	if !q.Match(issue, s) {
+		return false
+	}
+	if scoped {
+		for _, t := range q.terms {
+			if t.key != ancestorKey {
 				continue
 			}
+			if beneath[issue.ID] == t.negated {
+				return false
+			}
 		}
-
-		if !q.matchesRelations(view, s, issue) {
-			continue
-		}
-		out = append(out, issue)
 	}
-	return out
+	return q.matchesRelations(view, s, issue)
 }
 
 func value(key string, issue *projection.Issue, s *schema.Schema) string {

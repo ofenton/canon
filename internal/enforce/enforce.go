@@ -231,21 +231,39 @@ func (e *Enforcer) Delete(id string, at time.Time, actor event.Actor) error {
 //
 // The check is against projected state rather than the raw log: an issue that passed
 // through a since-removed state is fine, an issue that currently sits in one is not.
+// The same reasoning applies to nesting — a tree that was legal under the old
+// hierarchy can be illegal under a narrower one, and starting anyway would leave the
+// instance holding data its own rules forbid.
 func CheckMigration(log *event.Store, next *schema.Schema) error {
 	view := projection.New(log)
 	if err := view.Rebuild(); err != nil {
 		return fmt.Errorf("checking migration: %w", err)
 	}
 
+	var problems []string
+	problems = append(problems, strandedByState(view, next)...)
+	problems = append(problems, strandedByHierarchy(view, next)...)
+	if len(problems) == 0 {
+		return nil
+	}
+
+	var b strings.Builder
+	b.WriteString("this schema change would leave existing issues invalid:\n")
+	for _, problem := range problems {
+		fmt.Fprintf(&b, "  %s\n", problem)
+	}
+	b.WriteString("\nmove the issues, or keep the schema as it is")
+	return fmt.Errorf("%s", b.String())
+}
+
+// strandedByState finds issues sitting in a state the new schema does not define.
+func strandedByState(view *projection.Projection, next *schema.Schema) []string {
 	orphanedBy := map[string][]string{}
 	for _, id := range view.IssueIDs() {
 		issue, _ := view.Issue(id)
 		if issue.State != "" && !next.HasState(issue.State) {
 			orphanedBy[issue.State] = append(orphanedBy[issue.State], id)
 		}
-	}
-	if len(orphanedBy) == 0 {
-		return nil
 	}
 
 	states := make([]string, 0, len(orphanedBy))
@@ -254,16 +272,58 @@ func CheckMigration(log *event.Store, next *schema.Schema) error {
 	}
 	sort.Strings(states)
 
-	var b strings.Builder
-	b.WriteString("this schema change would orphan existing issues:\n")
+	var out []string
 	for _, state := range states {
 		ids := orphanedBy[state]
 		sort.Strings(ids)
-		fmt.Fprintf(&b, "  removing state %q would strand %d issue(s): %s\n",
-			state, len(ids), strings.Join(ids, ", "))
+		out = append(out, fmt.Sprintf("removing state %q would strand %d issue(s): %s",
+			state, len(ids), strings.Join(ids, ", ")))
 	}
-	b.WriteString("\nmove them to a state the new schema defines, or keep the state")
-	return fmt.Errorf("%s", b.String())
+	return out
+}
+
+// strandedByHierarchy finds parent/child pairs the new hierarchy would forbid.
+//
+// Reported per offending pair rather than per issue: "a task under a feature" is the
+// thing to fix, and the same illegal shape repeated fifty times is one decision, not
+// fifty.
+func strandedByHierarchy(view *projection.Projection, next *schema.Schema) []string {
+	byShape := map[string][]string{}
+	for _, id := range view.IssueIDs() {
+		issue, _ := view.Issue(id)
+		if issue.Parent == "" {
+			continue
+		}
+		parent, ok := view.Issue(issue.Parent)
+		if !ok {
+			continue
+		}
+		if err := next.CanNest(issue.Type, parent.Type); err != nil {
+			shape := fmt.Sprintf("%s under %s", issue.Type, parent.Type)
+			byShape[shape] = append(byShape[shape], fmt.Sprintf("%s→%s", id, issue.Parent))
+		}
+	}
+
+	shapes := make([]string, 0, len(byShape))
+	for shape := range byShape {
+		shapes = append(shapes, shape)
+	}
+	sort.Strings(shapes)
+
+	var out []string
+	for _, shape := range shapes {
+		pairs := byShape[shape]
+		sort.Strings(pairs)
+		// Long lists help nobody; the shape is the actionable part.
+		shown := pairs
+		suffix := ""
+		if len(shown) > 5 {
+			shown, suffix = shown[:5], fmt.Sprintf(" and %d more", len(pairs)-5)
+		}
+		out = append(out, fmt.Sprintf("the new hierarchy does not permit %s: %d nesting(s) — %s%s",
+			shape, len(pairs), strings.Join(shown, ", "), suffix))
+	}
+	return out
 }
 
 // append writes a validated event. Nothing else in this package touches the log.
