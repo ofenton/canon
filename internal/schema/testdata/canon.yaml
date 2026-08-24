@@ -74,6 +74,14 @@ hierarchy:
 # who holds which role, and which team they are in — is state, and lives in the
 # event log (feat-015). Making a joiner a pull request would teach people to route
 # around the system.
+# The organisation's teams. Which teams exist is policy and changes by pull request;
+# who is in one is state and lives in the event log. Without this block "platform",
+# "Platform" and "platfrom" are three teams and nothing says otherwise.
+teams:
+  - {name: platform, description: The core product}
+  - {name: growth}
+  - {name: payments}
+
 roles:
   - name: admin
     can: [create, delete, reparent, depend, backdate, link, "field:*", "transition:*"]

@@ -159,6 +159,7 @@ func (s *Server) getSchema(w http.ResponseWriter, r *http.Request) {
 		"fields":       s.schema.Fields,
 		"issue_types":  s.schema.IssueTypes,
 		"roles":        s.schema.RoleNames(),
+		"teams":        s.schema.Teams,
 		"hierarchy":    s.schema.Hierarchy.Levels,
 		"parent_types": parents,
 		"child_types":  children,

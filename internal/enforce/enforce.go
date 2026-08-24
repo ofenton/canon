@@ -260,6 +260,7 @@ func CheckMigration(log *event.Store, next *schema.Schema) error {
 	var problems []string
 	problems = append(problems, strandedByState(view, next)...)
 	problems = append(problems, strandedByHierarchy(view, next)...)
+	problems = append(problems, strandedByTeam(view, next)...)
 	if len(problems) == 0 {
 		return nil
 	}
@@ -271,6 +272,40 @@ func CheckMigration(log *event.Store, next *schema.Schema) error {
 	}
 	b.WriteString("\nmove the issues, or keep the schema as it is")
 	return fmt.Errorf("%s", b.String())
+}
+
+// strandedByTeam finds issues owned by a team the new schema does not declare.
+//
+// Removing a team is how an organisation says a team no longer exists, and the work it
+// owned does not stop existing with it. Refusing the change forces the reassignment to
+// happen deliberately rather than leaving issues owned by nobody.
+func strandedByTeam(view *projection.Projection, next *schema.Schema) []string {
+	if !next.TeamsDeclared() {
+		return nil
+	}
+	orphaned := map[string][]string{}
+	for _, id := range view.IssueIDs() {
+		issue, _ := view.Issue(id)
+		if issue.Team == "" || next.HasTeam(issue.Team) {
+			continue
+		}
+		orphaned[issue.Team] = append(orphaned[issue.Team], id)
+	}
+
+	teams := make([]string, 0, len(orphaned))
+	for team := range orphaned {
+		teams = append(teams, team)
+	}
+	sort.Strings(teams)
+
+	var problems []string
+	for _, team := range teams {
+		ids := orphaned[team]
+		sort.Strings(ids)
+		problems = append(problems, fmt.Sprintf(
+			"removing team %q would strand %d issue(s): %s", team, len(ids), strings.Join(ids, ", ")))
+	}
+	return problems
 }
 
 // strandedByState finds issues sitting in a state the new schema does not define.
