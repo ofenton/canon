@@ -137,12 +137,23 @@ func (s *Server) getSchema(w http.ResponseWriter, r *http.Request) {
 			RequiresEvidence: st.RequiresEvidence, To: s.schema.PermittedFrom(st.Name),
 		})
 	}
+	// The permitted parents and children per type, so a client can tell a user what
+	// is allowed before they try it rather than after it is refused.
+	parents := map[string][]string{}
+	children := map[string][]string{}
+	for _, it := range s.schema.IssueTypes {
+		parents[it.Name] = s.schema.ParentTypesFor(it.Name)
+		children[it.Name] = s.schema.ChildTypesFor(it.Name)
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"version":     s.schema.Version,
-		"states":      states,
-		"fields":      s.schema.Fields,
-		"issue_types": s.schema.IssueTypes,
-		"roles":       s.schema.RoleNames(),
+		"version":      s.schema.Version,
+		"states":       states,
+		"fields":       s.schema.Fields,
+		"issue_types":  s.schema.IssueTypes,
+		"roles":        s.schema.RoleNames(),
+		"hierarchy":    s.schema.Hierarchy.Levels,
+		"parent_types": parents,
+		"child_types":  children,
 	})
 }
 

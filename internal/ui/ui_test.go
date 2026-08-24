@@ -103,17 +103,55 @@ func TestSelectionIsScopedToMain(t *testing.T) {
 	}
 }
 
-// The status bar reports the last action. Rendering a list must not write to it, or
-// a refusal reported by an action is wiped by the re-render that follows.
-func TestListSummaryDoesNotClobberTheStatusBar(t *testing.T) {
+// The status bar reports the last action. No render function may write to it, or a
+// refusal reported by an action is wiped by the re-render that follows. This has now
+// caught the same bug twice — once in the issue list, once in the detail view — so it
+// checks every render function rather than one.
+func TestRenderFunctionsDoNotClobberTheStatusBar(t *testing.T) {
 	page := mustAsset(t)
-	body := between(page, "async function renderIssues", "async function renderBoards")
-	if strings.Contains(body, "say(") {
-		t.Error("renderIssues writes to the status bar; a re-render would wipe the last action's result")
+	for _, fn := range []string{"renderIssues", "renderDetail", "renderBoards", "renderMetrics", "renderProposals"} {
+		body := functionBody(page, "async function "+fn)
+		if body == "" {
+			t.Errorf("%s not found", fn)
+			continue
+		}
+		if strings.Contains(body, "say(") {
+			t.Errorf("%s writes to the status bar; a re-render would wipe the last action's result", fn)
+		}
 	}
-	if !strings.Contains(body, `id = "list-summary"`) {
+	if !strings.Contains(page, `id = "list-summary"`) {
 		t.Error("the list does not report how many issues it is showing")
 	}
+	if !strings.Contains(page, `id = "detail-hints"`) {
+		t.Error("the detail view does not show its key hints in the view")
+	}
+}
+
+// functionBody returns the text of one function, matched by brace depth so an
+// inserted function between two others cannot silently widen the region checked —
+// which is exactly how the previous version of this test misreported.
+func functionBody(page, signature string) string {
+	start := strings.Index(page, signature)
+	if start < 0 {
+		return ""
+	}
+	open := strings.Index(page[start:], "{")
+	if open < 0 {
+		return ""
+	}
+	depth, i := 0, start+open
+	for ; i < len(page); i++ {
+		switch page[i] {
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return page[start : i+1]
+			}
+		}
+	}
+	return ""
 }
 
 // The help dialog must be generated from the registry, so it cannot drift from it.
