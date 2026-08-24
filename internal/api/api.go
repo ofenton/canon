@@ -69,6 +69,9 @@ func (s *Server) Routes() map[string]http.HandlerFunc {
 		"GET /api/issues/{id}":                      s.getIssue,
 		"DELETE /api/issues/{id}":                   s.deleteIssue,
 		"PATCH /api/issues/{id}/fields":             s.setFields,
+		"PUT /api/issues/{id}/multi/{field}":        s.setMulti,
+		"PUT /api/issues/{id}/checklist/{field}":    s.checklistItem,
+		"DELETE /api/issues/{id}/checklist/{field}": s.removeChecklistItem,
 		"POST /api/issues/{id}/transition":          s.transition,
 		"PUT /api/issues/{id}/parent":               s.setParent,
 		"GET /api/issues/{id}/children":             s.listChildren,
@@ -444,6 +447,77 @@ func (s *Server) defaultIssueType() (string, error) {
 }
 
 // listAncestors returns the chain from an issue up to its root, nearest first.
+// setMulti replaces the values of a multi-valued field.
+func (s *Server) setMulti(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Values []string `json:"values"`
+	}
+	if !decode(w, r, &body) {
+		return
+	}
+	p, ok := s.principal(w, r)
+	if !ok {
+		return
+	}
+	if err := s.enforcer.SetMulti(p, r.PathValue("id"), r.PathValue("field"), body.Values, s.now()); err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// checklistItem adds a criterion, or marks one met or unmet.
+//
+// One route rather than three: adding an item and checking it are the same shape of
+// request, and splitting them would mean a caller has to know whether the item
+// already exists before choosing a URL.
+func (s *Server) checklistItem(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Text    string `json:"text"`
+		Checked *bool  `json:"checked"`
+	}
+	if !decode(w, r, &body) {
+		return
+	}
+	p, ok := s.principal(w, r)
+	if !ok {
+		return
+	}
+	id, field := r.PathValue("id"), r.PathValue("field")
+
+	if body.Checked == nil {
+		if err := s.enforcer.AddChecklistItem(p, id, field, body.Text, s.now()); err != nil {
+			writeDomainError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"field": field, "text": body.Text})
+		return
+	}
+	if err := s.enforcer.SetChecklistItem(p, id, field, body.Text, *body.Checked, s.now()); err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) removeChecklistItem(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Text string `json:"text"`
+	}
+	if !decode(w, r, &body) {
+		return
+	}
+	p, ok := s.principal(w, r)
+	if !ok {
+		return
+	}
+	if err := s.enforcer.RemoveChecklistItem(p, r.PathValue("id"), r.PathValue("field"), body.Text, s.now()); err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (s *Server) listAncestors(w http.ResponseWriter, r *http.Request) {
 	view, err := s.currentView()
 	if err != nil {

@@ -484,15 +484,15 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-019: Checklist and multi-value fields
 
 - **Type:** feature
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 2 (High)
 - **Traces:** R42, R43, R44
 - **Scope:** Add `checklist` and `multi_enum` field types to canon.yaml, a `requires_checklist` state flag, and API support for checking individual items. No other changes.
 - **Acceptance Criteria:**
-  - [ ] THE SYSTEM SHALL provide a checklist field whose items are individually checkable and countable
-  - [ ] WHEN a state is marked as requiring a complete checklist THE SYSTEM SHALL refuse entry to it while any item is unchecked
-  - [ ] THE SYSTEM SHALL provide a field type holding several values from a declared set
-  - [ ] WHEN a multi-value field is given a value outside its declared set THE SYSTEM SHALL reject the write naming the permitted values
+  - [x] THE SYSTEM SHALL provide a checklist field whose items are individually checkable and countable
+  - [x] WHEN a state is marked as requiring a complete checklist THE SYSTEM SHALL refuse entry to it while any item is unchecked
+  - [x] THE SYSTEM SHALL provide a field type holding several values from a declared set
+  - [x] WHEN a multi-value field is given a value outside its declared set THE SYSTEM SHALL reject the write naming the permitted values
 - **Test Strategy:**
   - Table test over checklist operations: add, check, uncheck, count
   - Assert a requires_checklist state is refused with any item unchecked, and permitted when complete
@@ -500,7 +500,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Dependencies:** feat-018
 - **Rollback Plan:** Remove the two field types and the state flag; existing schemas are unaffected
 - **Risk:** Low — additive to the schema, and schemas without them keep working
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/feat-019-checklist-and-multi-value-fields.md`
 ## feat-020: Typed hierarchy levels
 
 - **Type:** feature

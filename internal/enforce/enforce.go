@@ -139,6 +139,22 @@ func (e *Enforcer) Transition(id, to, evidence string, at time.Time, actor event
 	if e.schema.RequiresEvidence(to) && strings.TrimSpace(evidence) == "" {
 		return fmt.Errorf("state %q requires evidence; supply it with the transition", to)
 	}
+	// Acceptance criteria as a gate rather than a note: a state can declare which
+	// checklists must be complete before anything may enter it.
+	for _, field := range e.schema.RequiredChecklists(to) {
+		if issue.ChecklistComplete(field) {
+			continue
+		}
+		done, total := issue.ChecklistProgress(field)
+		var outstanding []string
+		for _, item := range issue.Checklists[field] {
+			if !item.Checked {
+				outstanding = append(outstanding, item.Text)
+			}
+		}
+		return fmt.Errorf("state %q requires %q to be complete; %d of %d met, outstanding: %s",
+			to, field, done, total, strings.Join(outstanding, "; "))
+	}
 
 	payload := map[string]any{"from": issue.State, "to": to}
 	if evidence != "" {
