@@ -63,6 +63,18 @@
   .rel { list-style:none; margin:0; padding:0; }
   .rel li { padding:.15rem 0; }
   .rel li[tabindex]:focus { outline:2px solid var(--accent); outline-offset:2px; border-radius:3px; }
+  .check { list-style:none; margin:0; padding:0; }
+  .check li { display:flex; gap:.5rem; align-items:baseline; padding:.2rem .3rem; border-radius:3px; }
+  .check li[tabindex]:focus { outline:2px solid var(--accent); outline-offset:1px; }
+  .check .box { font-family:var(--mono); color:var(--dim); }
+  .check li.met .box { color:var(--accent); }
+  .check li.met .text { color:var(--dim); text-decoration:line-through; }
+  .check .who { color:var(--dim); font-size:11px; font-family:var(--mono); margin-left:auto; }
+  .progress { font-family:var(--mono); font-size:12px; color:var(--dim); }
+  .progress.blocking { color:var(--warn); }
+  .tags { display:flex; gap:.35rem; flex-wrap:wrap; }
+  .tag { font-family:var(--mono); font-size:12px; border:1px solid var(--line);
+         border-radius:10px; padding:.05rem .5rem; color:var(--dim); }
   .banner { border-left:3px solid var(--warn); background:color-mix(in srgb, var(--warn) 8%, transparent);
             padding:.45rem .6rem; margin:.4rem 0; border-radius:0 4px 4px 0; }
   .banner.cycle { border-left-color:var(--warn); }
@@ -144,6 +156,8 @@ const ACTIONS = [
   { key: "Escape", name: "Back to the list",    run: closeDetail },
   { key: "p",     name: "Set parent",           run: promptParent },
   { key: "d",     name: "Add a dependency",     run: promptDependency },
+  { key: " ",     name: "Tick or untick an item", run: toggleChecklistItem },
+  { key: "n",     name: "Add a checklist item",  run: promptChecklistItem },
   { key: "t",     name: "Transition selected",  run: promptTransition },
   { key: "/",     name: "Filter with a query",  run: promptQuery },
   { key: "r",     name: "Reload",               run: render },
@@ -165,7 +179,7 @@ function go(view) {
 function move(delta) {
   // Scoped to #main on purpose: an unscoped "tbody tr" also matches the help
   // dialog's rows, and j/k would walk through the keyboard reference.
-  const rows = document.querySelectorAll("#main tbody tr, #main .col li, #main .rel li");
+  const rows = document.querySelectorAll("#main tbody tr, #main .col li, #main .rel li, #main .check li");
   if (!rows.length) return;
   state.cursor = Math.max(0, Math.min(rows.length - 1, state.cursor + delta));
   rows.forEach((r, i) => r.setAttribute("aria-selected", String(i === state.cursor)));
@@ -276,6 +290,43 @@ function promptDependency() {
       say(res.body?.warning ?? `${id} now waits on ${on}`, Boolean(res.body?.warning));
       render();
     });
+}
+
+// Toggling is the one write this screen exists to make easy: a criterion is met or
+// it is not, and saying so should cost one keystroke.
+async function toggleChecklistItem() {
+  const row = document.querySelector('#main .check li[aria-selected="true"]');
+  if (!row) return say("select a checklist item first", true);
+  const res = await api("PUT", `/issues/${state.detail}/checklist/${row.dataset.field}`,
+    { text: row.dataset.text, checked: row.dataset.checked !== "true" });
+  if (!res.ok) return say(res.body?.error ?? res.text, true);
+  say(`${row.dataset.checked === "true" ? "unticked" : "met"}: ${row.dataset.text}`);
+  render();
+}
+
+function promptChecklistItem() {
+  const id = state.detail;
+  if (!id) return say("open an issue first", true);
+  const fields = Object.keys(state.detailData?.issue?.Checklists ?? {});
+  const field = fields[0] ?? checklistFieldFor(state.detailData?.issue);
+  if (!field) return say("this issue type has no checklist field", true);
+  ask(`Add to ${field}`, "one criterion · EARS reads well here", async (text) => {
+    if (!text) return;
+    const res = await api("PUT", `/issues/${id}/checklist/${field}`, { text });
+    if (!res.ok) return say(res.body?.error ?? res.text, true);
+    say("added: " + text);
+    render();
+  });
+}
+
+// An issue with an empty checklist has no key in Checklists yet, so fall back to
+// whatever checklist field its type declares.
+function checklistFieldFor(issue) {
+  if (!issue) return null;
+  const type = (state.schema?.issue_types ?? []).find((t) => t.Name === issue.Type);
+  const checklists = (state.schema?.fields ?? [])
+    .filter((f) => f.Type === "checklist").map((f) => f.Name);
+  return (type?.Fields ?? []).find((f) => checklists.includes(f)) ?? null;
 }
 
 async function decideProposal(decision) {
@@ -427,6 +478,38 @@ async function renderDetail(main, id) {
       `<li tabindex="0" data-id="${escape(rid)}"><span class="id">${escape(rid)}</span></li>`).join("") + `</ul>`);
   };
 
+  // Checklists come before the relationships: they are the work itself, and on a
+  // story with acceptance criteria they are what someone opened the issue to see.
+  const blockingChecklists = new Set(
+    ((state.schema?.states ?? []).find((st) => st.name === d.State)?.requires_checklist) ?? []);
+  for (const [field, items] of Object.entries(d.Checklists ?? {})) {
+    const met = items.filter((i) => i.Checked).length;
+    const gate = (state.schema?.states ?? [])
+      .filter((st) => (st.requires_checklist ?? []).includes(field))
+      .map((st) => st.name);
+    const cls = met < items.length && gate.length ? "progress blocking" : "progress";
+    section(`${escape(field)} <span class="${cls}">${met} of ${items.length} met` +
+      (gate.length && met < items.length ? ` · blocks ${gate.map(escape).join(", ")}` : "") + `</span>`,
+      `<ul class="check">` + items.map((item) =>
+        `<li tabindex="0" class="${item.Checked ? "met" : ""}" data-field="${escape(field)}" ` +
+        `data-text="${escape(item.Text)}" data-checked="${item.Checked}">` +
+        `<span class="box">[${item.Checked ? "x" : " "}]</span>` +
+        `<span class="text">${escape(item.Text)}</span>` +
+        (item.CheckedBy ? `<span class="who">${escape(item.CheckedBy)}</span>` : "") +
+        `</li>`).join("") + `</ul>`);
+  }
+  const emptyChecklist = checklistFieldFor(d);
+  if (emptyChecklist && !(d.Checklists ?? {})[emptyChecklist]) {
+    section(escape(emptyChecklist), `<p class="hint">no criteria yet — <kbd>n</kbd> to add one</p>`);
+  }
+
+  for (const [field, values] of Object.entries(d.Multi ?? {})) {
+    if (!values.length) continue;
+    section(escape(field),
+      `<div class="tags">` + values.map((v) => `<span class="tag">${escape(v)}</span>`).join("") + `</div>`);
+  }
+  void blockingChecklists;
+
   related("Parent", d.Parent ? [d.Parent] : [], "no parent");
   related("Children", children.body?.children ?? [], "nothing beneath this");
   related("Waits on", deps.depends_on ?? [], "nothing");
@@ -438,13 +521,13 @@ async function renderDetail(main, id) {
   const hints = document.createElement("p");
   hints.className = "hint";
   hints.id = "detail-hints";
-  hints.innerHTML = `<kbd>Esc</kbd> back · <kbd>p</kbd> parent · <kbd>d</kbd> dependency ` +
-    `· <kbd>t</kbd> transition · <kbd>Enter</kbd> follow`;
+  hints.innerHTML = `<kbd>Esc</kbd> back · <kbd>Space</kbd> tick · <kbd>n</kbd> new criterion ` +
+    `· <kbd>p</kbd> parent · <kbd>d</kbd> dependency · <kbd>t</kbd> transition · <kbd>Enter</kbd> follow`;
   wrap.append(hints);
 
   main.append(wrap);
 
-  const rows = main.querySelectorAll(".rel li");
+  const rows = main.querySelectorAll(".check li, .rel li");
   rows.forEach((r, i) => r.setAttribute("aria-selected", String(i === state.cursor)));
   if (rows[state.cursor]) rows[state.cursor].focus();
 }
