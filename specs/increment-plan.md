@@ -854,7 +854,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-032: A familiar visual language
 
 - **Type:** feature
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 3 (Medium)
 - **Traces:** R21
 - **Scope:** Restyle the web UI to the visual conventions people already know from GitHub — its neutral palette, type scale, 6px radii, bordered surfaces and state pills — keeping the existing single-file, no-build, no-dependency structure. Presentation only: no change to what any screen shows or to any keyboard behaviour.
@@ -907,6 +907,25 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Rollback Plan:** Hide the controls; `/` and the API's limit and offset are unchanged
 - **Risk:** Medium — an off-by-one in paging shows the wrong rows, which is worse than showing none
 - **Evidence:** _(filled in at verify)_
+
+## chore-005: Take the template's own updates, and record the reconciliation
+
+- **Type:** chore
+- **Status:** in-progress
+- **Tier:** 3 (Medium)
+- **Traces:** R31
+- **Scope:** Bring this repository up to the template's current state — the `design-architecture` skill, `check-architecture.py`, the updated `verify-increment` — and backport `lint-workflows.py`, which was written here and never reached the template. Add ADR-0005 and ADR-0006 recording where work should live and how the template should be distributed. No product code changes.
+- **Acceptance Criteria:**
+  - [x] THE SYSTEM SHALL run the same skills and checks as the template it came from
+  - [x] THE SYSTEM SHALL record the reconciliation as decisions, with the alternatives that were rejected
+  - [x] THE SYSTEM SHALL measure the drift rather than assert it
+- **Test Strategy:**
+  - Diff every shared file against the template and show the result
+  - Every validator passes, including the new one
+- **Dependencies:** none
+- **Rollback Plan:** Remove the added skill, check and ADRs; nothing depends on them yet
+- **Risk:** Low — process and documentation only
+- **Evidence:** see `specs/increments/chore-005-sync-the-template.md`
 
 ## Sequencing
 
