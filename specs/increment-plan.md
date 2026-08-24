@@ -774,21 +774,21 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-030: Teams are declared, not invented
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-review
 - **Tier:** 1 (Critical)
 - **Traces:** R1, R3
 - **Scope:** Declare the organisation's teams in `canon.yaml` and refuse any team not declared, on issues and on membership alike. Membership stays in the event log. A schema change that would orphan issues owned by a removed team is refused, as with states and types.
 - **Acceptance Criteria:**
-  - [ ] WHEN a caller names a team not declared in canon.yaml THE SYSTEM SHALL refuse the write and list the teams that exist
-  - [ ] WHEN a schema removes a team that issues still belong to THE SYSTEM SHALL refuse to apply it
-  - [ ] WHERE a schema declares no teams THE SYSTEM SHALL accept any team, so existing instances keep working
+  - [x] WHEN a caller names a team not declared in canon.yaml THE SYSTEM SHALL refuse the write and list the teams that exist
+  - [x] WHEN a schema removes a team that issues still belong to THE SYSTEM SHALL refuse to apply it
+  - [x] WHERE a schema declares no teams THE SYSTEM SHALL accept any team, so existing instances keep working
 - **Test Strategy:**
   - Unit: undeclared team on create, on reparent-by-team, on membership; migration check; the undeclared-schema case
   - The existing suites must pass against a schema that now declares its teams
 - **Dependencies:** none
 - **Rollback Plan:** Remove the `teams:` block from canon.yaml; validation becomes a no-op again
 - **Risk:** Medium — tightens an input that was previously free text, so an existing instance with typo'd teams would fail its migration check, which is the point
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/feat-030-teams-are-declared-not-invented.md`
 
 ## Sequencing
 

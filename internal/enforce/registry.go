@@ -78,6 +78,9 @@ func (e *Enforcer) AddToTeam(id, team string, at time.Time, by event.Actor) erro
 	if team == "" {
 		return fmt.Errorf("team name is required")
 	}
+	if err := e.schema.CheckTeam(team); err != nil {
+		return err
+	}
 	return e.append("team.member_added", id, at, by, map[string]any{"team": team})
 }
 

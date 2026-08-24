@@ -123,6 +123,11 @@ func (e *Enforcer) permittingRoles(op string) string {
 
 // CreateAs records a new issue on behalf of a principal, owned by ownerTeam.
 func (e *Enforcer) CreateAs(p Principal, id, issueType string, fields map[string]string, ownerTeam string, at time.Time) error {
+	// A team the organisation never declared is a typo or an invention, and either
+	// way it silently puts the issue outside every team-scoped role.
+	if err := e.schema.CheckTeam(ownerTeam); err != nil {
+		return err
+	}
 	// A creator must be able to reach the team they are creating into, or a scoped
 	// role could seed issues it may not subsequently touch.
 	if err := e.authorise(p, "create", id, ownerTeam); err != nil {

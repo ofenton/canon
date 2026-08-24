@@ -305,3 +305,60 @@ func mustRead(t *testing.T, path string) string {
 	}
 	return string(b)
 }
+
+// AC: WHEN a caller names a team not declared in canon.yaml THE SYSTEM SHALL refuse
+// the write.
+func TestUndeclaredTeamIsRefusedOnCreate(t *testing.T) {
+	e, log := fixture(t)
+	admin := actor("ollie", "admin", "platform")
+
+	err := e.CreateAs(admin, "CANON-1", "story", map[string]string{"title": "Search is slow"}, "Platfrom", at(0))
+	if err == nil {
+		t.Fatal("a team the schema never declared should be refused")
+	}
+	if !strings.Contains(err.Error(), "not declared") {
+		t.Fatalf("the error should say the team is undeclared, got: %v", err)
+	}
+	// Nothing may be written by a refused create.
+	events, _ := log.All()
+	if len(events) != 0 {
+		t.Fatalf("a refused create wrote %d event(s)", len(events))
+	}
+}
+
+func TestUndeclaredTeamIsRefusedOnMembership(t *testing.T) {
+	e, _ := fixture(t)
+	sys := event.Actor{ID: "bootstrap", Kind: event.ActorSystem}
+	if err := e.RegisterActor("sam", event.ActorHuman, "", at(0), sys); err != nil {
+		t.Fatal(err)
+	}
+	err := e.AddToTeam("sam", "Platfrom", at(0), sys)
+	if err == nil || !strings.Contains(err.Error(), "not declared") {
+		t.Fatalf("joining an undeclared team should be refused, got: %v", err)
+	}
+}
+
+// AC: WHEN a schema removes a team that issues still belong to THE SYSTEM SHALL
+// refuse to apply it.
+func TestRemovingATeamThatOwnsWorkIsRefused(t *testing.T) {
+	e, log := fixture(t)
+	admin := actor("ollie", "admin", "platform")
+	if err := e.CreateAs(admin, "CANON-1", "story", map[string]string{"title": "Owned"}, "platform", at(0)); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	next := loadSchema(t, `version: 1
+states: [{name: todo, category: open}, {name: done, category: closed}]
+transitions: [{from: todo, to: done}]
+fields: [{name: title, type: string, required: true}]
+issue_types: [{name: story, fields: [title]}]
+teams: [{name: growth}]
+`)
+	err := CheckMigration(log, next)
+	if err == nil {
+		t.Fatal("removing a team that still owns issues should be refused")
+	}
+	if !strings.Contains(err.Error(), "platform") || !strings.Contains(err.Error(), "CANON-1") {
+		t.Fatalf("the error should name the team and the stranded issue, got: %v", err)
+	}
+}
