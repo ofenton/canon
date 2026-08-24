@@ -29,8 +29,18 @@ func TestLoadsTheWholeSchema(t *testing.T) {
 	if len(s.Transitions) != 6 {
 		t.Errorf("transitions: got %d want 6", len(s.Transitions))
 	}
-	if len(s.Fields) != 4 {
-		t.Errorf("fields: got %d want 4", len(s.Fields))
+	if len(s.Fields) != 6 {
+		t.Errorf("fields: got %d want 6", len(s.Fields))
+	}
+	// The two richer types must survive a load with their configuration intact.
+	if kpi, ok := s.Field("kpi"); !ok || kpi.Type != MultiEnum || len(kpi.Values) != 4 {
+		t.Errorf("kpi should be a multi_enum with four values, got %+v", kpi)
+	}
+	if acc, ok := s.Field("acceptance"); !ok || acc.Type != Checklist {
+		t.Errorf("acceptance should be a checklist, got %+v", acc)
+	}
+	if got := s.RequiredChecklists("in_review"); len(got) != 1 || got[0] != "acceptance" {
+		t.Errorf("in_review should require the acceptance checklist, got %v", got)
 	}
 	if len(s.IssueTypes) != 5 {
 		t.Errorf("issue types: got %d want 5", len(s.IssueTypes))
