@@ -1062,7 +1062,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## docs-005: Reframe the product spec
 
 - **Type:** docs
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 1 (Critical)
 - **Traces:** R52
 - **Scope:** Rewrite `specs/product.md` for Canon as an aggregator, and plan the increments that deliver it. The requirements delivered under the previous framing are kept, marked superseded, because 43 increments trace to them. No code changes.
