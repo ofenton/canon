@@ -175,6 +175,9 @@ EARS notation — `WHEN <trigger> THE SYSTEM SHALL <observable response>`.
   hierarchy and its dependencies, without leaving the keyboard.
 - **R42:** THE SYSTEM SHALL provide a checklist field whose items are individually checkable and
   countable.
+- **R50:** WHEN an issue carries a checklist THE SYSTEM SHALL show every item, whether it is met,
+  the count met, and allow a user to toggle one without leaving the keyboard.
+- **R51:** WHEN an issue carries a multi-value field THE SYSTEM SHALL show every value.
 - **R43:** WHEN a state is marked as requiring a complete checklist THE SYSTEM SHALL refuse
   entry to it while any item is unchecked.
 - **R44:** THE SYSTEM SHALL provide a field type holding several values from a declared set.
