@@ -40,6 +40,25 @@ type Issue struct {
 	Multi map[string][]string
 	// Checklists holds checkable items per checklist field, in the order added.
 	Checklists map[string][]ChecklistItem
+	// Commits lists the commits linked to this issue, oldest first by author time.
+	Commits []Commit
+}
+
+// Commit is one commit linked to an issue.
+//
+// The link is a fact about work that was done, so it carries the commit's own
+// author time rather than the moment somebody got round to recording it. That is
+// what makes "this was built in March" survive being tracked in August.
+type Commit struct {
+	SHA        string
+	Message    string
+	Repository string
+	Branch     string
+	Author     string
+	At         time.Time
+	// LinkedBy is who recorded the link, which is not always the commit's author —
+	// an operator sweeping a backlog is the common case.
+	LinkedBy string
 }
 
 // ChecklistItem is one acceptance criterion, and whether it has been met.
@@ -716,6 +735,37 @@ func (p *Projection) apply(e *event.Event) error {
 			return err
 		}
 		issue.DependsOn = remove(issue.DependsOn, str(e.Payload["on"]))
+		p.touch(issue, e)
+
+	case "issue.commit_linked":
+		issue, err := p.require(e)
+		if err != nil {
+			return err
+		}
+		sha := str(e.Payload["sha"])
+		if sha == "" {
+			return fmt.Errorf("event %s: commit link with no sha", e.ID)
+		}
+		// The event's own At is the commit's author time, not when the link was
+		// made: a commit linked six weeks late still happened when it happened.
+		// Kept sorted by author time as they arrive. `git log` hands commits over
+		// newest first and a sweep may link any range in any order, so append order
+		// says nothing useful; author order is the one a reader can follow.
+		c := Commit{
+			SHA:        sha,
+			Message:    str(e.Payload["message"]),
+			Repository: str(e.Payload["repository"]),
+			Branch:     str(e.Payload["branch"]),
+			Author:     str(e.Payload["author"]),
+			At:         e.At,
+			LinkedBy:   e.Actor.ID,
+		}
+		i := sort.Search(len(issue.Commits), func(i int) bool {
+			return issue.Commits[i].At.After(c.At)
+		})
+		issue.Commits = append(issue.Commits, Commit{})
+		copy(issue.Commits[i+1:], issue.Commits[i:])
+		issue.Commits[i] = c
 		p.touch(issue, e)
 
 	case "issue.deleted":
