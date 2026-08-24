@@ -187,17 +187,15 @@ func (s *Server) listIssues(w http.ResponseWriter, r *http.Request) {
 
 	// Lists are bounded. Ten thousand issues in one response is slow to produce and
 	// useless to read; total is returned so a caller knows what it is not seeing.
-	matched := q.Filter(view, s.schema)
 	limit, offset, err := page(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	start := min(offset, len(matched))
-	end := min(start+limit, len(matched))
+	issues, total := q.FilterPage(view, s.schema, limit, offset)
 	writeJSON(w, http.StatusOK, map[string]any{
-		"issues": matched[start:end],
-		"total":  len(matched),
+		"issues": issues,
+		"total":  total,
 		"limit":  limit,
 		"offset": offset,
 	})
