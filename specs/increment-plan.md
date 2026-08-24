@@ -930,7 +930,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## docs-004: ADR-0009, Canon as aggregator
 
 - **Type:** docs
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 2 (High)
 - **Traces:** R31
 - **Scope:** Record the decision to make Canon read-only over repositories that follow the template: what it enforces, what identity remains, what the approval gate is, and what gets deleted. Measured, not estimated. No code changes.
