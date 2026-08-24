@@ -832,6 +832,25 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Risk:** Medium — publishing is irreversible in practice, since anything public may already have been copied
 - **Evidence:** see `specs/increments/chore-004-open-the-repository.md`
 
+## docs-003: Populate the architecture map
+
+- **Type:** docs
+- **Status:** in-progress
+- **Tier:** 3 (Medium)
+- **Traces:** R31
+- **Scope:** Replace the unfilled template stub at `docs/architecture.md` with the system as built, measured from the code rather than recalled. Include the cross-cutting invariants and which test asserts each. No code changes.
+- **Acceptance Criteria:**
+  - [x] THE SYSTEM SHALL describe every package, its responsibility and what it may import
+  - [x] THE SYSTEM SHALL name, for each architectural invariant, the test that asserts it
+  - [x] THE SYSTEM SHALL state the structural gaps it has rather than only what works
+- **Test Strategy:**
+  - Verify every named test exists, rather than trusting the list
+  - Verify the claimed import layering by walking real imports
+- **Dependencies:** none
+- **Rollback Plan:** Restore the stub; nothing reads this file mechanically
+- **Risk:** Low — documentation, though a wrong architecture doc misleads worse than none
+- **Evidence:** see `specs/increments/docs-003-populate-the-architecture-map.md`
+
 ## Sequencing
 
 | Day | Increments | Milestone |
