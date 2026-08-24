@@ -161,14 +161,15 @@ type gitCommit struct {
 
 // readCommits reads a range using a record separator git will never emit inside a
 // field, so a commit message containing anything at all still parses.
-func readCommits(repo, spec string) ([]gitCommit, error) {
+func readCommits(repo, spec string, extra ...string) ([]gitCommit, error) {
 	const (
 		fieldSep  = "\x1f"
 		recordSep = "\x1e"
 	)
 	format := strings.Join([]string{"%H", "%s", "%b", "%an", "%aI"}, fieldSep) + recordSep
 
-	out, err := git(repo, "log", "--format="+format, spec)
+	args := append([]string{"log", "--format=" + format}, extra...)
+	out, err := git(repo, append(args, spec)...)
 	if err != nil {
 		return nil, fmt.Errorf("reading %s: %w", spec, err)
 	}
