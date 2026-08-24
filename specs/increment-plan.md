@@ -835,7 +835,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## docs-003: Populate the architecture map
 
 - **Type:** docs
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 3 (Medium)
 - **Traces:** R31
 - **Scope:** Replace the unfilled template stub at `docs/architecture.md` with the system as built, measured from the code rather than recalled. Include the cross-cutting invariants and which test asserts each. No code changes.
