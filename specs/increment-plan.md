@@ -648,19 +648,19 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-027: Schema usage report
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-progress
 - **Tier:** 3 (Medium)
 - **Traces:** R25
 - **Scope:** Report every field, state and issue type in `canon.yaml` with its usage count and last-used date, so unused configuration is visible. Read-only, over the projection.
 - **Acceptance Criteria:**
-  - [ ] WHEN an admin requests a schema report THE SYSTEM SHALL list every field with its usage count and last-used date
-  - [ ] THE SYSTEM SHALL show configuration that has never been used
+  - [x] WHEN an admin requests a schema report THE SYSTEM SHALL list every field with its usage count and last-used date
+  - [x] THE SYSTEM SHALL show configuration that has never been used
 - **Test Strategy:**
   - Unit over a fixture log exercising some fields and not others
 - **Dependencies:** none
 - **Rollback Plan:** Remove the route and subcommand
 - **Risk:** Low — read-only
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/feat-027-schema-usage-report.md`
 
 ## feat-028: Full-text search
 

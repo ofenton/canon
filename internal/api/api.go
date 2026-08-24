@@ -63,6 +63,7 @@ func New(s *schema.Schema, log *event.Store, e *enforce.Enforcer, now func() tim
 func (s *Server) Routes() map[string]http.HandlerFunc {
 	return map[string]http.HandlerFunc{
 		"GET /api/schema":                           s.getSchema,
+		"GET /api/schema/usage":                     s.schemaUsage,
 		"GET /api/events":                           s.listEvents,
 		"GET /api/issues":                           s.listIssues,
 		"POST /api/issues":                          s.createIssue,
@@ -1004,6 +1005,24 @@ func (s *Server) listCommits(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"commits": out})
+}
+
+// schemaUsage reports what each declared thing is actually doing.
+func (s *Server) schemaUsage(w http.ResponseWriter, r *http.Request) {
+	usage, err := s.enforcer.SchemaUsage()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	var unused int
+	for _, u := range usage {
+		if !u.Used() {
+			unused++
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"usage": usage, "declared": len(usage), "unused": unused,
+	})
 }
 
 // at resolves the instant a write should be recorded at.
