@@ -184,6 +184,20 @@ Every grant is validated against the rest of the schema at load. `field:storyPoi
 `transition:todo->shipped` is refused by name, because a typo in a permission grants nothing and
 is invisible at runtime.
 
+**Webhooks** are declared in the schema too, because where work notifications go is an
+organisational decision rather than a per-team one:
+
+```yaml
+webhooks:
+  - {url: "https://hooks.example.com/canon"}          # every transition
+  - {url: "https://deploy.example.com/on-done", states: [done], retries: 3}
+```
+
+Delivery is asynchronous and bounded, and a write never waits on it. A subscriber that is slow,
+down or decommissioned cannot make a transition slower or make it fail — the event is already in
+the log, and the log is the record. Retries stop at five, because an unbounded retry against a
+subscriber nobody remembers configuring is a queue that grows for ever.
+
 **Recording history: `backdate`.** Every write is stamped with the server's clock unless the
 caller adds `?at=<RFC 3339>`, which records the instant the thing actually happened. That is how
 an import replays a tracker that predates Canon, and how a commit is linked with the timestamp it

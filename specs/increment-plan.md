@@ -682,19 +682,19 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-029: Webhook on every transition
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-review
 - **Tier:** 3 (Medium)
 - **Traces:** R24
 - **Scope:** Emit a webhook on every state transition, configured in `canon.yaml`, delivered asynchronously with a bounded retry, never blocking the write.
 - **Acceptance Criteria:**
-  - [ ] WHEN an issue transitions THE SYSTEM SHALL deliver a webhook describing the transition
-  - [ ] WHEN delivery fails THE SYSTEM SHALL retry within a bound and never block the write
+  - [x] WHEN an issue transitions THE SYSTEM SHALL deliver a webhook describing the transition
+  - [x] WHEN delivery fails THE SYSTEM SHALL retry within a bound and never block the write
 - **Test Strategy:**
   - Unit against a test server, including a failing endpoint
 - **Dependencies:** none
 - **Rollback Plan:** Remove the webhook block from the schema; no endpoint means no delivery
 - **Risk:** Medium — an outbound call on the write path, so the async boundary is the increment
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/feat-029-webhook-on-every-transition.md`
 
 ## fix-001: Resolve issue references case-insensitively
 

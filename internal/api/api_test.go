@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -16,6 +18,7 @@ import (
 	"github.com/ofenton/canon/internal/enforce"
 	"github.com/ofenton/canon/internal/event"
 	"github.com/ofenton/canon/internal/schema"
+	"github.com/ofenton/canon/internal/webhook"
 )
 
 var fixedTime = time.Date(2026, 8, 23, 9, 0, 0, 0, time.UTC)
@@ -377,5 +380,119 @@ func TestBoardQueryIsValidatedOnSave(t *testing.T) {
 		map[string]string{"name": "bad", "query": "team=platform", "group_by": "sprint"})
 	if rec.Code != http.StatusUnprocessableEntity {
 		t.Errorf("bad group key: status %d want 422 — %s", rec.Code, rec.Body)
+	}
+}
+
+// AC: WHEN an issue transitions THE SYSTEM SHALL deliver a webhook describing the
+// transition.
+//
+// End to end over HTTP rather than against the sender directly, because the thing
+// worth proving is that a real transition through the real API reaches a real
+// subscriber — the wiring is where this would silently not happen.
+func TestTransitionOverHTTPFiresAWebhook(t *testing.T) {
+	got := make(chan map[string]any, 4)
+	subscriber := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var d map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&d)
+		got <- d
+	}))
+	defer subscriber.Close()
+
+	sch, err := schema.Load(filepath.Join("..", "schema", "testdata", "canon.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sch.Webhooks = []schema.Webhook{{URL: subscriber.URL}}
+
+	log, err := event.Open(filepath.Join(t.TempDir(), "canon.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer log.Close()
+
+	e := enforce.New(sch, log)
+	sender := webhook.New(sch, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	e.OnTransition(sender)
+	defer sender.Close(5 * time.Second)
+
+	sys := event.Actor{ID: "bootstrap", Kind: event.ActorSystem}
+	for _, step := range []func() error{
+		func() error { return e.RegisterActor("ollie", event.ActorHuman, "", fixedTime, sys) },
+		func() error { return e.GrantRole("ollie", "admin", fixedTime, sys) },
+		func() error { return e.AddToTeam("ollie", "platform", fixedTime, sys) },
+	} {
+		if err := step(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	h := New(sch, log, e, func() time.Time { return fixedTime }).Handler()
+
+	if rec := do(t, h, "ollie", "POST", "/api/issues",
+		map[string]any{"id": "CANON-1", "title": "Search is slow", "type": "story", "team": "platform"}); rec.Code != 201 {
+		t.Fatalf("create: %d %s", rec.Code, rec.Body)
+	}
+	if rec := do(t, h, "ollie", "POST", "/api/issues/CANON-1/transition",
+		map[string]any{"to": "in_progress"}); rec.Code >= 300 {
+		t.Fatalf("transition: %d %s", rec.Code, rec.Body)
+	}
+
+	select {
+	case d := <-got:
+		if d["issue"] != "CANON-1" || d["to"] != "in_progress" || d["from"] != "todo" {
+			t.Fatalf("webhook did not describe the transition: %v", d)
+		}
+		if d["actor"] != "ollie" {
+			t.Fatalf("webhook lost the provenance: %v", d)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("a transition over HTTP delivered no webhook")
+	}
+}
+
+// A subscriber that never answers must not slow a transition down. This is the
+// property the whole asynchronous design exists for, so it is asserted end to end.
+func TestASlowSubscriberDoesNotSlowTheWrite(t *testing.T) {
+	release := make(chan struct{})
+	subscriber := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-release
+	}))
+	defer subscriber.Close()
+	defer close(release)
+
+	sch, err := schema.Load(filepath.Join("..", "schema", "testdata", "canon.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sch.Webhooks = []schema.Webhook{{URL: subscriber.URL}}
+
+	log, err := event.Open(filepath.Join(t.TempDir(), "canon.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer log.Close()
+
+	e := enforce.New(sch, log)
+	sender := webhook.New(sch, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	e.OnTransition(sender)
+	defer sender.Close(time.Second)
+
+	sys := event.Actor{ID: "bootstrap", Kind: event.ActorSystem}
+	_ = e.RegisterActor("ollie", event.ActorHuman, "", fixedTime, sys)
+	_ = e.GrantRole("ollie", "admin", fixedTime, sys)
+	_ = e.AddToTeam("ollie", "platform", fixedTime, sys)
+	h := New(sch, log, e, func() time.Time { return fixedTime }).Handler()
+
+	do(t, h, "ollie", "POST", "/api/issues",
+		map[string]any{"id": "CANON-1", "title": "t", "type": "story", "team": "platform"})
+
+	start := time.Now()
+	rec := do(t, h, "ollie", "POST", "/api/issues/CANON-1/transition", map[string]any{"to": "in_progress"})
+	took := time.Since(start)
+
+	if rec.Code >= 300 {
+		t.Fatalf("transition: %d %s", rec.Code, rec.Body)
+	}
+	if took > 500*time.Millisecond {
+		t.Fatalf("the transition took %s waiting on a subscriber that never answers", took)
 	}
 }

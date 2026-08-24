@@ -21,6 +21,7 @@ import (
 	"github.com/ofenton/canon/internal/event"
 	"github.com/ofenton/canon/internal/projection"
 	"github.com/ofenton/canon/internal/schema"
+	"github.com/ofenton/canon/internal/webhook"
 )
 
 // Enforcer validates writes against a schema and appends them to a log.
@@ -28,6 +29,7 @@ type Enforcer struct {
 	schema *schema.Schema
 	log    *event.Store
 	view   *projection.Projection
+	hooks  *webhook.Sender
 }
 
 // New returns an enforcer over one schema and one log.
@@ -161,8 +163,28 @@ func (e *Enforcer) Transition(id, to, evidence string, at time.Time, actor event
 	if evidence != "" {
 		payload["evidence"] = evidence
 	}
-	return e.append("issue.transitioned", id, at, actor, payload)
+	if err := e.append("issue.transitioned", id, at, actor, payload); err != nil {
+		return err
+	}
+
+	// Notification happens after the write has succeeded, and the write does not
+	// wait for it. Nothing here can fail the transition: the event is in the log,
+	// and the log is the record. See internal/webhook.
+	e.notify(webhook.Delivery{
+		Event: "issue.transitioned", Issue: id,
+		From: issue.State, To: to,
+		Actor: actor.ID, Kind: string(actor.Kind), Model: actor.Model,
+		Team: issue.Team, Evidence: evidence, At: at,
+	})
+	return nil
 }
+
+// OnTransition registers where state changes are delivered. Nil disables them, which
+// is what a schema declaring no webhooks produces.
+func (e *Enforcer) OnTransition(s *webhook.Sender) { e.hooks = s }
+
+// notify hands a delivery to the sender, which returns immediately.
+func (e *Enforcer) notify(d webhook.Delivery) { e.hooks.Send(d) }
 
 // Reparent sets or clears an issue's parent.
 //
