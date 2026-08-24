@@ -1,7 +1,34 @@
 # 0008 — The meta-repo and the product track
 
-**Status:** proposed — needs a decision
+**Status:** withdrawn — 2026-08-24, the day it was proposed
 **Date:** 2026-08-24
+**Withdrawn in favour of:** [0007](0007-components-and-composed-releases.md) as amended — one
+product, one repository, by default.
+
+## Why this was withdrawn
+
+Read back-to-back, this ADR and its predecessors introduced four concepts in an afternoon: a
+product/component split, a component registry, a fourth track, and cross-repository traceability.
+Laid out plainly that is Initiative → Epic → Feature, cross-project links, components and fix
+versions. **We had re-derived Jira with different nouns**, in a product whose entire argument is
+that Jira has too much machinery.
+
+The premise that forced all of it was that a product may span repositories. Removing that premise
+removes the meta-repo, `repos.yaml`, the fourth track and cross-repository traces together.
+
+The objection that seemed to make the premise unavoidable was the shared design system — a component
+of four products, belonging to none. It dissolves under a rename: **a design system is not a
+component, it is its own product**, with its own consumers, its own cadence, its own `product.md`
+and its own loop. Once that is true, one product per repository survives the case that broke it.
+
+**What remains useful here** is the prior art, and the pattern as an escape hatch for an
+organisation that genuinely has several repositories per product and is not going to restructure.
+It is not a default, not a track, and not part of the loop. `AGENTS.md` is unchanged.
+
+The original text follows, unedited.
+
+---
+
 **Builds on:** [0007](0007-components-and-composed-releases.md) — a repository holds one component.
 
 ## Context

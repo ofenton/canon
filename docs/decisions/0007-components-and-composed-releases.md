@@ -1,6 +1,6 @@
 # 0007 — Components and composed releases
 
-**Status:** accepted
+**Status:** accepted, amended the same day
 **Date:** 2026-08-24
 **Builds on:** [0005](0005-where-work-lives-git-or-canon.md) — git originates work, the centre owns
 schema, identity and the aggregate.
@@ -16,6 +16,47 @@ Two questions were tangled together and are separable:
 
 - **What does one repository contain?**
 - **How is a customer-facing release expressed?**
+
+## Amendment — the question this originally answered was the wrong one
+
+As first written, this decided that a repository holds one component. That answered *"what layouts
+must Canon support?"* while appearing to answer *"what should a team do?"*, and the two have
+different answers:
+
+- **Canon supports any layout.** It aggregates whatever it is told about. An organisation with fifty
+  existing repositories does not restructure to adopt it, and nothing here requires them to.
+- **The template recommends one product, one repository** — the simplest thing that works, and the
+  layout in which coding agents are measurably more effective.
+
+Conflating them pulled a multi-repository pattern in as the default rather than the exception, and
+produced [ADR-0008](0008-the-meta-repo-and-the-product-track.md), which was withdrawn the same day.
+
+### When to split a repository
+
+So that "until it can't" is a test rather than a shrug, split only when **all three** hold:
+
+1. The parts have genuinely different release cadences.
+2. They have different consumers.
+3. They have different people on call.
+
+Two of three is not enough. Most arguments for separate repositories satisfy exactly one.
+
+### A shared library is a product, not a component
+
+A design system used by four applications is its own product: its own repository, its own
+`product.md`, its own loop, its own versions. This is the rename that makes one-product-one-repository
+hold in the case that appeared to break it.
+
+### Dependencies between products are package dependencies
+
+When one product depends on another's release, that dependency is already written down in a file git
+tracks — `go.mod`, `package-lock.json`, `requirements.txt` — versioned and enforced by the build.
+**Canon reads those; it does not ask anybody to re-declare them.** Re-declaring relationships is how
+a tracker acquires `blocks`, `is-blocked-by`, `relates-to`, `duplicates` and `clones`.
+
+What is left is a small number of genuine sequencing dependencies, and
+[feat-016](../../specs/increments/) already handles those with one directed edge. No new relation
+type: the ids happen to live in different repositories, which changes nothing about the edge.
 
 ## Decision
 
@@ -111,3 +152,13 @@ planned/released status, generated notes, or a pinned component build. That is t
 not repository boundaries, and it is not team size.
 
 Building the composition before anything needs pinning would be a new entity earning nothing.
+
+## Splitting a product later
+
+A product may outgrow one repository — different release cadences, or simply performance. That is a
+real event and the template has no story for it: there is no skill that takes one product and
+produces two, carrying the ledger, the architecture and the history with it.
+
+Deliberately not built. A split is rare, consequential, and easier to design once somebody has done
+one by hand and knows what actually hurt. Naming it here so that choosing one repository now is
+choosing a reversible thing rather than a trap.
