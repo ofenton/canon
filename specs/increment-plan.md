@@ -593,7 +593,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-024: Create an issue from a repository in one command
 
 - **Type:** feature
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 2 (High)
 - **Traces:** R26
 - **Scope:** `canon new` takes a title and creates an issue from the current branch or commit, requiring nothing but a title, and prints the id and the trailer to paste. Records the repository, branch and commit as a link, using feat-025's mechanism rather than schema fields the org may not define. CLI only.
