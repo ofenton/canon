@@ -812,6 +812,26 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Risk:** High — this is the security boundary, and a mistake either locks everyone out or lets everyone in
 - **Evidence:** see `specs/increments/feat-031-authenticate-the-actor.md`
 
+## chore-004: Open the repository
+
+- **Type:** chore
+- **Status:** in-progress
+- **Tier:** 2 (High)
+- **Traces:** R30
+- **Scope:** Make the repository public and give an arriving stranger what they need: a changelog recording the breaking change already shipped, how to contribute, how to report a vulnerability, and branch protection now that a public repository allows it. No code changes.
+- **Acceptance Criteria:**
+  - [x] THE SYSTEM SHALL record every change that would break an existing client, including the ones already shipped
+  - [x] THE SYSTEM SHALL tell a contributor how the increment workflow works before they open a pull request
+  - [x] THE SYSTEM SHALL give a security researcher a private way to report a vulnerability
+  - [ ] WHEN a pull request targets main THE SYSTEM SHALL require its checks to pass before merging
+- **Test Strategy:**
+  - Attempt a direct push to main and confirm it is refused
+  - Read the repository as an outsider would: clone, build, run, in that order
+- **Dependencies:** none
+- **Rollback Plan:** Make the repository private again; the added files are harmless either way
+- **Risk:** Medium — publishing is irreversible in practice, since anything public may already have been copied
+- **Evidence:** see `specs/increments/chore-004-open-the-repository.md`
+
 ## Sequencing
 
 | Day | Increments | Milestone |
