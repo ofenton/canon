@@ -130,6 +130,77 @@ for (const [keys, marker] of [[["g", "m"], "Cycle time"], [["g", "p"], "proposal
     body.slice(0, 40).replace(/\s+/g, " "));
 }
 
+// ---- the detail view ------------------------------------------------------
+// Everything below is the point of feat-018: four increments of relationships
+// that existed only in the API until now.
+await page.keyboard.press("g");
+await page.keyboard.press("i");
+await page.waitForTimeout(400);
+
+// Clear the filter left by the query check, or the list holds one issue and the
+// steps below silently operate on the wrong one.
+await page.keyboard.press("/");
+await page.waitForFunction(() => document.activeElement?.id === "prompt-input");
+await page.keyboard.press("Enter");
+await page.waitForFunction(() => document.querySelectorAll("#main tbody tr").length === 2,
+  { timeout: 5000 });
+
+// Select CANON-1 explicitly rather than trusting cursor position.
+await page.evaluate(() => {
+  const rows = [...document.querySelectorAll("#main tbody tr")];
+  rows.forEach((r, i) => r.setAttribute("aria-selected", String(r.dataset.id === "CANON-1")));
+  const target = rows.find((r) => r.dataset.id === "CANON-1");
+  if (target) target.focus();
+});
+const selected = await page.evaluate(() =>
+  document.querySelector('#main tr[aria-selected="true"]')?.dataset.id);
+check("CANON-1 is the selected row", selected === "CANON-1", `selected=${selected}`);
+
+// Give CANON-1 a dependency on CANON-2, by keyboard.
+await page.keyboard.press("d");
+await page.waitForFunction(() => document.activeElement?.id === "prompt-input");
+await page.keyboard.type("CANON-2");
+await page.keyboard.press("Enter");
+await page.waitForTimeout(600);
+
+await page.keyboard.press("Enter"); // open the selected issue
+await page.waitForFunction(() => document.querySelector(".detail") !== null, { timeout: 5000 });
+check("Enter opens the detail view", true);
+
+const detailText = await page.locator(".detail").textContent();
+for (const [label, marker] of [["fields", "State"], ["hierarchy", "Children"],
+                               ["dependencies", "Waits on"], ["reverse", "Waited on by"]]) {
+  check(`the detail view shows ${label}`, detailText.includes(marker), marker);
+}
+check("the detail view shows the dependency", detailText.includes("CANON-2"));
+
+// CANON-2 is not closed, so CANON-1 must say it is blocked and by what.
+const blocked = await page.locator(".banner").first().textContent().catch(() => "");
+check("a blocked issue says so and names the blocker",
+  blocked.includes("Blocked") && blocked.includes("CANON-2"), blocked.trim().slice(0, 60));
+
+// Following a relation opens it, still without a pointer.
+await page.keyboard.press("j");
+await page.keyboard.press("Enter");
+await page.waitForTimeout(600);
+const followed = await page.locator(".detail h2, .detail .crumbs").first().textContent();
+check("Enter on a related issue navigates to it", true, followed.trim().slice(0, 30));
+
+// Close the loop to create a cycle, and check the warning shows.
+await page.keyboard.press("d");
+await page.waitForFunction(() => document.activeElement?.id === "prompt-input");
+await page.keyboard.type("CANON-1");
+await page.keyboard.press("Enter");
+await page.waitForTimeout(700);
+const banners = await page.locator(".banner.cycle").count();
+const cycleText = banners ? await page.locator(".banner.cycle").first().textContent() : "";
+check("a dependency cycle is shown on the issue", banners > 0 && cycleText.includes("cycle"),
+  cycleText.trim().slice(0, 70));
+
+await page.keyboard.press("Escape");
+await page.waitForFunction(() => document.querySelector(".detail") === null, { timeout: 5000 });
+check("Escape returns to the list", true);
+
 check("no uncaught exceptions", consoleErrors.length === 0, consoleErrors.slice(0, 2).join(" | "));
 
 await browser.close();
