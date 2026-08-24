@@ -53,11 +53,11 @@ func (k ActorKind) Valid() bool {
 // Actor identifies who produced an event.
 type Actor struct {
 	// ID is stable across events for the same human or agent.
-	ID string `cbor:"1,keyasint"`
+	ID string `cbor:"1,keyasint" json:"id"`
 	// Kind is human, agent or system.
-	Kind ActorKind `cbor:"2,keyasint"`
+	Kind ActorKind `cbor:"2,keyasint" json:"kind"`
 	// Model records which model acted, for agents. Empty for humans.
-	Model string `cbor:"3,keyasint,omitempty"`
+	Model string `cbor:"3,keyasint,omitempty" json:"model,omitempty"`
 }
 
 // Event is one immutable fact. Once appended it is never modified; a correction is

@@ -715,6 +715,24 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Risk:** Low — one resolution step, no new surface
 - **Evidence:** see `specs/increments/fix-001-resolve-issue-references-case-insensitively.md`
 
+## fix-003: One naming convention across the API
+
+- **Type:** fix
+- **Status:** in-progress
+- **Tier:** 2 (High)
+- **Traces:** R14
+- **Scope:** Give the projection's exported types JSON tags so every response uses snake_case, matching the hand-written responses that already do. Update the UI, which is the only client. No change to what is returned, only to what the keys are called.
+- **Acceptance Criteria:**
+  - [x] THE SYSTEM SHALL name every JSON field in snake_case across every route
+  - [x] THE SYSTEM SHALL serve the web UI unchanged in behaviour after the rename
+- **Test Strategy:**
+  - A test walking every route's response and failing on any key that is not snake_case
+  - The keyboard suite must pass unchanged
+- **Dependencies:** none
+- **Rollback Plan:** Remove the struct tags; the Go field names return
+- **Risk:** Medium — a breaking change to response shape, caught by a test that reads every route
+- **Evidence:** see `specs/increments/fix-003-one-naming-convention-across-the-api.md`
+
 ## Sequencing
 
 | Day | Increments | Milestone |

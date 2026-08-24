@@ -18,30 +18,30 @@ import (
 
 // Issue is the projected current state of one issue.
 type Issue struct {
-	ID     string
-	Title  string
-	State  string
-	Parent string
+	ID     string `json:"id"`
+	Title  string `json:"title"`
+	State  string `json:"state"`
+	Parent string `json:"parent,omitempty"`
 	// Type is the issue type declared at creation, from canon.yaml.
-	Type string
+	Type string `json:"type"`
 	// Team owns the issue. Team-scoped roles resolve against it.
-	Team      string
-	Fields    map[string]string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	Team      string            `json:"team,omitempty"`
+	Fields    map[string]string `json:"fields,omitempty"`
+	CreatedAt time.Time         `json:"created_at"`
+	UpdatedAt time.Time         `json:"updated_at"`
 	// LastActor is who most recently changed this issue. Provenance is projected,
 	// not just stored, so "who last touched this" costs no replay to answer.
-	LastActor event.Actor
+	LastActor event.Actor `json:"last_actor"`
 	// Transitions is the ordered state history, which is where cycle time comes from.
-	Transitions []Transition
+	Transitions []Transition `json:"transitions,omitempty"`
 	// DependsOn lists the issues this one waits on, sorted.
-	DependsOn []string
+	DependsOn []string `json:"depends_on,omitempty"`
 	// Multi holds multi-valued fields, each sorted.
-	Multi map[string][]string
+	Multi map[string][]string `json:"multi,omitempty"`
 	// Checklists holds checkable items per checklist field, in the order added.
-	Checklists map[string][]ChecklistItem
+	Checklists map[string][]ChecklistItem `json:"checklists,omitempty"`
 	// Commits lists the commits linked to this issue, oldest first by author time.
-	Commits []Commit
+	Commits []Commit `json:"commits,omitempty"`
 }
 
 // Commit is one commit linked to an issue.
@@ -50,15 +50,15 @@ type Issue struct {
 // author time rather than the moment somebody got round to recording it. That is
 // what makes "this was built in March" survive being tracked in August.
 type Commit struct {
-	SHA        string
-	Message    string
-	Repository string
-	Branch     string
-	Author     string
-	At         time.Time
+	SHA        string    `json:"sha"`
+	Message    string    `json:"message,omitempty"`
+	Repository string    `json:"repository,omitempty"`
+	Branch     string    `json:"branch,omitempty"`
+	Author     string    `json:"author,omitempty"`
+	At         time.Time `json:"at"`
 	// LinkedBy is who recorded the link, which is not always the commit's author —
 	// an operator sweeping a backlog is the common case.
-	LinkedBy string
+	LinkedBy string `json:"linked_by,omitempty"`
 }
 
 // ChecklistItem is one acceptance criterion, and whether it has been met.
@@ -67,17 +67,18 @@ type Commit struct {
 // who checked what and when. "Three of five met" is then a count over data, not a
 // sentence someone wrote.
 type ChecklistItem struct {
-	Text      string
-	Checked   bool
-	CheckedBy string
-	CheckedAt time.Time
+	Text      string    `json:"text"`
+	Checked   bool      `json:"checked"`
+	CheckedBy string    `json:"checked_by,omitempty"`
+	CheckedAt time.Time `json:"checked_at,omitzero"`
 }
 
 // Transition records one state change.
 type Transition struct {
-	From, To string
-	At       time.Time
-	Actor    event.Actor
+	From  string      `json:"from,omitempty"`
+	To    string      `json:"to"`
+	At    time.Time   `json:"at"`
+	Actor event.Actor `json:"actor"`
 }
 
 // Checkpoint is a projection's position in the log plus its materialised state.
@@ -139,11 +140,11 @@ type Proposal struct {
 // because it stops matching — there is nothing to update and nothing to go stale.
 // That is the whole difference between a board and a second copy of the truth.
 type Board struct {
-	Name      string
-	Query     string
-	GroupBy   string
-	CreatedBy string
-	CreatedAt time.Time
+	Name      string    `json:"name"`
+	Query     string    `json:"query"`
+	GroupBy   string    `json:"group_by,omitempty"`
+	CreatedBy string    `json:"created_by,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 // Projection is the materialised view over an event log.
