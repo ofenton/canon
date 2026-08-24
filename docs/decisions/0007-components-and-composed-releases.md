@@ -86,6 +86,16 @@ which is the one thing a centre exists to do. Choosing it is choosing not to hav
 - **Cross-repository dependencies become checkable.** *"2026-08 contains `orders-api@1.9.1`, which
   waits on a storefront change that is not in 2026-08"* is a question the centre can now answer, and
   no repository can.
+- **Agents are measurably better at cross-cutting work in a monorepo, and this decision gives that
+  up.** Changing a shared interface and updating every consumer is one atomic commit in a monorepo,
+  where it either passes CI or does not. Across repositories the same change is a distributed
+  transaction: publish the library, open a pull request per consumer, merge in order, and survive
+  the window where some services are on the old version. The industry position as of 2026 is that
+  agents make this argument *stronger*, not weaker, because cross-cutting refactors are exactly what
+  they are good at. Accepted anyway — a design system shared by four products cannot live inside one
+  product's repository — but recorded as a cost that was weighed, because it was raised after this
+  decision was taken and would otherwise look like it had been missed.
+
 - **"Product" carries two meanings** — the component a repository produces, and the thing a customer
   buys. This is a real cost that cannot be designed away without renaming `product.md`, which would
   churn the template, the skill and every existing project for a naming improvement. Documented
