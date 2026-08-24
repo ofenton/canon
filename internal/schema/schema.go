@@ -93,6 +93,7 @@ type Schema struct {
 	Fields      []Field      `yaml:"fields"`
 	IssueTypes  []IssueType  `yaml:"issue_types"`
 	Roles       []Role       `yaml:"roles"`
+	Hierarchy   Hierarchy    `yaml:"hierarchy"`
 
 	states      map[string]State
 	fields      map[string]Field
@@ -143,7 +144,7 @@ func Load(path string) (*Schema, error) {
 func (s *Schema) checkUnknownKeys(root *yaml.Node, path string) error {
 	known := map[string]bool{
 		"version": true, "states": true, "transitions": true,
-		"fields": true, "issue_types": true, "roles": true,
+		"fields": true, "issue_types": true, "roles": true, "hierarchy": true,
 	}
 	var unknown []string
 	for i := 0; i+1 < len(root.Content); i += 2 {
@@ -186,6 +187,9 @@ func (s *Schema) recordLines(root *yaml.Node) {
 					s.Roles[j].line = item.Line
 				}
 			}
+		}
+		if key.Value == "hierarchy" {
+			s.Hierarchy.line = value.Line
 		}
 	}
 }
@@ -276,6 +280,7 @@ func (s *Schema) validate(path string) error {
 	// Roles reference fields and states, so index them before checking grants.
 	s.index()
 	s.validateRoles(add)
+	s.validateHierarchy(add)
 
 	if len(problems) == 0 {
 		return nil

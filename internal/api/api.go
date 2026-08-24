@@ -413,6 +413,27 @@ func (s *Server) deleteBoard(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// defaultIssueType is what a title-only create produces.
+//
+// With a hierarchy declared this is the most granular type — the bottom level —
+// because someone typing a title and pressing enter is capturing a piece of work,
+// not opening an epic. Taking the first declared type would default to the
+// outermost, which is almost always wrong.
+func (s *Server) defaultIssueType() (string, error) {
+	if len(s.schema.IssueTypes) == 0 {
+		return "", errors.New("schema defines no issue types")
+	}
+	if levels := s.schema.Hierarchy.Levels; len(levels) > 0 {
+		deepest := levels[len(levels)-1]
+		if len(deepest) > 0 {
+			// Several types can share the bottom level; take them in declared order
+			// so the choice is the schema author's, not alphabetical accident.
+			return deepest[0], nil
+		}
+	}
+	return s.schema.IssueTypes[0].Name, nil
+}
+
 // listAncestors returns the chain from an issue up to its root, nearest first.
 func (s *Server) listAncestors(w http.ResponseWriter, r *http.Request) {
 	view, err := s.currentView()
@@ -596,11 +617,11 @@ func (s *Server) createIssue(w http.ResponseWriter, r *http.Request) {
 	// Everything except the title has a defensible default, because a create that
 	// demands twelve fields is the thing this product exists to remove.
 	if body.Type == "" {
-		if len(s.schema.IssueTypes) == 0 {
-			writeError(w, http.StatusInternalServerError, errors.New("schema defines no issue types"))
+		var err error
+		if body.Type, err = s.defaultIssueType(); err != nil {
+			writeError(w, http.StatusInternalServerError, err)
 			return
 		}
-		body.Type = s.schema.IssueTypes[0].Name
 	}
 	fields := map[string]string{"title": body.Title}
 	for k, v := range body.Fields {

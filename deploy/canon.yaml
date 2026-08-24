@@ -59,6 +59,12 @@ issue_types:
   - name: increment
     fields: [title, tier, kind, traces, scope, rollback, risk, evidence]
 
+# One level: increments do not nest. The ledger is a flat list by design — an
+# increment that needs sub-increments is too big, and splitting it is the answer.
+hierarchy:
+  levels:
+    - [increment]
+
 roles:
   # A human may do anything, including both gates.
   - name: maintainer
