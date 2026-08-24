@@ -32,8 +32,11 @@ func TestLoadsTheWholeSchema(t *testing.T) {
 	if len(s.Fields) != 4 {
 		t.Errorf("fields: got %d want 4", len(s.Fields))
 	}
-	if len(s.IssueTypes) != 3 {
-		t.Errorf("issue types: got %d want 3", len(s.IssueTypes))
+	if len(s.IssueTypes) != 5 {
+		t.Errorf("issue types: got %d want 5", len(s.IssueTypes))
+	}
+	if !s.HierarchyDeclared() {
+		t.Error("the sample schema must declare a hierarchy")
 	}
 
 	// The schema must answer the questions enforcement will ask of it.
@@ -122,48 +125,56 @@ func TestRejectsStructurallyInvalidSchemas(t *testing.T) {
 		"no states": {`version: 1
 fields: [{name: title, type: string}]
 issue_types: [{name: task, fields: [title]}]
+hierarchy: {levels: [[task]]}
 `, "at least one state"},
 
 		"duplicate state": {`version: 1
 states: [{name: todo, category: open}, {name: todo, category: closed}]
 fields: [{name: title, type: string}]
 issue_types: [{name: task, fields: [title]}]
+hierarchy: {levels: [[task]]}
 `, "duplicate state"},
 
 		"bad category": {`version: 1
 states: [{name: todo, category: sideways}]
 fields: [{name: title, type: string}]
 issue_types: [{name: task, fields: [title]}]
+hierarchy: {levels: [[task]]}
 `, "category"},
 
 		"issue type references unknown field": {`version: 1
 states: [{name: todo, category: open}]
 fields: [{name: title, type: string}]
 issue_types: [{name: task, fields: [title, nonexistent]}]
+hierarchy: {levels: [[task]]}
 `, "nonexistent"},
 
 		"enum without values": {`version: 1
 states: [{name: todo, category: open}]
 fields: [{name: priority, type: enum}]
 issue_types: [{name: task, fields: [priority]}]
+hierarchy: {levels: [[task]]}
 `, "values"},
 
 		"unknown field type": {`version: 1
 states: [{name: todo, category: open}]
 fields: [{name: title, type: quaternion}]
 issue_types: [{name: task, fields: [title]}]
+hierarchy: {levels: [[task]]}
 `, "quaternion"},
 
 		"unsupported version": {`version: 99
 states: [{name: todo, category: open}]
 fields: [{name: title, type: string}]
 issue_types: [{name: task, fields: [title]}]
+hierarchy: {levels: [[task]]}
 `, "version"},
 
 		"unknown key": {`version: 1
 states: [{name: todo, category: open}]
 fields: [{name: title, type: string}]
 issue_types: [{name: task, fields: [title]}]
+hierarchy: {levels: [[task]]}
 sprints: []
 `, "sprints"},
 	}
@@ -188,6 +199,7 @@ states: [{name: todo, category: sideways}]
 transitions: [{from: todo, to: nowhere}]
 fields: [{name: priority, type: enum}]
 issue_types: [{name: task, fields: [missing]}]
+hierarchy: {levels: [[task]]}
 `)
 	_, err := Load(path)
 	if err == nil {
