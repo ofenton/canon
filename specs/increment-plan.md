@@ -756,7 +756,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## fix-004: One render wins
 
 - **Type:** fix
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 2 (High)
 - **Traces:** R21
 - **Scope:** Make a superseded render stop writing. Every view renders asynchronously, so two navigations in quick succession leave two renders in flight and whichever fetch returns last paints the screen. Guard each write with a generation token. No change to any view's content.
