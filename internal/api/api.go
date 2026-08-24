@@ -80,6 +80,8 @@ func (s *Server) Routes() map[string]http.HandlerFunc {
 		"GET /api/issues/{id}/dependencies":         s.listDependencies,
 		"PUT /api/issues/{id}/dependencies":         s.addDependency,
 		"DELETE /api/issues/{id}/dependencies/{on}": s.removeDependency,
+		"PUT /api/issues/{id}/commits":              s.linkCommit,
+		"GET /api/issues/{id}/commits":              s.listCommits,
 		"GET /api/cycles":                           s.listCycles,
 		"GET /api/proposals":                        s.listProposals,
 		"GET /api/proposals/{id}":                   s.getProposal,
@@ -950,6 +952,76 @@ func (s *Server) nextID() (string, error) {
 		return "", err
 	}
 	return fmt.Sprintf("CANON-%d", len(view.IssueIDs())+1), nil
+}
+
+// linkCommit records a commit against an issue.
+//
+// PUT rather than POST because linking the same commit twice is the same request
+// twice: the enforcer treats a repeat as a no-op, so the verb should say so.
+func (s *Server) linkCommit(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		SHA        string `json:"sha"`
+		Message    string `json:"message"`
+		Repository string `json:"repository"`
+		Branch     string `json:"branch"`
+		Author     string `json:"author"`
+		At         string `json:"at"`
+	}
+	if !decode(w, r, &body) {
+		return
+	}
+	p, ok := s.principal(w, r)
+	if !ok {
+		return
+	}
+
+	c := enforce.Commit{
+		SHA:        body.SHA,
+		Message:    body.Message,
+		Repository: body.Repository,
+		Branch:     body.Branch,
+		Author:     body.Author,
+	}
+	// The commit's own author time travels in the body, not in the ?at= parameter:
+	// ?at= says when to record the write, and for a link those are different things
+	// only by accident. One field, one meaning.
+	if body.At != "" {
+		when, err := time.Parse(time.RFC3339, body.At)
+		if err != nil {
+			writeError(w, http.StatusBadRequest,
+				fmt.Errorf("at must be an RFC 3339 timestamp such as 2026-08-24T09:30:00Z, got %q", body.At))
+			return
+		}
+		c.At = when.UTC()
+	}
+
+	if _, err := s.enforcer.LinkCommit(p, r.PathValue("id"), c, s.now().UTC()); err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// listCommits returns the commits linked to an issue.
+func (s *Server) listCommits(w http.ResponseWriter, r *http.Request) {
+	commits, err := s.enforcer.CommitsOf(r.PathValue("id"))
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	out := make([]map[string]any, 0, len(commits))
+	for _, c := range commits {
+		out = append(out, map[string]any{
+			"sha":        c.SHA,
+			"message":    c.Message,
+			"repository": c.Repository,
+			"branch":     c.Branch,
+			"author":     c.Author,
+			"at":         c.At,
+			"linked_by":  c.LinkedBy,
+		})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"commits": out})
 }
 
 // at resolves the instant a write should be recorded at.

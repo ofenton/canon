@@ -611,21 +611,21 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-025: Link commits to issues, including after the fact
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-review
 - **Tier:** 2 (High)
 - **Traces:** R27
 - **Scope:** Record a commit against an issue with its original author timestamp, via API and `canon link`. Links are events, so a commit links once and the link is history. Reads `Increment:`-style trailers from a supplied range.
 - **Acceptance Criteria:**
-  - [ ] WHEN a commit is supplied after the fact THE SYSTEM SHALL link it and record its original timestamp
-  - [ ] WHEN the same commit is linked twice THE SYSTEM SHALL record it once
-  - [ ] THE SYSTEM SHALL list the commits linked to an issue
+  - [x] WHEN a commit is supplied after the fact THE SYSTEM SHALL link it and record its original timestamp
+  - [x] WHEN the same commit is linked twice THE SYSTEM SHALL record it once
+  - [x] THE SYSTEM SHALL list the commits linked to an issue
 - **Test Strategy:**
   - Unit: link, duplicate link, unknown issue
   - CLI test over a temporary repository with real commit timestamps
 - **Dependencies:** feat-023
 - **Rollback Plan:** Remove the link routes; the events remain readable
 - **Risk:** Low — new event type, no change to existing ones
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/feat-025-link-commits-to-issues-including-after-the-fact.md`
 
 ## feat-026: Untracked work as a counted category
 

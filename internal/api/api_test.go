@@ -139,6 +139,8 @@ func TestEveryRouteIsExercised(t *testing.T) {
 		{"PUT /api/issues/{id}/dependencies", "PUT", "/api/issues/CANON-2/dependencies", "ollie", map[string]string{"on": "CANON-1"}, 200},
 		{"GET /api/issues/{id}/dependencies", "GET", "/api/issues/CANON-2/dependencies", "ollie", nil, 200},
 		{"GET /api/cycles", "GET", "/api/cycles", "ollie", nil, 200},
+		{"PUT /api/issues/{id}/commits", "PUT", "/api/issues/CANON-1/commits", "ollie", map[string]string{"sha": "a1b2c3d", "message": "Reindex on write"}, 204},
+		{"GET /api/issues/{id}/commits", "GET", "/api/issues/CANON-1/commits", "ollie", nil, 200},
 		{"DELETE /api/issues/{id}/dependencies/{on}", "DELETE", "/api/issues/CANON-2/dependencies/CANON-1", "ollie", nil, 204},
 		{"DELETE /api/issues/{id}", "DELETE", "/api/issues/CANON-2", "ollie", nil, 204},
 		{"POST /api/issues", "POST", "/api/issues", "ollie", map[string]string{"id": "CANON-3", "title": "three", "team": "platform", "type": "task"}, 201},
