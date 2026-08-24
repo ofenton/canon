@@ -630,20 +630,20 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-026: Untracked work as a counted category
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-review
 - **Tier:** 2 (High)
 - **Traces:** R28, R29
-- **Scope:** A traceability report over a commit range giving the proportion carrying no issue reference, with deliberately untracked work recorded as its own category rather than a placeholder id. Exposed as `canon trace` and an API route.
+- **Scope:** A traceability report over a commit range giving the proportion carrying no issue reference, with deliberately untracked work recorded as its own category rather than a placeholder id. Exposed as `canon trace`. The planned API route was dropped: the denominator is every commit in a range and the server has no repository to read, so a route could only ever report the tracked set against itself. See the increment record.
 - **Acceptance Criteria:**
-  - [ ] WHEN an operator requests a report over a range THE SYSTEM SHALL give the proportion of commits carrying no issue reference
-  - [ ] THE SYSTEM SHALL count deliberately untracked commits separately from unexplained ones
-  - [ ] THE SYSTEM SHALL name the unexplained commits so they can be linked afterwards
+  - [x] WHEN an operator requests a report over a range THE SYSTEM SHALL give the proportion of commits carrying no issue reference
+  - [x] THE SYSTEM SHALL count deliberately untracked commits separately from unexplained ones
+  - [x] THE SYSTEM SHALL name the unexplained commits so they can be linked afterwards
 - **Test Strategy:**
   - CLI test over a repository with tracked, deliberately untracked and unexplained commits
 - **Dependencies:** feat-025
 - **Rollback Plan:** Remove the report; it reads existing data and writes nothing
 - **Risk:** Low — read-only
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/feat-026-untracked-work-as-a-counted-category.md`
 
 ## feat-027: Schema usage report
 

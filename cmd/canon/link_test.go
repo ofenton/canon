@@ -243,3 +243,33 @@ func createIssueAt(t *testing.T, dir, id, when string) {
 		t.Fatalf("create %s: %v", id, err)
 	}
 }
+
+// gitIn runs one git command in a test repository.
+func gitIn(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+	cmd.Env = append(os.Environ(),
+		"GIT_AUTHOR_DATE=2026-03-04T10:00:00Z", "GIT_COMMITTER_DATE=2026-03-04T10:00:00Z",
+		"GIT_AUTHOR_NAME=Test Person", "GIT_AUTHOR_EMAIL=test@example.com",
+		"GIT_COMMITTER_NAME=Test Person", "GIT_COMMITTER_EMAIL=test@example.com")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git %s: %v\n%s", strings.Join(args, " "), err, out)
+	}
+}
+
+// writeAndCommit adds one file and commits it with a given author date.
+func writeAndCommit(t *testing.T, dir, name, message, when string) {
+	t.Helper()
+	if err := os.WriteFile(filepath.Join(dir, name), []byte(name), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gitIn(t, dir, "add", name)
+	cmd := exec.Command("git", "-C", dir, "commit", "-q", "-m", message)
+	cmd.Env = append(os.Environ(),
+		"GIT_AUTHOR_DATE="+when, "GIT_COMMITTER_DATE="+when,
+		"GIT_AUTHOR_NAME=Test Person", "GIT_AUTHOR_EMAIL=test@example.com",
+		"GIT_COMMITTER_NAME=Test Person", "GIT_COMMITTER_EMAIL=test@example.com")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("commit %s: %v\n%s", name, err, out)
+	}
+}
