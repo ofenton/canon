@@ -148,7 +148,7 @@ routes — it is noted, since those are the ones that survive a careless change.
 | Every route is exercised by the contract test | `TestEveryRouteIsExercised` (structural) |
 | Every JSON key is snake_case | `TestEveryJSONKeyIsSnakeCase` — walks real responses, not struct tags |
 | The schema cannot change at runtime | `TestNoRuntimeSchemaMutation` (parses source) |
-| No estimation field can be introduced | `EstimateFieldNames` refuses by name, asserted in `internal/metrics` |
+| No estimation field can be introduced | `TestEstimateFieldsAreRefused`, and `TestNoEstimationAnywhereInTheSource` which parses the source |
 | A refused write appends nothing | `TestDeniedWritesAppendNothing`, `TestRejectedWritesAppendNothing` |
 | Events are immutable | SQLite triggers, plus `internal/event/immutability_test.go` |
 | A rebuild is deterministic | `TestRegistryRebuildsDeterministically` |

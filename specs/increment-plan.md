@@ -851,6 +851,63 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Risk:** Low — documentation, though a wrong architecture doc misleads worse than none
 - **Evidence:** see `specs/increments/docs-003-populate-the-architecture-map.md`
 
+## feat-032: A familiar visual language
+
+- **Type:** feature
+- **Status:** in-progress
+- **Tier:** 3 (Medium)
+- **Traces:** R21
+- **Scope:** Restyle the web UI to the visual conventions people already know from GitHub — its neutral palette, type scale, 6px radii, bordered surfaces and state pills — keeping the existing single-file, no-build, no-dependency structure. Presentation only: no change to what any screen shows or to any keyboard behaviour.
+- **Acceptance Criteria:**
+  - [ ] THE SYSTEM SHALL render in light and dark following the reader's system preference
+  - [ ] THE SYSTEM SHALL remain one embedded file with no external requests
+  - [ ] THE SYSTEM SHALL pass every existing keyboard check unchanged
+- **Test Strategy:**
+  - The keyboard suite must pass with no edits, since nothing about behaviour changes
+  - Screenshots of every view in both colour schemes
+- **Dependencies:** none
+- **Rollback Plan:** Restore the previous style block; the markup is unchanged
+- **Risk:** Low — presentation only, and the keyboard suite is the guard
+- **Evidence:** _(filled in at verify)_
+
+## feat-033: Usable with a mouse
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 2 (High)
+- **Traces:** R21
+- **Scope:** Make every action reachable by pointer as well as by keyboard: clickable rows and relationships, visible buttons for the actions currently bound only to keys, and hit targets a person can hit. Keyboard parity is preserved and asserted, and the two paths call the same action registry rather than duplicating logic.
+- **Acceptance Criteria:**
+  - [ ] THE SYSTEM SHALL perform every action in the action registry from a pointer as well as from the keyboard
+  - [ ] WHEN a row is clicked THE SYSTEM SHALL select it, and open it on a second click or on Enter
+  - [ ] THE SYSTEM SHALL continue to pass every keyboard check with no mouse events
+- **Test Strategy:**
+  - A structural test asserting every registry action has a pointer affordance
+  - A browser test driving the UI by mouse only, alongside the existing keyboard-only suite
+- **Dependencies:** feat-032
+- **Rollback Plan:** Remove the pointer handlers; the keyboard paths are untouched
+- **Risk:** Medium — two input paths diverging is the failure mode, so both must call one registry
+- **Evidence:** _(filled in at verify)_
+
+## feat-034: Search and pagination people can see
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 1 (Critical)
+- **Traces:** R23, R21
+- **Scope:** A permanent search box rather than a keyboard-only prompt, and pagination controls so a list longer than one page is reachable. One input for both search and filter, because the query language already does both. No per-field filter controls.
+- **Acceptance Criteria:**
+  - [ ] WHEN a list has more results than one page THE SYSTEM SHALL provide a way to reach the rest
+  - [ ] THE SYSTEM SHALL show the search input without requiring a key press to reveal it
+  - [ ] WHEN a query is refined THE SYSTEM SHALL return to the first page rather than an empty one
+- **Test Strategy:**
+  - Browser test paging through a seeded list larger than one page, by mouse and by keyboard
+  - Assert the offset resets when the query changes
+- **Dependencies:** feat-033
+- **Rollback Plan:** Hide the controls; `/` and the API's limit and offset are unchanged
+- **Risk:** Medium — an off-by-one in paging shows the wrong rows, which is worse than showing none
+- **Evidence:** _(filled in at verify)_
+
 ## Sequencing
 
 | Day | Increments | Milestone |
