@@ -573,7 +573,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-023: Backdated writes with an explicit timestamp
 
 - **Type:** feature
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 2 (High)
 - **Traces:** R27
 - **Scope:** Accept an optional `at` timestamp on write routes, authorised as its own permission, rejected if in the future or before the issue's creation. Records the supplied time as `Event.At` while `Seq` continues to record arrival order. No import tooling, no UI.
