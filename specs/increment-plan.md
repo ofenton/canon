@@ -630,7 +630,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-026: Untracked work as a counted category
 
 - **Type:** feature
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 2 (High)
 - **Traces:** R28, R29
 - **Scope:** A traceability report over a commit range giving the proportion carrying no issue reference, with deliberately untracked work recorded as its own category rather than a placeholder id. Exposed as `canon trace`. The planned API route was dropped: the denominator is every commit in a range and the server has no repository to read, so a route could only ever report the tracked set against itself. See the increment record.
