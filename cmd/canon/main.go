@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"sort"
@@ -18,6 +19,7 @@ import (
 	"github.com/ofenton/canon/internal/metrics"
 	"github.com/ofenton/canon/internal/projection"
 	"github.com/ofenton/canon/internal/schema"
+	"github.com/ofenton/canon/internal/webhook"
 )
 
 // version is set at build time via -ldflags.
@@ -399,10 +401,18 @@ func serve(args []string) error {
 		return fmt.Errorf("schema does not fit the existing log: %w", err)
 	}
 
-	srv := api.New(sch, store, enforce.New(sch, store), time.Now)
+	e := enforce.New(sch, store)
+	hooks := webhook.New(sch, slog.Default())
+	e.OnTransition(hooks)
+	defer hooks.Close(5 * time.Second)
+
+	srv := api.New(sch, store, e, time.Now)
 	fmt.Printf("canon %s listening on %s\n  schema %s (%d states, %d fields, %d roles)\n  log    %s\n",
 		version, *addr, *schemaPath,
 		len(sch.States), len(sch.Fields), len(sch.RoleNames()), *dbPath)
+	if len(sch.Webhooks) > 0 {
+		fmt.Printf("  hooks  %d webhook(s) on state changes\n", len(sch.Webhooks))
+	}
 
 	server := &http.Server{
 		Addr:              *addr,
