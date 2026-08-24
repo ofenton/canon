@@ -122,14 +122,19 @@ func traceCmd(args []string) error {
 // classify decides what one commit is, preferring the most specific reading. An
 // explicit declaration beats a placeholder that happens to appear in the same
 // message, and a real reference beats both.
-func classify(c gitCommit, known map[string]bool) classified {
+func classify(c gitCommit, known map[string]string) classified {
 	message := c.Subject + "\n" + c.Body
 
-	if id := issueFrom(message); id != "" {
-		if known == nil || known[id] {
+	if ref := issueFrom(message); ref != "" {
+		if known == nil {
+			// With no log to ask, a reference is taken at face value.
+			return classified{commit: c, what: tracked, detail: ref}
+		}
+		if id, ok := known[strings.ToUpper(ref)]; ok {
 			return classified{commit: c, what: tracked, detail: id}
 		}
-		return classified{commit: c, what: danglingRef, detail: id}
+		// Reported as written, so the reader can find it in the commit message.
+		return classified{commit: c, what: danglingRef, detail: ref}
 	}
 	if m := declaredRe.FindStringSubmatch(message); m != nil {
 		return classified{commit: c, what: declared, detail: m[1]}
@@ -144,7 +149,7 @@ func classify(c gitCommit, known map[string]bool) classified {
 //
 // A missing log is not an error: the proportions are still worth having, and
 // demanding a database to count commits would make this useless in CI on a checkout.
-func knownIssues(dbPath, schemaPath string) (map[string]bool, error) {
+func knownIssues(dbPath, schemaPath string) (map[string]string, error) {
 	sch, err := schema.Load(schemaPath)
 	if err != nil {
 		return nil, nil
@@ -159,9 +164,11 @@ func knownIssues(dbPath, schemaPath string) (map[string]bool, error) {
 	if err != nil {
 		return nil, err
 	}
-	known := map[string]bool{}
+	// Keyed by upper case so a reference in any casing resolves, valued with the id
+	// as Canon actually holds it so the caller can write against it.
+	known := map[string]string{}
 	for _, id := range view.IssueIDs() {
-		known[strings.ToUpper(id)] = true
+		known[strings.ToUpper(id)] = id
 	}
 	return known, nil
 }

@@ -63,6 +63,13 @@ func linkCmd(args []string) error {
 	origin := remoteURL(*repo)
 	branch := currentBranch(*repo)
 
+	// Ask which ids exist before deciding what each reference names. A dry run reads
+	// this too, so a preview says the same thing the real run will do.
+	known, err := knownIssues(*dbPath, *schemaPath)
+	if err != nil {
+		return err
+	}
+
 	// Resolve every commit's target before writing anything, so a range with one
 	// unreadable reference reports it rather than half-applying.
 	type target struct {
@@ -80,7 +87,7 @@ func linkCmd(args []string) error {
 			unmatched = append(unmatched, c)
 			continue
 		}
-		targets = append(targets, target{commit: c, issue: id})
+		targets = append(targets, target{commit: c, issue: resolveRef(id, known)})
 	}
 
 	for _, c := range unmatched {
@@ -203,12 +210,28 @@ func readCommits(repo, spec string, extra ...string) ([]gitCommit, error) {
 // trailer over an id mentioned in passing.
 func issueFrom(message string) string {
 	if m := trailerRe.FindStringSubmatch(message); m != nil {
-		return strings.ToUpper(m[1])
+		return m[1]
 	}
 	if m := inlineRe.FindStringSubmatch(message); m != nil {
 		return m[1]
 	}
 	return ""
+}
+
+// resolveRef maps a reference as written onto the id Canon holds, ignoring case.
+//
+// Canon's own ledger uses lower-case ids (feat-026) and plenty of teams use upper
+// (CANON-12). Guessing either way meant `canon trace` called a commit tracked while
+// `canon link` refused the same commit as unknown — the two commands disagreeing
+// about the same string. Neither guesses now; both ask.
+func resolveRef(ref string, known map[string]string) string {
+	if known == nil {
+		return ref
+	}
+	if actual, ok := known[strings.ToUpper(ref)]; ok {
+		return actual
+	}
+	return ref
 }
 
 func remoteURL(repo string) string {

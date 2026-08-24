@@ -144,7 +144,7 @@ func TestTraceWorksWithoutALog(t *testing.T) {
 }
 
 func TestClassifyPrefersTheMostSpecificReading(t *testing.T) {
-	known := map[string]bool{"CANON-1": true}
+	known := map[string]string{"CANON-1": "CANON-1"}
 	cases := []struct {
 		message string
 		want    classification
@@ -204,4 +204,52 @@ func mergeRepo(t *testing.T) string {
 	writeAndCommit(t, dir, "main.txt", "Main work\n\nIncrement: CANON-1", "2026-03-03T10:00:00Z")
 	gitIn(t, dir, "merge", "-q", "--no-ff", "-m", "Merge branch 'side'", "side")
 	return dir
+}
+
+// Canon's own ledger uses lower-case ids; plenty of teams use upper. Guessing either
+// way made `canon trace` call a commit tracked while `canon link` refused the same
+// commit as unknown — found by importing Canon's own ledger and linking its commits.
+func TestReferencesResolveWhateverTheirCase(t *testing.T) {
+	dir := tempRepo(t, []struct{ message, when string }{
+		{"Reindex on write\n\nIncrement: canon-1", "2026-03-01T10:00:00Z"},
+		{"Cache the query plan\n\nIncrement: CANON-1", "2026-03-02T10:00:00Z"},
+	})
+	setUpCanon(t, dir, "ollie")
+	createIssueAt(t, dir, "CANON-1", "2026-02-01T09:00:00Z")
+
+	// Both castings are tracked...
+	out, err := canonIn(t, dir, "trace", "-range", "main")
+	if err != nil {
+		t.Fatalf("trace: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "tracked") || !strings.Contains(out, "100.0%") {
+		t.Fatalf("both castings should be tracked, got:\n%s", out)
+	}
+
+	// ...and both actually link, which is the half that used to fail.
+	linked, err := canonIn(t, dir, "link", "-actor", "ollie", "-range", "main")
+	if err != nil {
+		t.Fatalf("link: %v\n%s", err, linked)
+	}
+	if !strings.Contains(linked, "linked 2 commit(s)") {
+		t.Fatalf("both commits should link, got:\n%s", linked)
+	}
+}
+
+// A reference naming nothing is reported as written, so a reader can find it in the
+// commit message rather than a normalised form of it.
+func TestUnknownReferenceIsReportedAsWritten(t *testing.T) {
+	dir := tempRepo(t, []struct{ message, when string }{
+		{"Cache the query plan\n\nIncrement: feat-999", "2026-03-02T10:00:00Z"},
+	})
+	setUpCanon(t, dir, "ollie")
+	createIssueAt(t, dir, "CANON-1", "2026-02-01T09:00:00Z")
+
+	out, err := canonIn(t, dir, "trace", "-range", "main")
+	if err != nil {
+		t.Fatalf("trace: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "feat-999") {
+		t.Fatalf("expected the reference as written, got:\n%s", out)
+	}
 }
