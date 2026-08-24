@@ -665,7 +665,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-028: Full-text search
 
 - **Type:** feature
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 3 (Medium)
 - **Traces:** R23
 - **Scope:** Search titles and text fields, returning results within the latency budget at 10,000 issues, reachable from the existing `/` key in the UI.
