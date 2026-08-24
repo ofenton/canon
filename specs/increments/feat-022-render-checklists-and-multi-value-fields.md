@@ -89,4 +89,8 @@ My first browser run failed because I seeded the story before the test rather th
 which changed the row order and broke the `j`/`k` assertions from feat-011. The fixture is now
 created at the point it is needed.
 
-CI runs on the pull request.
+CI first failed on this increment: the new assertion compared the "met by" name against the
+literal `you` while every other assertion used the actor passed on the command line, so it
+passed locally and failed under CI's `ci` actor. This is the same mistake feat-011 already had
+fixed once, in the same file. Reproduced by running the test against a local instance
+bootstrapped with `-actor ci`, which now passes; CI is green on the pull request.

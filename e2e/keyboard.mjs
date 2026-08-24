@@ -262,7 +262,7 @@ const after = await page.locator(".progress").first().textContent();
 check("Space ticks the selected item", after.includes("1 of 2"), after.trim());
 
 const who = await page.locator("#main .check li.met .who").first().textContent();
-check("a met item shows who met it", who.trim() === "you", who.trim());
+check("a met item shows who met it", who.trim() === actor, who.trim());
 
 // And untick it again.
 await page.evaluate(() => {
