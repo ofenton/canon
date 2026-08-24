@@ -753,6 +753,24 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Risk:** Low — precision and presentation only
 - **Evidence:** see `specs/increments/fix-002-imported-history-carries-real-timestamps.md`
 
+## fix-004: One render wins
+
+- **Type:** fix
+- **Status:** in-review
+- **Tier:** 2 (High)
+- **Traces:** R21
+- **Scope:** Make a superseded render stop writing. Every view renders asynchronously, so two navigations in quick succession leave two renders in flight and whichever fetch returns last paints the screen. Guard each write with a generation token. No change to any view's content.
+- **Acceptance Criteria:**
+  - [x] WHEN a render is superseded before its data arrives THE SYSTEM SHALL discard it rather than paint it
+  - [x] WHEN a view is navigated to THE SYSTEM SHALL show that view regardless of how slowly the previous one loads
+- **Test Strategy:**
+  - Browser test navigating away mid-fetch against a deliberately slow response, repeated so a race would surface
+  - The keyboard suite must pass unchanged
+- **Dependencies:** none
+- **Rollback Plan:** Remove the generation check; the races return
+- **Risk:** Low — one guard, no change to what is rendered
+- **Evidence:** see `specs/increments/fix-004-one-render-wins.md`
+
 ## Sequencing
 
 | Day | Increments | Milestone |

@@ -218,3 +218,33 @@ func clickHandlers(page string) []string {
 	}
 	return out
 }
+
+// Every asynchronous renderer must check its ticket before writing, or a superseded
+// render paints over the current one — which is how pressing Escape then g m could
+// land on the issue list under a highlighted Flow tab.
+//
+// Asserted structurally rather than by a browser test, because the failure is a race:
+// a test that navigates and looks would pass most of the time on a broken build.
+func TestEveryRendererChecksItsTicket(t *testing.T) {
+	src := mustAsset(t)
+
+	for _, fn := range []string{"renderIssues", "renderDetail", "renderBoards", "renderMetrics", "renderProposals"} {
+		body := functionBody(src, "async function "+fn+"(")
+		if !strings.Contains(body, "await") {
+			continue // nothing to race against
+		}
+		if !strings.Contains(body, "current(seq)") {
+			t.Errorf("%s awaits but never checks current(seq); a superseded render would paint over the current one", fn)
+		}
+		// The check has to come before the first write, not merely exist.
+		guard := strings.Index(body, "current(seq)")
+		write := strings.Index(body, "main.innerHTML")
+		if write >= 0 && guard > write {
+			t.Errorf("%s writes to main before checking current(seq)", fn)
+		}
+	}
+
+	if !strings.Contains(src, "let renderSeq = 0") {
+		t.Error("the render generation counter is gone; the guards check nothing")
+	}
+}
