@@ -570,6 +570,132 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ---
 - **Evidence:** see `specs/increments/feat-022-render-checklists-and-multi-value-fields.md`
 
+## feat-023: Backdated writes with an explicit timestamp
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 2 (High)
+- **Traces:** R27
+- **Scope:** Accept an optional `at` timestamp on write routes, authorised as its own permission, rejected if in the future or before the issue's creation. Records the supplied time as `Event.At` while `Seq` continues to record arrival order. No import tooling, no UI.
+- **Acceptance Criteria:**
+  - [ ] WHEN a caller supplies `at` on a write THE SYSTEM SHALL record that instant as the event time
+  - [ ] WHEN a caller supplies `at` in the future THE SYSTEM SHALL refuse the write and say so
+  - [ ] WHEN a caller lacks the backdate permission THE SYSTEM SHALL refuse the write
+  - [ ] THE SYSTEM SHALL order the log by arrival, not by the supplied time
+- **Test Strategy:**
+  - Unit: accepted, future-dated, unauthorised, and before-creation cases
+  - Replay: a backdated event rebuilds to the same projection
+- **Dependencies:** none
+- **Rollback Plan:** Ignore the `at` field in the API layer; events already written stay valid
+- **Risk:** Medium — an unauthorised backdate would let history be rewritten, so the permission is the increment
+- **Evidence:** _(filled in at verify)_
+
+## feat-024: Create an issue from a repository in one command
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 2 (High)
+- **Traces:** R26
+- **Scope:** `canon new` takes a title and creates an issue from the current branch or commit, requiring nothing but a title, and prints the id and the trailer to paste. Reads the remote to record the repository. CLI only.
+- **Acceptance Criteria:**
+  - [ ] WHEN a developer runs one command with only a title THE SYSTEM SHALL create an issue and print its id
+  - [ ] THE SYSTEM SHALL record the branch and repository the command was run in
+  - [ ] WHEN the command is run outside a git repository THE SYSTEM SHALL still create the issue
+- **Test Strategy:**
+  - CLI test in a temporary git repository, and in a directory that is not one
+- **Dependencies:** none
+- **Rollback Plan:** Remove the `new` subcommand; nothing else depends on it
+- **Risk:** Low — additive subcommand
+- **Evidence:** _(filled in at verify)_
+
+## feat-025: Link commits to issues, including after the fact
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 2 (High)
+- **Traces:** R27
+- **Scope:** Record a commit against an issue with its original author timestamp, via API and `canon link`. Links are events, so a commit links once and the link is history. Reads `Increment:`-style trailers from a supplied range.
+- **Acceptance Criteria:**
+  - [ ] WHEN a commit is supplied after the fact THE SYSTEM SHALL link it and record its original timestamp
+  - [ ] WHEN the same commit is linked twice THE SYSTEM SHALL record it once
+  - [ ] THE SYSTEM SHALL list the commits linked to an issue
+- **Test Strategy:**
+  - Unit: link, duplicate link, unknown issue
+  - CLI test over a temporary repository with real commit timestamps
+- **Dependencies:** feat-023
+- **Rollback Plan:** Remove the link routes; the events remain readable
+- **Risk:** Low — new event type, no change to existing ones
+- **Evidence:** _(filled in at verify)_
+
+## feat-026: Untracked work as a counted category
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 2 (High)
+- **Traces:** R28, R29
+- **Scope:** A traceability report over a commit range giving the proportion carrying no issue reference, with deliberately untracked work recorded as its own category rather than a placeholder id. Exposed as `canon trace` and an API route.
+- **Acceptance Criteria:**
+  - [ ] WHEN an operator requests a report over a range THE SYSTEM SHALL give the proportion of commits carrying no issue reference
+  - [ ] THE SYSTEM SHALL count deliberately untracked commits separately from unexplained ones
+  - [ ] THE SYSTEM SHALL name the unexplained commits so they can be linked afterwards
+- **Test Strategy:**
+  - CLI test over a repository with tracked, deliberately untracked and unexplained commits
+- **Dependencies:** feat-025
+- **Rollback Plan:** Remove the report; it reads existing data and writes nothing
+- **Risk:** Low — read-only
+- **Evidence:** _(filled in at verify)_
+
+## feat-027: Schema usage report
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 3 (Medium)
+- **Traces:** R25
+- **Scope:** Report every field, state and issue type in `canon.yaml` with its usage count and last-used date, so unused configuration is visible. Read-only, over the projection.
+- **Acceptance Criteria:**
+  - [ ] WHEN an admin requests a schema report THE SYSTEM SHALL list every field with its usage count and last-used date
+  - [ ] THE SYSTEM SHALL show configuration that has never been used
+- **Test Strategy:**
+  - Unit over a fixture log exercising some fields and not others
+- **Dependencies:** none
+- **Rollback Plan:** Remove the route and subcommand
+- **Risk:** Low — read-only
+- **Evidence:** _(filled in at verify)_
+
+## feat-028: Full-text search
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 3 (Medium)
+- **Traces:** R23
+- **Scope:** Search titles and text fields, returning results within the latency budget at 10,000 issues, reachable from the existing `/` key in the UI.
+- **Acceptance Criteria:**
+  - [ ] WHEN a user submits a query THE SYSTEM SHALL return matching results across titles and text fields
+  - [ ] THE SYSTEM SHALL return results in under 200ms at p95 with 10,000 issues
+- **Test Strategy:**
+  - Unit for matching; benchmark at 10,000 issues asserting the budget
+- **Dependencies:** none
+- **Rollback Plan:** Fall back to the existing field filter
+- **Risk:** Low — additive query path
+- **Evidence:** _(filled in at verify)_
+
+## feat-029: Webhook on every transition
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 3 (Medium)
+- **Traces:** R24
+- **Scope:** Emit a webhook on every state transition, configured in `canon.yaml`, delivered asynchronously with a bounded retry, never blocking the write.
+- **Acceptance Criteria:**
+  - [ ] WHEN an issue transitions THE SYSTEM SHALL deliver a webhook describing the transition
+  - [ ] WHEN delivery fails THE SYSTEM SHALL retry within a bound and never block the write
+- **Test Strategy:**
+  - Unit against a test server, including a failing endpoint
+- **Dependencies:** none
+- **Rollback Plan:** Remove the webhook block from the schema; no endpoint means no delivery
+- **Risk:** Medium — an outbound call on the write path, so the async boundary is the increment
+- **Evidence:** _(filled in at verify)_
+
 ## Sequencing
 
 | Day | Increments | Milestone |
@@ -581,6 +707,14 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 | Fri | feat-006, feat-007 | One API; agents have identity, provenance and proposals |
 | Sat | feat-008, feat-009, feat-010 | MCP at parity; boards are queries; metrics without estimates |
 | Sun | feat-011, feat-012, feat-013, chore-003 | UI, latency, one-command self-host, dogfooded |
+| ~~Mon~~ | ~~feat-014 – feat-022~~ | ✅ Roles, hierarchy, dependencies, detail view |
+| Tue | feat-023, feat-024, feat-025 | Backdating, one-command create, commits linked after the fact |
+| Wed | feat-026, feat-027 | Untracked work counted; unused configuration visible |
+| Thu | feat-028, feat-029 | Search and webhooks — the first two to cut |
+
+The remaining work is the `NOJIRA` group first (feat-023 – feat-026), because it is the part that
+argues something. Search and webhooks are ordinary features and are sequenced last deliberately:
+if the week runs out, losing them costs the demo nothing.
 
 Authorisation was added on Wednesday after review found that R15 — an agent lacking permission
 records a proposal — had nothing to define "permission" against. The domain is built before the
