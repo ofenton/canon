@@ -1,6 +1,7 @@
 # 0005 — Where work lives: git or Canon
 
-**Status:** proposed — needs a decision
+**Status:** accepted, then superseded by [0009](0009-canon-as-aggregator.md), which
+goes further: the centre originates nothing at all.
 **Date:** 2026-08-24
 **Supersedes in part:** parts of [0003](0003-storage-history-and-federation.md), which chose the
 storage model but left the transport unbuilt and did not say which end originates work.

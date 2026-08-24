@@ -2,8 +2,129 @@
 
 **Status:** agreed
 **Owner:** Oliver Fenton
-**Last updated:** 2026-08-22
+**Last updated:** 2026-08-24
 **Licence intent:** open source (Apache-2.0)
+
+> **This spec was reframed on 2026-08-24.** Canon began as a Jira replacement — a tracker you write
+> into, with an org-wide schema. Building it produced the evidence against that: **96% of its data
+> was reconstructible from the repositories it tracked.** A thing you can rebuild from git is a
+> cache of git.
+>
+> Canon is now an **agent-first progress tracking platform**: point it at an organisation, and it
+> reads the repositories that follow the agentic SDLC template, derives everything, and shows it
+> together. It authors nothing. See
+> [ADR-0009](../docs/decisions/0009-canon-as-aggregator.md).
+>
+> The requirements delivered under the previous framing are kept below, marked superseded, because
+> 43 increments trace to them and that record is worth more than a tidy document.
+
+## Problem
+
+Work happens in repositories. Agents plan it, build it and record it there — in a spec, a ledger and
+a commit history that is already precise about who changed what and when.
+
+Nothing shows it together. Ask "what is every team building, and how long is it taking" and the
+answer is a person opening twelve repositories, or a second tracker somebody types into by hand and
+which disagrees with the first by Wednesday.
+
+The second tracker is the common answer and it is the wrong one. It creates two sources of truth for
+the same facts, and no reconciliation between them beyond somebody remembering.
+
+## Outcome
+
+An organisation points Canon at its repositories. Within minutes it can answer:
+
+- What products exist, and what is each for?
+- What is in flight, what is blocked, and what shipped?
+- How long does work actually take, measured rather than estimated?
+- Which repositories follow the convention, and which have drifted?
+
+No team onboards. No data is entered twice. Nothing to keep in sync, because there is only one copy.
+
+## Users and jobs
+
+| Who | Job |
+|---|---|
+| **An agent** | Read the state of any product without cloning it. Find related work across repositories. |
+| **An engineer** | See where their increment sits, and what is waiting on it. |
+| **A product owner** | See a catalogue of products, what is moving, and what is stuck. Accept or reject an incoming request. |
+| **A delivery lead** | Ask a question across teams and get a true answer. |
+
+## The central design decision
+
+**Canon derives; it does not author.**
+
+Every fact it shows is reconstructible from a repository at any moment. That is not a limitation
+worked around — it is the property that makes one source of truth possible. If Canon and a
+repository disagree, the repository is right and Canon is stale, and there is never a question about
+which.
+
+Three consequences follow:
+
+- **Enforcement lives at the edge.** An aggregator cannot refuse a commit that already happened.
+  `validate-plan.py` refuses in the repository's hook and CI, where refusing works. Canon runs the
+  same rules everywhere and reports who is failing them.
+- **The schema is the template, and is not configurable.** States, types and required fields are
+  fixed by the convention. A schema with no configuration cannot drift — a more opinionated position
+  than this project started with, taken deliberately.
+- **Intake writes to git.** A request raised through Canon becomes a pull request adding a `planned`
+  increment. The approval gate is pull request review, which already exists and is not ours to
+  rebuild.
+
+## Requirements
+
+### Must
+
+- **R52:** WHEN Canon is given an organisation THE SYSTEM SHALL discover repositories that contain
+  `specs/increment-plan.md` and ingest them without per-repository configuration.
+- **R53:** THE SYSTEM SHALL derive every increment's status history from the commit history of the
+  ledger file, rather than approximating it.
+- **R54:** WHEN a repository does not follow the convention THE SYSTEM SHALL report which rule it
+  fails, and continue ingesting the repositories that do.
+- **R55:** THE SYSTEM SHALL present a catalogue of products, each with its purpose taken from
+  `specs/product.md`.
+- **R56:** THE SYSTEM SHALL report cycle time and lead time measured from recorded status
+  transitions, with no estimation field anywhere.
+- **R57:** WHEN a caller asks what a product is doing THE SYSTEM SHALL answer from ingested state
+  without cloning anything at request time.
+- **R58:** THE SYSTEM SHALL state when each repository was last ingested, so a stale view is visible
+  as stale rather than presented as current.
+- **R59:** THE SYSTEM SHALL serve every read to any authenticated member of the organisation, with
+  no per-team visibility rules.
+- **R60:** THE SYSTEM SHALL offer the same surface to agents over MCP as to humans over HTTP, with a
+  test asserting parity.
+
+### Should
+
+- **R61:** WHEN an ingest finds an increment referencing a requirement that does not exist THE
+  SYSTEM SHALL report it as a traceability failure against that repository.
+- **R62:** THE SYSTEM SHALL report the proportion of commits carrying no increment reference, per
+  repository.
+- **R63:** WHERE a repository declares dependencies between increments THE SYSTEM SHALL show what is
+  blocked and why.
+
+### Later, deliberately not now
+
+Collating product ideas as a backlog, and initiating repositories from an accepted idea. Both are
+real and neither is needed to answer the questions above. Recorded so that leaving them out is
+visibly a choice.
+
+### Out of scope
+
+- **Authoring work in Canon.** Anything typed into Canon that became the truth would recreate the
+  two-sources problem this exists to remove.
+- **Story points, velocity, burndown.** Unchanged from the original position: flow is measured.
+- **Per-project configuration.** There is no configuration to make per-project.
+- **Work with no repository.** Support and operations tickets have no home here. This is the largest
+  capability given up in the reframe.
+
+---
+
+# Superseded — the original framing
+
+Everything below describes Canon as a tracker written into directly. It is kept because 43
+increments trace to these requirements, and deleting them would erase the record of how the product
+was reasoned into its current shape. **These requirements are delivered, not current.**
 
 ## Problem
 

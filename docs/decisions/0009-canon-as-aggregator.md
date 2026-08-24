@@ -1,6 +1,6 @@
 # 0009 — Canon as aggregator
 
-**Status:** proposed — needs a decision
+**Status:** accepted
 **Date:** 2026-08-24
 **Settles:** the open questions in [0005](0005-where-work-lives-git-or-canon.md).
 
