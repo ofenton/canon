@@ -11,6 +11,12 @@ __pycache__/
 
 # Build output. Anchored: an unanchored bin/ also matches .sdlc/bin.
 /bin/
+
+# Compiled test binaries. `go test -c` leaves these behind, and one was committed in
+# feat-021 and carried for eleven increments: 14MB nobody noticed, because
+# check-tracked.py only fails on a tracked file matching an ignore rule and there was
+# no rule for it. The check is only ever as good as this file.
+*.test
 /canon
 
 # Local runtime state. `canon serve` writes these into the working directory.
