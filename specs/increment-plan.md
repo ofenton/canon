@@ -815,7 +815,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## chore-004: Open the repository
 
 - **Type:** chore
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 2 (High)
 - **Traces:** R30
 - **Scope:** Make the repository public and give an arriving stranger what they need: a changelog recording the breaking change already shipped, how to contribute, how to report a vulnerability, and branch protection now that a public repository allows it. No code changes.
