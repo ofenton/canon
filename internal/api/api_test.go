@@ -123,6 +123,7 @@ func TestEveryRouteIsExercised(t *testing.T) {
 	}
 	calls := []call{
 		{"GET /api/schema", "GET", "/api/schema", "ollie", nil, 200},
+		{"GET /api/schema/usage", "GET", "/api/schema/usage", "ollie", nil, 200},
 		{"POST /api/issues", "POST", "/api/issues", "ollie", map[string]string{"id": "CANON-1", "title": "one", "team": "platform", "type": "story"}, 201},
 		{"GET /api/issues", "GET", "/api/issues", "ollie", nil, 200},
 		{"GET /api/issues/{id}", "GET", "/api/issues/CANON-1", "ollie", nil, 200},

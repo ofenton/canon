@@ -79,6 +79,10 @@ type Transition struct {
 	To    string      `json:"to"`
 	At    time.Time   `json:"at"`
 	Actor event.Actor `json:"actor"`
+	// Evidence is what was shown when a state demanded it. Recorded on the event
+	// since feat-004 and projected since feat-027, which needed to see it to report
+	// that the evidence field was in use rather than dead.
+	Evidence string `json:"evidence,omitempty"`
 }
 
 // Checkpoint is a projection's position in the log plus its materialised state.
@@ -547,6 +551,7 @@ func (p *Projection) apply(e *event.Event) error {
 		issue.State = to
 		issue.Transitions = append(issue.Transitions, Transition{
 			From: from, To: to, At: e.At, Actor: e.Actor,
+			Evidence: str(e.Payload["evidence"]),
 		})
 		p.touch(issue, e)
 

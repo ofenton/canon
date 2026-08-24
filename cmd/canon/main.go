@@ -28,6 +28,7 @@ const usage = `canon — an issue tracker whose schema is versioned config
 usage:
   canon version                 print the build version
   canon schema [flags]          validate canon.yaml and print a summary
+  canon usage [flags]           report what each declared thing is actually doing
   canon events [flags]          print the event log as JSON
   canon bootstrap [flags]       create the first admin on an empty log
   canon serve [flags]           run the HTTP API
@@ -40,6 +41,11 @@ usage:
 
 schema flags:
   -schema string    path to canon.yaml (default "canon.yaml")
+
+usage flags:
+  -db string        path to the event log (default "canon.db")
+  -schema string    path to canon.yaml (default "canon.yaml")
+  -unused           list only what nothing uses
 
 events flags:
   -db string        path to the event log (default "canon.db")
@@ -116,6 +122,8 @@ func run(args []string) error {
 		return nil
 	case "schema":
 		return schemaCmd(args[1:])
+	case "usage":
+		return usageCmd(args[1:])
 	case "events":
 		return events(args[1:])
 	case "bootstrap":
