@@ -36,6 +36,7 @@ usage:
   canon backup -out <file>      write a consistent copy of the data, safe while running
   canon new "<title>" [flags]   create an issue from the current branch
   canon link [flags]            link commits to the issues they name
+  canon trace [flags]           report how much work carries an issue reference
 
 schema flags:
   -schema string    path to canon.yaml (default "canon.yaml")
@@ -74,6 +75,15 @@ new flags:
   -team string      team that owns it
   -parent string    issue this one sits under
   -repo string      path to the git repository (default ".")
+  -db string        path to the event log (default "canon.db")
+  -schema string    path to canon.yaml (default "canon.yaml")
+
+trace flags:
+  -range string     commit range to report on, e.g. main~50..main
+  -repo string      path to the git repository (default ".")
+  -max-untracked-pct float
+                    exit non-zero above this percentage of unexplained commits
+  -merges           count merge commits too; they carry no work of their own
   -db string        path to the event log (default "canon.db")
   -schema string    path to canon.yaml (default "canon.yaml")
 
@@ -122,6 +132,8 @@ func run(args []string) error {
 		return newCmd(args[1:])
 	case "link":
 		return linkCmd(args[1:])
+	case "trace":
+		return traceCmd(args[1:])
 	case "help", "-h", "--help":
 		fmt.Print(usage)
 		return nil
