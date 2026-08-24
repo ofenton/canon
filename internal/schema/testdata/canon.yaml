@@ -76,7 +76,7 @@ hierarchy:
 # around the system.
 roles:
   - name: admin
-    can: [create, delete, reparent, depend, "field:*", "transition:*"]
+    can: [create, delete, reparent, depend, backdate, "field:*", "transition:*"]
 
   - name: member
     scope: team

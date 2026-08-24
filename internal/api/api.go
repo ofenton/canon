@@ -462,7 +462,11 @@ func (s *Server) setMulti(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if err := s.enforcer.SetMulti(p, r.PathValue("id"), r.PathValue("field"), body.Values, s.now()); err != nil {
+	when, ok := s.at(w, r, p, r.PathValue("id"))
+	if !ok {
+		return
+	}
+	if err := s.enforcer.SetMulti(p, r.PathValue("id"), r.PathValue("field"), body.Values, when); err != nil {
 		writeDomainError(w, err)
 		return
 	}
@@ -486,17 +490,21 @@ func (s *Server) checklistItem(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	when, ok := s.at(w, r, p, r.PathValue("id"))
+	if !ok {
+		return
+	}
 	id, field := r.PathValue("id"), r.PathValue("field")
 
 	if body.Checked == nil {
-		if err := s.enforcer.AddChecklistItem(p, id, field, body.Text, s.now()); err != nil {
+		if err := s.enforcer.AddChecklistItem(p, id, field, body.Text, when); err != nil {
 			writeDomainError(w, err)
 			return
 		}
 		writeJSON(w, http.StatusCreated, map[string]any{"field": field, "text": body.Text})
 		return
 	}
-	if err := s.enforcer.SetChecklistItem(p, id, field, body.Text, *body.Checked, s.now()); err != nil {
+	if err := s.enforcer.SetChecklistItem(p, id, field, body.Text, *body.Checked, when); err != nil {
 		writeDomainError(w, err)
 		return
 	}
@@ -514,7 +522,11 @@ func (s *Server) removeChecklistItem(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if err := s.enforcer.RemoveChecklistItem(p, r.PathValue("id"), r.PathValue("field"), body.Text, s.now()); err != nil {
+	when, ok := s.at(w, r, p, r.PathValue("id"))
+	if !ok {
+		return
+	}
+	if err := s.enforcer.RemoveChecklistItem(p, r.PathValue("id"), r.PathValue("field"), body.Text, when); err != nil {
 		writeDomainError(w, err)
 		return
 	}
@@ -615,7 +627,11 @@ func (s *Server) addDependency(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	res, err := s.enforcer.AddDependency(p, r.PathValue("id"), body.On, s.now())
+	when, ok := s.at(w, r, p, r.PathValue("id"))
+	if !ok {
+		return
+	}
+	res, err := s.enforcer.AddDependency(p, r.PathValue("id"), body.On, when)
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -633,7 +649,11 @@ func (s *Server) removeDependency(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if err := s.enforcer.RemoveDependency(p, r.PathValue("id"), r.PathValue("on"), s.now()); err != nil {
+	when, ok := s.at(w, r, p, r.PathValue("id"))
+	if !ok {
+		return
+	}
+	if err := s.enforcer.RemoveDependency(p, r.PathValue("id"), r.PathValue("on"), when); err != nil {
 		writeDomainError(w, err)
 		return
 	}
@@ -726,7 +746,11 @@ func (s *Server) createIssue(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if err := s.enforcer.CreateAs(p, id, body.Type, fields, body.Team, s.now()); err != nil {
+	when, ok := s.at(w, r, p, id)
+	if !ok {
+		return
+	}
+	if err := s.enforcer.CreateAs(p, id, body.Type, fields, body.Team, when); err != nil {
 		writeDomainError(w, err)
 		return
 	}
@@ -742,8 +766,12 @@ func (s *Server) setFields(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	when, ok := s.at(w, r, p, r.PathValue("id"))
+	if !ok {
+		return
+	}
 	for field, value := range body {
-		if err := s.enforcer.SetFieldAs(p, r.PathValue("id"), field, value, s.now()); err != nil {
+		if err := s.enforcer.SetFieldAs(p, r.PathValue("id"), field, value, when); err != nil {
 			writeDomainError(w, err)
 			return
 		}
@@ -763,7 +791,11 @@ func (s *Server) transition(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if err := s.enforcer.TransitionAs(p, r.PathValue("id"), body.To, body.Evidence, s.now()); err != nil {
+	when, ok := s.at(w, r, p, r.PathValue("id"))
+	if !ok {
+		return
+	}
+	if err := s.enforcer.TransitionAs(p, r.PathValue("id"), body.To, body.Evidence, when); err != nil {
 		writeDomainError(w, err)
 		return
 	}
@@ -781,7 +813,11 @@ func (s *Server) setParent(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if err := s.enforcer.ReparentAs(p, r.PathValue("id"), body.Parent, s.now()); err != nil {
+	when, ok := s.at(w, r, p, r.PathValue("id"))
+	if !ok {
+		return
+	}
+	if err := s.enforcer.ReparentAs(p, r.PathValue("id"), body.Parent, when); err != nil {
 		writeDomainError(w, err)
 		return
 	}
@@ -793,7 +829,11 @@ func (s *Server) deleteIssue(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if err := s.enforcer.DeleteAs(p, r.PathValue("id"), s.now()); err != nil {
+	when, ok := s.at(w, r, p, r.PathValue("id"))
+	if !ok {
+		return
+	}
+	if err := s.enforcer.DeleteAs(p, r.PathValue("id"), when); err != nil {
 		writeDomainError(w, err)
 		return
 	}
@@ -910,6 +950,35 @@ func (s *Server) nextID() (string, error) {
 		return "", err
 	}
 	return fmt.Sprintf("CANON-%d", len(view.IssueIDs())+1), nil
+}
+
+// at resolves the instant a write should be recorded at.
+//
+// Every write is stamped with the current time unless the caller supplies "at",
+// which is how an import replays history that happened before Canon existed, and how
+// a commit is linked with the timestamp it actually carried. Backdating is a
+// permission of its own — see enforce.BackdateOp — so the ordinary path costs
+// nothing and the historical one is deliberate.
+//
+// It is a query parameter rather than a body field so that one code path covers
+// every write, including the DELETE routes that carry no body.
+func (s *Server) at(w http.ResponseWriter, r *http.Request, p enforce.Principal, subject string) (time.Time, bool) {
+	now := s.now().UTC()
+	raw := r.URL.Query().Get("at")
+	if raw == "" {
+		return now, true
+	}
+	when, err := time.Parse(time.RFC3339, raw)
+	if err != nil {
+		writeError(w, http.StatusBadRequest,
+			fmt.Errorf("at must be an RFC 3339 timestamp such as 2026-08-24T09:30:00Z, got %q", raw))
+		return time.Time{}, false
+	}
+	if err := s.enforcer.AuthoriseBackdate(p, subject, when.UTC(), now); err != nil {
+		writeDomainError(w, err)
+		return time.Time{}, false
+	}
+	return when.UTC(), true
 }
 
 func (s *Server) principal(w http.ResponseWriter, r *http.Request) (enforce.Principal, bool) {
