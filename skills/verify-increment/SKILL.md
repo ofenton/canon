@@ -36,7 +36,8 @@ Verification progress:
 - [ ] 3. Check the scope boundary held
 - [ ] 4. Run the regression suite
 - [ ] 5. Check the constitution
-- [ ] 6. Write the walkthrough, move to in-review
+- [ ] 6. Ask what this increment now claims system-wide
+- [ ] 7. Write the walkthrough, move to in-review
 ```
 
 ### 1. Re-read first
@@ -80,7 +81,32 @@ no longer verifying anything.
 Check the change against `docs/constitution.md`. Constitution breaches are blocking regardless of
 whether the acceptance criteria pass.
 
-### 6. Write the walkthrough
+### 6. Did this establish something system-wide?
+
+Before writing the walkthrough, ask one question: **does this increment create or change a
+property that must now hold everywhere?**
+
+Not "did it work" — that is the acceptance criteria. This is "does the system now claim something
+new". A new route, a new write path, a new response shape, a new kind of stored value: each either
+obeys an existing invariant or introduces one.
+
+If it introduces one, add a row to the Invariants table in `docs/architecture.md` naming the test
+that asserts it, and say so in the evidence. If it *should* obey an existing invariant, check that
+it does — the assertion is usually already there and will tell you.
+
+This exists because the worst defects are the ones no increment owns. Every increment can be
+correct in isolation while the system as a whole is not: a read route that forgot to authenticate
+is nobody's bug until somebody asks whether *every* route authenticates. Verification is the
+cheapest place to ask, because it is the moment somebody is already looking at what changed.
+
+**Prefer a structural assertion.** One test that enumerates every route and fails on the one that
+forgot is worth more than twenty that each check one route, because the twenty-first route will
+not have a test.
+
+If the answer is no, write nothing. Most increments establish nothing system-wide, and inventing
+an invariant to have something to say is how the table stops meaning anything.
+
+### 7. Write the walkthrough
 
 Raw logs are not reviewable. Write a **walkthrough** into `specs/increments/<id>-<slug>.md` — a
 short account a human can check at a glance, in this shape:

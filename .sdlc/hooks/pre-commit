@@ -6,7 +6,7 @@ set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
 status=0
-for check in validate-plan validate-skills check-traceability check-tracked; do
+for check in validate-plan validate-skills check-traceability check-tracked check-architecture; do
   if ! python3 ".sdlc/bin/${check}.py"; then
     status=1
   fi

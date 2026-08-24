@@ -27,7 +27,7 @@ not a sign of rigour.
 | Plane | Lives in | Lifetime | Changes via |
 |---|---|---|---|
 | **Constitution** — non-negotiable rules | `docs/constitution.md` | Years | Human decision only |
-| **Specs** — what we intend to build | `specs/product.md`, `specs/increments/` | Per feature | `write-product-spec`, `plan-increments` |
+| **Specs** — what we intend to build | `specs/product.md`, `docs/architecture.md`, `specs/increments/` | Per feature | `write-product-spec`, `design-architecture`, `plan-increments` |
 | **Ledger** — state of the work | `specs/increment-plan.md` | Continuous | `track-increment-state` only |
 
 Never blur them. Rules do not go in the ledger; status does not go in the constitution.
@@ -35,7 +35,7 @@ Never blur them. Rules do not go in the ledger; status does not go in the consti
 ## The loop
 
 ```
-assess-codebase  →  write-product-spec  →  plan-increments  →  [GATE 1: human approves plan]
+assess-codebase → write-product-spec → design-architecture → plan-increments → [GATE 1]
                                                                       ↓
                           [GATE 2: human approves ship]  ←  verify-increment  ←  implement-increment
                                                                       ↑                    │
@@ -88,6 +88,7 @@ Skills live in `skills/` and follow the Agent Skills open standard. Run
 |---|---|
 | `assess-codebase` | You need findings about the current state (security, performance, quality, modernization) |
 | `write-product-spec` | Turning an idea or brief into a reviewable product spec |
+| `design-architecture` | Turning an agreed spec into components, requirement dependencies and invariants — Spec track only |
 | `plan-increments` | Turning a spec or findings into ordered, shippable increments |
 | `implement-increment` | Building exactly one increment |
 | `verify-increment` | Proving an increment meets its acceptance criteria |
@@ -123,6 +124,7 @@ Supporting another agent is one line in `link-agents.sh`. Dropping one is one li
 python3 .sdlc/bin/validate-plan.py       # ledger is well formed
 python3 .sdlc/bin/validate-skills.py     # skills match the Agent Skills spec
 python3 .sdlc/bin/check-traceability.py  # ledger matches what is actually in git
+python3 .sdlc/bin/check-architecture.py  # every invariant the architecture claims names a real test
 ```
 
 These are enforced by hooks, not by good intentions — see `.sdlc/hooks/`.
