@@ -209,8 +209,19 @@ func within(t, from, to time.Time) bool {
 	return !t.Before(from) && !t.After(to)
 }
 
+// days converts a duration to days, keeping enough precision for work that took
+// hours rather than days.
+//
+// Two decimal places meant anything under about fifteen minutes rounded to zero, and
+// a two-day project reported p50, p85 and p95 all as 0d — which reads as a broken
+// metric rather than as fast work. Four places resolve to about nine seconds, which
+// is finer than any transition anyone records deliberately.
+//
+// The unit stays days because it is in the API's field names and a client reading
+// p50_days should not have to know which release changed what it meant. Turning the
+// number into something a human reads is the caller's job.
 func days(d time.Duration) float64 {
-	return float64(int(d.Hours()/24*100+0.5)) / 100
+	return float64(int(d.Hours()/24*10000+0.5)) / 10000
 }
 
 // EstimateFieldNames are field names Canon refuses to load.

@@ -10,6 +10,11 @@ those transitions is replayed so the flow metrics are real. The commit that carr
 each increment's trailer supplies the timestamp, so cycle times reflect when the work
 actually happened rather than when the import ran.
 
+Backdating needs the `backdate` grant, so the importing actor must hold a role that
+has it. Without it every transition is refused and the import reports the problem
+rather than quietly landing the whole history at import time — which is what it did
+before feat-023, and why the first dogfood run measured every cycle time as zero.
+
 Usage:
   canon serve -db canon.db -schema deploy/canon.yaml &
   python3 scripts/import-ledger.py --base http://localhost:8080 --actor you
@@ -24,6 +29,7 @@ import re
 import subprocess
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 
@@ -49,9 +55,13 @@ class Client:
         self.base = base if base.endswith("/api") else base + "/api"
         self.actor = actor
 
-    def call(self, method: str, path: str, body: dict | None = None) -> tuple[int, dict | None]:
+    def call(self, method: str, path: str, body: dict | None = None,
+             at: str | None = None) -> tuple[int, dict | None]:
         data = json.dumps(body).encode() if body is not None else None
-        req = urllib.request.Request(self.base + path, data=data, method=method)
+        url = self.base + path
+        if at:
+            url += ("&" if "?" in url else "?") + urllib.parse.urlencode({"at": at})
+        req = urllib.request.Request(url, data=data, method=method)
         req.add_header("X-Canon-Actor", self.actor)
         req.add_header("Content-Type", "application/json")
         try:
@@ -116,6 +126,22 @@ def commit_times() -> dict[str, list[str]]:
     return times
 
 
+def stamp_for(stamps: list[str], step: int, steps: int) -> str | None:
+    """Pick the commit whose time best represents one step of an increment's route.
+
+    An increment usually has more commits than transitions, and occasionally fewer.
+    Spreading the route across whatever commits exist puts approved near the start and
+    done near the last commit, which is the shape cycle time is trying to measure. It
+    is an approximation, and a truer one than stamping everything with `now`.
+    """
+    if not stamps:
+        return None
+    if steps <= 1:
+        return stamps[-1]
+    index = round(step * (len(stamps) - 1) / (steps - 1))
+    return stamps[min(index, len(stamps) - 1)]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base", default="http://localhost:8080")
@@ -159,24 +185,29 @@ def main() -> int:
             print(f"  {inc['id']:<10} {status:<12} {inc['title'][:44]}")
             continue
 
-        code, res = client.call("POST", "/issues", body)
+        stamps = times.get(inc["id"], [])
+
+        # The issue is created as of its first commit. An issue's own events may not
+        # predate it (enforce.CheckNotBeforeCreation), so creating it at import time
+        # would make every replayed transition illegal.
+        code, res = client.call("POST", "/issues", body, at=stamps[0] if stamps else None)
         if code != 201:
             problems.append(f"{inc['id']}: create returned {code} — {res}")
             continue
         created += 1
-
-        stamps = times.get(inc["id"], [])
-        for _i, target in enumerate(ROUTE.get(status, [])):
+        route = ROUTE.get(status, [])
+        for _i, target in enumerate(route):
             payload: dict = {"to": target}
             if target == "done":
                 payload["evidence"] = fields.get("Evidence", "imported from the ledger")
-            # The event model supports a backdated timestamp — Event.At may precede
-            # the append, designed in feat-001 for exactly this — but no API accepts
-            # one, so imported history lands at import time and the flow metrics for
-            # it are not meaningful. Recorded in chore-003's evidence; R27 needs the
-            # same capability, and so would any Jira import.
-            _ = stamps
-            code, res = client.call("POST", f"/issues/{inc['id']}/transition", payload)
+            # Each transition is dated from the increment's commits, so cycle time
+            # measures when the work happened rather than when the import ran. This
+            # needs the backdate grant (feat-023); without it the write is refused
+            # and the problem is reported rather than silently landing at now.
+            code, res = client.call(
+                "POST", f"/issues/{inc['id']}/transition", payload,
+                at=stamp_for(stamps, _i, len(route)),
+            )
             if code == 202:
                 problems.append(f"{inc['id']}: {target} needs approval — {res.get('proposal_id')}")
                 break
