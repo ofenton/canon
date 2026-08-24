@@ -33,6 +33,7 @@ usage:
   canon usage [flags]           report what each declared thing is actually doing
   canon events [flags]          print the event log as JSON
   canon bootstrap [flags]       create the first admin on an empty log
+  canon token [flags]           issue or revoke an actor's API token
   canon serve [flags]           run the HTTP API
   canon mcp [flags]             serve MCP over stdio, for agents
   canon rebuild [flags]         discard projections and replay the log
@@ -57,6 +58,12 @@ events flags:
 bootstrap flags:
   -actor string     id of the first admin (required)
   -team string      team to add them to
+  -db string        path to the event log (default "canon.db")
+  -schema string    path to canon.yaml (default "canon.yaml")
+
+token flags:
+  -actor string     actor to issue a token for (required)
+  -revoke           withdraw every token this actor holds
   -db string        path to the event log (default "canon.db")
   -schema string    path to canon.yaml (default "canon.yaml")
 
@@ -130,6 +137,8 @@ func run(args []string) error {
 		return events(args[1:])
 	case "bootstrap":
 		return bootstrap(args[1:])
+	case "token":
+		return tokenCmd(args[1:])
 	case "serve":
 		return serve(args[1:])
 	case "mcp":
@@ -412,6 +421,22 @@ func serve(args []string) error {
 		len(sch.States), len(sch.Fields), len(sch.RoleNames()), *dbPath)
 	if len(sch.Webhooks) > 0 {
 		fmt.Printf("  hooks  %d webhook(s) on state changes\n", len(sch.Webhooks))
+	}
+	// Whether identity is proved is the first thing an operator should know, and the
+	// warning names who can still be impersonated rather than implying nobody can.
+	if claimable, err := e.ActorsWithoutTokens(); err == nil {
+		on, _ := e.AuthRequired()
+		switch {
+		case !on:
+			fmt.Printf("  auth   OFF — no actor holds a token, so X-Canon-Actor is trusted.\n" +
+				"         Do not expose this instance to a network you do not control.\n" +
+				"         Issue the first token with: canon token -actor <id>\n")
+		case len(claimable) > 0:
+			fmt.Printf("  auth   PARTIAL — still claimable without a token: %s\n",
+				joinShort(claimable))
+		default:
+			fmt.Printf("  auth   on — every actor must present a token\n")
+		}
 	}
 
 	server := &http.Server{

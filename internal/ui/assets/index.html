@@ -124,11 +124,29 @@
 // Canon's UI is keyboard-first. Every action lives in this one registry: the help
 // dialog is generated from it, and a test asserts that no action exists outside it.
 // A pointer-only affordance would be a bug, not a gap.
-const actor = new URLSearchParams(location.search).get("actor") || "you";
+const params = new URLSearchParams(location.search);
+const actor = params.get("actor") || "you";
+
+// A token may be supplied as ?token=. It is kept in memory and stripped from the
+// address bar immediately, so it does not sit in the browser's history or get pasted
+// into a chat window along with the URL. It still reached the server in a query
+// string on the way here, which is the honest weakness of this approach — see
+// bearer() in internal/api. A cookie and a session layer would be better and are a
+// larger thing than this tracker wants to be.
+const token = params.get("token") || "";
+if (token) {
+  params.delete("token");
+  const clean = params.toString();
+  history.replaceState(null, "", location.pathname + (clean ? "?" + clean : ""));
+}
 const api = async (method, path, body) => {
   const res = await fetch("/api" + path, {
     method,
-    headers: { "X-Canon-Actor": actor, "Content-Type": "application/json" },
+    headers: {
+      "X-Canon-Actor": actor,
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: "Bearer " + token } : {}),
+    },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const text = await res.text();

@@ -84,7 +84,7 @@ teams:
 
 roles:
   - name: admin
-    can: [create, delete, reparent, depend, backdate, link, "field:*", "transition:*"]
+    can: [create, delete, reparent, depend, backdate, link, administer, "field:*", "transition:*"]
 
   - name: member
     scope: team
