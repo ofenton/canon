@@ -200,7 +200,9 @@ func TestLinkDryRunWritesNothing(t *testing.T) {
 
 func TestIssueFromReadsTrailersAndInlineIDs(t *testing.T) {
 	cases := []struct{ message, want string }{
-		{"Reindex on write\n\nIncrement: feat-001", "FEAT-001"},
+		// Returned as written: which id this names is the resolver's business,
+		// not the parser's, so that link and trace cannot disagree.
+		{"Reindex on write\n\nIncrement: feat-001", "feat-001"},
 		{"Reindex on write\n\nissue: CANON-42", "CANON-42"},
 		{"CANON-12: fix the thing", "CANON-12"},
 		{"Fix the thing (CANON-9)", "CANON-9"},
@@ -208,7 +210,7 @@ func TestIssueFromReadsTrailersAndInlineIDs(t *testing.T) {
 		{"NOJIRA: quick fix", ""},
 		{"Bump to v1.2-3", ""},
 		// A trailer wins over a passing mention.
-		{"Mentions CANON-99 in passing\n\nIncrement: feat-002", "FEAT-002"},
+		{"Mentions CANON-99 in passing\n\nIncrement: feat-002", "feat-002"},
 	}
 	for _, c := range cases {
 		if got := issueFrom(c.message); got != c.want {
