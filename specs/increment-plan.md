@@ -463,15 +463,15 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-018: Issue detail view showing hierarchy and dependencies
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-review
 - **Tier:** 1 (Critical)
 - **Traces:** R41
 - **Scope:** A keyboard-reachable detail view in the UI showing an issue's fields, ancestors, children, dependencies and dependents, with warnings for cycles and blocked state. No other changes.
 - **Acceptance Criteria:**
-  - [ ] WHEN a user opens an issue in the UI THE SYSTEM SHALL show its fields, its place in the hierarchy and its dependencies, without leaving the keyboard
-  - [ ] WHEN an issue is blocked THE SYSTEM SHALL say so and name what is blocking it
-  - [ ] WHEN an issue is part of a dependency cycle THE SYSTEM SHALL show the cycle
-  - [ ] WHEN a user navigates to a related issue THE SYSTEM SHALL open it without a pointer
+  - [x] WHEN a user opens an issue in the UI THE SYSTEM SHALL show its fields, its place in the hierarchy and its dependencies, without leaving the keyboard
+  - [x] WHEN an issue is blocked THE SYSTEM SHALL say so and name what is blocking it
+  - [x] WHEN an issue is part of a dependency cycle THE SYSTEM SHALL show the cycle
+  - [x] WHEN a user navigates to a related issue THE SYSTEM SHALL open it without a pointer
 - **Test Strategy:**
   - Drive the detail view by keyboard only in the browser test
   - Assert every action in the detail view is in the action registry
@@ -479,7 +479,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Dependencies:** feat-016
 - **Rollback Plan:** Revert to the list view; the API still exposes everything
 - **Risk:** Medium — the UI is where scope creeps, and this is the first view with real structure
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/feat-018-issue-detail-view.md`
 
 ## feat-019: Checklist and multi-value fields
 
