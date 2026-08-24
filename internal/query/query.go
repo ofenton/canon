@@ -17,6 +17,10 @@ import (
 	"github.com/ofenton/canon/internal/schema"
 )
 
+// searchKey is the pseudo-key a bare word takes. It is not addressable — writing
+// "search=x" is not a thing — so it cannot collide with a schema field name.
+const searchKey = "\x00search"
+
 // Reserved terms address an issue's built-in attributes rather than a schema field.
 var reserved = map[string]func(*projection.Issue) string{
 	"state":  func(i *projection.Issue) string { return i.State },
@@ -40,6 +44,7 @@ type term struct {
 	value    string
 	negated  bool
 	contains bool // title~foo does a substring match; everything else is exact
+	search   bool // a bare word searches every text value on the issue
 }
 
 // Query is a conjunction of terms. There is no OR: two queries are two boards, and
@@ -73,7 +78,25 @@ func Parse(raw string, s *schema.Schema) (*Query, error) {
 		case strings.Contains(field, ":"):
 			key, value, _ = strings.Cut(field, ":")
 		default:
-			return nil, fmt.Errorf("term %q has no value; write key=value, key:value or key~substring", field)
+			// A bare word searches the text of an issue. Somebody typing "reindex"
+			// into a search box means "find reindex", and answering that with a
+			// syntax error is the tracker asking to be taught its own grammar
+			// before it will help. Everything else in this language stays exact.
+			//
+			// One exception: a bare word that is itself a key name is almost
+			// certainly a half-written term rather than a search for that word.
+			// Quoting it says you meant the word.
+			quoted := strings.HasPrefix(field, `"`) && strings.HasSuffix(field, `"`) && len(field) > 1
+			word := strings.Trim(field, `"`)
+			if !quoted {
+				if err := checkKey(word, s); err == nil {
+					return nil, fmt.Errorf("term %q has no value; write %s=value to filter, or \"%s\" to search for the word",
+						field, word, word)
+				}
+			}
+			t.key, t.value, t.search = searchKey, word, true
+			q.terms = append(q.terms, t)
+			continue
 		}
 
 		if key == "" {
@@ -171,6 +194,12 @@ func (q *Query) Match(issue *projection.Issue, s *schema.Schema) bool {
 		case ancestorKey, blockedKey, dependsOnKey:
 			continue // relations, resolved against the projection in Filter
 		}
+		if t.search {
+			if searchHit(issue, t.value) == t.negated {
+				return false
+			}
+			continue
+		}
 		got := value(t.key, issue, s)
 		var hit bool
 		switch {
@@ -184,6 +213,82 @@ func (q *Query) Match(issue *projection.Issue, s *schema.Schema) bool {
 		}
 	}
 	return true
+}
+
+// searchHit reports whether a needle appears anywhere in an issue's text.
+//
+// Title, id, and every string-shaped value the issue carries: single fields,
+// multi-valued fields, and checklist items. Not state, type or team — those are
+// exactly addressable and a bare word matching them would make "done" an unusable
+// search term.
+//
+// Case-insensitive without allocating: strings.ToLower on every field of every issue
+// was measurably the whole cost of the search, and EqualFold-style comparison over
+// the raw bytes costs nothing when the needle is already folded.
+func searchHit(issue *projection.Issue, needle string) bool {
+	if needle == "" {
+		return true
+	}
+	// The id matches whole, not as a substring: every id here shares a prefix, so
+	// substring matching made "on" return every issue in CANON-*. Searching an id
+	// means "take me to this one", and that only ever wants the whole thing.
+	if equalFold(issue.ID, needle) || containsFold(issue.Title, needle) {
+		return true
+	}
+	for _, v := range issue.Fields {
+		if containsFold(v, needle) {
+			return true
+		}
+	}
+	for _, values := range issue.Multi {
+		for _, v := range values {
+			if containsFold(v, needle) {
+				return true
+			}
+		}
+	}
+	for _, items := range issue.Checklists {
+		for _, item := range items {
+			if containsFold(item.Text, needle) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// equalFold compares two strings case-insensitively without allocating.
+func equalFold(a, b string) bool {
+	return len(a) == len(b) && hasPrefixFold(a, b)
+}
+
+// containsFold is strings.Contains, case-insensitively, without allocating.
+func containsFold(haystack, needle string) bool {
+	if len(needle) > len(haystack) {
+		return false
+	}
+	for i := 0; i+len(needle) <= len(haystack); i++ {
+		if hasPrefixFold(haystack[i:], needle) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasPrefixFold(s, prefix string) bool {
+	for i := 0; i < len(prefix); i++ {
+		if lower(s[i]) != lower(prefix[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func lower(b byte) byte {
+	if b >= 'A' && b <= 'Z' {
+		return b + 'a' - 'A'
+	}
+	return b
 }
 
 // Closed reports whether a state is in the schema's closed category.

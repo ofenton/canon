@@ -145,6 +145,11 @@ func TestReadLatencyBudget(t *testing.T) {
 		{"ancestors of one issue", "GET", "/api/issues/CANON-5000/ancestors"},
 		{"subtree of one issue", "GET", "/api/issues/CANON-5000/tree"},
 		{"query by ancestor", "GET", "/api/issues?q=ancestor%3DCANON-1"},
+		// Search is the worst case in the language: every other term reads one value
+		// per issue, and this reads every value on every issue.
+		{"full-text search", "GET", "/api/issues?q=reindex"},
+		{"search, no matches", "GET", "/api/issues?q=zzzznothing"},
+		{"search plus a filter", "GET", "/api/issues?q=reindex+team%3Dplatform"},
 		{"proposals", "GET", "/api/proposals"},
 		{"actors", "GET", "/api/actors"},
 	}

@@ -665,19 +665,19 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-028: Full-text search
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-progress
 - **Tier:** 3 (Medium)
 - **Traces:** R23
 - **Scope:** Search titles and text fields, returning results within the latency budget at 10,000 issues, reachable from the existing `/` key in the UI.
 - **Acceptance Criteria:**
-  - [ ] WHEN a user submits a query THE SYSTEM SHALL return matching results across titles and text fields
-  - [ ] THE SYSTEM SHALL return results in under 200ms at p95 with 10,000 issues
+  - [x] WHEN a user submits a query THE SYSTEM SHALL return matching results across titles and text fields
+  - [x] THE SYSTEM SHALL return results in under 200ms at p95 with 10,000 issues
 - **Test Strategy:**
   - Unit for matching; benchmark at 10,000 issues asserting the budget
 - **Dependencies:** none
 - **Rollback Plan:** Fall back to the existing field filter
 - **Risk:** Low — additive query path
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/feat-028-full-text-search.md`
 
 ## feat-029: Webhook on every transition
 
