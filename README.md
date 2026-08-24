@@ -5,8 +5,8 @@ accretion — and where coding agents are first-class users rather than an API a
 
 Apache-2.0. Self-hosted. One static binary, one file of data, no external services.
 
-> **Status: in development.** The domain, authorisation, HTTP API, MCP server, queries and boards
-> work. There is no web UI and no authentication yet.
+> **Status: in development.** The domain, authorisation, HTTP API, MCP server, web UI, queries,
+> boards, flow metrics, commit linking and webhooks work. There is no authentication yet.
 > See [What is not built](#what-is-not-built).
 
 ## The problem
@@ -415,9 +415,17 @@ Honest list, so nobody is surprised:
 - **Authentication.** `X-Canon-Actor` is trusted. It must name a registered actor with real roles,
   which is a meaningful narrowing, but anyone who can reach the port can claim any registered
   identity. **Do not expose an instance to a network you do not control.**
-- **Web UI.** API, CLI and MCP only so far.
+- **Signed webhooks.** Deliveries carry no signature, so a subscriber cannot verify one came from
+  Canon, and they are held in memory rather than queued — a subscriber that is down while Canon
+  restarts misses those transitions.
+- **A remote client.** `canon new`, `canon link` and `canon trace` write the local event log
+  directly, so they cannot talk to a server elsewhere. For a developer in a product repository the
+  tracker will usually be remote, and this is the largest gap in those commands.
+- **Repair tooling.** If a schema change would strand issues, the server refuses to start — which is
+  correct, and means the data cannot then be fixed through it. There is no offline `canon repair`.
 - **Federated repo-local storage.** The event model is designed for it; the transport is not built.
-- **Jira import.** Wanted, not started.
+- **Jira import.** Wanted, not started. Backdated writes (`?at=`) were the missing capability and
+  now exist, so the remaining work is the mapping.
 
 Deliberately excluded and not coming: story points, velocity, burndown, per-project workflow
 customisation, a plugin marketplace, and bundled documents/chat/video.
