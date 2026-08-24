@@ -648,7 +648,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-027: Schema usage report
 
 - **Type:** feature
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 3 (Medium)
 - **Traces:** R25
 - **Scope:** Report every field, state and issue type in `canon.yaml` with its usage count and last-used date, so unused configuration is visible. Read-only, over the projection.
