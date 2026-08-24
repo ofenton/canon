@@ -484,7 +484,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-019: Checklist and multi-value fields
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-progress
 - **Tier:** 2 (High)
 - **Traces:** R42, R43, R44
 - **Scope:** Add `checklist` and `multi_enum` field types to canon.yaml, a `requires_checklist` state flag, and API support for checking individual items. No other changes.
