@@ -593,20 +593,20 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-024: Create an issue from a repository in one command
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-review
 - **Tier:** 2 (High)
 - **Traces:** R26
 - **Scope:** `canon new` takes a title and creates an issue from the current branch or commit, requiring nothing but a title, and prints the id and the trailer to paste. Records the repository, branch and commit as a link, using feat-025's mechanism rather than schema fields the org may not define. CLI only.
 - **Acceptance Criteria:**
-  - [ ] WHEN a developer runs one command with only a title THE SYSTEM SHALL create an issue and print its id
-  - [ ] THE SYSTEM SHALL record the branch, repository and commit the command was run in
-  - [ ] WHEN the command is run outside a git repository THE SYSTEM SHALL still create the issue
+  - [x] WHEN a developer runs one command with only a title THE SYSTEM SHALL create an issue and print its id
+  - [x] THE SYSTEM SHALL record the branch, repository and commit the command was run in
+  - [x] WHEN the command is run outside a git repository THE SYSTEM SHALL still create the issue
 - **Test Strategy:**
   - CLI test in a temporary git repository, and in a directory that is not one
 - **Dependencies:** feat-025
 - **Rollback Plan:** Remove the `new` subcommand; nothing else depends on it
 - **Risk:** Low — additive subcommand
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/feat-024-create-an-issue-from-a-repository-in-one-command.md`
 
 ## feat-025: Link commits to issues, including after the fact
 

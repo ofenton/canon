@@ -436,20 +436,7 @@ func (s *Server) deleteBoard(w http.ResponseWriter, r *http.Request) {
 // because someone typing a title and pressing enter is capturing a piece of work,
 // not opening an epic. Taking the first declared type would default to the
 // outermost, which is almost always wrong.
-func (s *Server) defaultIssueType() (string, error) {
-	if len(s.schema.IssueTypes) == 0 {
-		return "", errors.New("schema defines no issue types")
-	}
-	if levels := s.schema.Hierarchy.Levels; len(levels) > 0 {
-		deepest := levels[len(levels)-1]
-		if len(deepest) > 0 {
-			// Several types can share the bottom level; take them in declared order
-			// so the choice is the schema author's, not alphabetical accident.
-			return deepest[0], nil
-		}
-	}
-	return s.schema.IssueTypes[0].Name, nil
-}
+func (s *Server) defaultIssueType() (string, error) { return s.enforcer.DefaultIssueType() }
 
 // listAncestors returns the chain from an issue up to its root, nearest first.
 // setMulti replaces the values of a multi-valued field.
@@ -946,13 +933,7 @@ func (s *Server) currentView() (*projection.Projection, error) {
 }
 
 // nextID allocates the next sequential issue id.
-func (s *Server) nextID() (string, error) {
-	view, err := s.currentView()
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("CANON-%d", len(view.IssueIDs())+1), nil
-}
+func (s *Server) nextID() (string, error) { return s.enforcer.NextIssueID() }
 
 // linkCommit records a commit against an issue.
 //
@@ -1047,6 +1028,12 @@ func (s *Server) at(w http.ResponseWriter, r *http.Request, p enforce.Principal,
 		return time.Time{}, false
 	}
 	if err := s.enforcer.AuthoriseBackdate(p, subject, when.UTC(), now); err != nil {
+		writeDomainError(w, err)
+		return time.Time{}, false
+	}
+	// An issue's own history cannot start before the issue does. Commit links are
+	// exempt and do not come through here — see enforce.CheckNotBeforeCreation.
+	if err := s.enforcer.CheckNotBeforeCreation(subject, when.UTC()); err != nil {
 		writeDomainError(w, err)
 		return time.Time{}, false
 	}

@@ -34,6 +34,7 @@ usage:
   canon mcp [flags]             serve MCP over stdio, for agents
   canon rebuild [flags]         discard projections and replay the log
   canon backup -out <file>      write a consistent copy of the data, safe while running
+  canon new "<title>" [flags]   create an issue from the current branch
   canon link [flags]            link commits to the issues they name
 
 schema flags:
@@ -66,6 +67,15 @@ rebuild flags:
 backup flags:
   -out string       destination file (required, never overwritten)
   -db string        path to the event log (default "canon.db")
+
+new flags:
+  -actor string     who is creating the issue (required)
+  -type string      issue type (default: the most granular in the hierarchy)
+  -team string      team that owns it
+  -parent string    issue this one sits under
+  -repo string      path to the git repository (default ".")
+  -db string        path to the event log (default "canon.db")
+  -schema string    path to canon.yaml (default "canon.yaml")
 
 link flags:
   -actor string     who is recording the link (required)
@@ -108,6 +118,8 @@ func run(args []string) error {
 		return rebuild(args[1:])
 	case "backup":
 		return backup(args[1:])
+	case "new":
+		return newCmd(args[1:])
 	case "link":
 		return linkCmd(args[1:])
 	case "help", "-h", "--help":
