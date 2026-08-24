@@ -98,11 +98,16 @@ type Checkpoint struct {
 // Identity is state, not policy. Which roles exist is declared in canon.yaml and
 // changed by pull request; who holds one changes weekly and belongs in the log.
 type Actor struct {
-	ID    string
-	Kind  event.ActorKind
-	Model string
-	Roles []string
-	Teams []string
+	ID    string          `json:"id"`
+	Kind  event.ActorKind `json:"kind"`
+	Model string          `json:"model,omitempty"`
+	Roles []string        `json:"roles,omitempty"`
+	Teams []string        `json:"teams,omitempty"`
+	// TokenHashes are the hashes of tokens this actor may authenticate with. Never
+	// the tokens: those exist once, in the response that created them. Excluded from
+	// JSON so no route can disclose them by accident — the tag is the whole defence,
+	// so do not remove it.
+	TokenHashes []string `json:"-"`
 }
 
 // ProposalStatus is where a proposal has got to.
@@ -629,6 +634,26 @@ func (p *Projection) apply(e *event.Event) error {
 			Kind:  event.ActorKind(str(e.Payload["kind"])),
 			Model: str(e.Payload["model"]),
 		}
+
+	case "actor.token_issued":
+		actor, err := p.requireActor(e)
+		if err != nil {
+			return err
+		}
+		hash := str(e.Payload["hash"])
+		if hash == "" {
+			return fmt.Errorf("event %s: token issued with no hash", e.ID)
+		}
+		actor.TokenHashes = addOnce(actor.TokenHashes, hash)
+
+	case "actor.tokens_revoked":
+		actor, err := p.requireActor(e)
+		if err != nil {
+			return err
+		}
+		// All of them: somebody revoking is responding to a suspected leak and does
+		// not know which token leaked.
+		actor.TokenHashes = nil
 
 	case "actor.role_granted":
 		actor, err := p.requireActor(e)
