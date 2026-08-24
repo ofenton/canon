@@ -343,7 +343,23 @@ async function decideProposal(decision) {
 const categoryOf = (name) =>
   (state.schema?.states ?? []).find((s) => s.name === name)?.category ?? "";
 
+// Every view fetches before it paints, so two navigations in quick succession leave
+// two renders in flight and the screen shows whichever one's request happened to
+// return last. Pressing Escape then g m could land on the issue list under a
+// highlighted Flow tab — not a stale frame, a wrong one, and non-deterministically so.
+//
+// Each render takes a ticket. A render whose ticket is no longer the current one has
+// been superseded and must not write. This is the same discipline the status bar
+// needed, arrived at the same way: by watching it lose.
+let renderSeq = 0;
+
+// current reports whether the render holding this ticket is still the one on screen.
+function current(seq) {
+  return seq === renderSeq;
+}
+
 async function render() {
+  const seq = ++renderSeq;
   el("who").textContent = actor;
   document.querySelectorAll("nav button").forEach((b) =>
     b.setAttribute("aria-current", String(b.dataset.view === state.view)));
@@ -352,14 +368,15 @@ async function render() {
     const res = await api("GET", "/schema");
     if (res.ok) state.schema = res.body;
   }
+  if (!current(seq)) return;
   const main = el("main");
   main.innerHTML = "";
 
-  if (state.detail) return renderDetail(main, state.detail);
-  if (state.view === "issues") return renderIssues(main);
-  if (state.view === "boards") return renderBoards(main);
-  if (state.view === "metrics") return renderMetrics(main);
-  if (state.view === "proposals") return renderProposals(main);
+  if (state.detail) return renderDetail(main, state.detail, seq);
+  if (state.view === "issues") return renderIssues(main, seq);
+  if (state.view === "boards") return renderBoards(main, seq);
+  if (state.view === "metrics") return renderMetrics(main, seq);
+  if (state.view === "proposals") return renderProposals(main, seq);
 }
 
 function table(main, headers, rows) {
@@ -380,9 +397,10 @@ function table(main, headers, rows) {
   if (rowEls[state.cursor]) rowEls[state.cursor].focus();
 }
 
-async function renderIssues(main) {
+async function renderIssues(main, seq) {
   const q = state.query ? "?q=" + encodeURIComponent(state.query) : "";
   const res = await api("GET", "/issues" + q);
+  if (!current(seq)) return;
   if (!res.ok) {
     main.innerHTML = `<p class="err">${res.body?.error ?? res.text}</p>`;
     return;
@@ -412,13 +430,14 @@ async function renderIssues(main) {
 // renderDetail is the one screen where the relationships built over four increments
 // become visible: where an issue sits in the hierarchy, what it waits on, what waits
 // on it, and whether any of that is stopping it.
-async function renderDetail(main, id) {
+async function renderDetail(main, id, seq) {
   const [issue, ancestors, children, dependencies] = await Promise.all([
     api("GET", `/issues/${id}`),
     api("GET", `/issues/${id}/ancestors`),
     api("GET", `/issues/${id}/children`),
     api("GET", `/issues/${id}/dependencies`),
   ]);
+  if (!current(seq)) return;
   if (!issue.ok) {
     main.innerHTML = `<p class="err">${escape(issue.body?.error ?? issue.text)}</p>`;
     return;
@@ -532,8 +551,9 @@ async function renderDetail(main, id) {
   if (rows[state.cursor]) rows[state.cursor].focus();
 }
 
-async function renderBoards(main) {
+async function renderBoards(main, seq) {
   const list = await api("GET", "/boards");
+  if (!current(seq)) return;
   if (!list.ok) return;
   state.boards = list.body.boards ?? [];
   if (!state.boards.length) {
@@ -564,8 +584,9 @@ async function renderBoards(main) {
   main.append(wrap);
 }
 
-async function renderMetrics(main) {
+async function renderMetrics(main, seq) {
   const res = await api("GET", "/metrics?days=30");
+  if (!current(seq)) return;
   if (!res.ok) return;
   const f = res.body;
   const dl = document.createElement("dl");
@@ -594,8 +615,9 @@ async function renderMetrics(main) {
   main.append(note);
 }
 
-async function renderProposals(main) {
+async function renderProposals(main, seq) {
   const res = await api("GET", "/proposals");
+  if (!current(seq)) return;
   if (!res.ok) return;
   const proposals = res.body.proposals ?? [];
   if (!proposals.length) {
