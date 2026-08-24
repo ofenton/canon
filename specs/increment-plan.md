@@ -682,7 +682,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-029: Webhook on every transition
 
 - **Type:** feature
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 3 (Medium)
 - **Traces:** R24
 - **Scope:** Emit a webhook on every state transition, configured in `canon.yaml`, delivered asynchronously with a bounded retry, never blocking the write.
