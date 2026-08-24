@@ -45,15 +45,25 @@ const (
 	Bool   FieldType = "bool"
 	Date   FieldType = "date"
 	User   FieldType = "user"
+	// MultiEnum holds several values from the declared set. Separate from Enum
+	// rather than a flag on it, so a schema reader can see at a glance whether a
+	// field is one thing or many.
+	MultiEnum FieldType = "multi_enum"
+	// Checklist holds individually checkable items. Its items are events, not a
+	// value, so "three of five met" is data rather than prose.
+	Checklist FieldType = "checklist"
 )
 
-var fieldTypes = []FieldType{String, Text, Enum, Number, Bool, Date, User}
+var fieldTypes = []FieldType{String, Text, Enum, MultiEnum, Checklist, Number, Bool, Date, User}
 
 // State is one position in the workflow.
 type State struct {
 	Name             string   `yaml:"name"`
 	Category         Category `yaml:"category"`
 	RequiresEvidence bool     `yaml:"requires_evidence"`
+	// RequiresChecklist names checklist fields that must be complete to enter this
+	// state. Acceptance criteria stop being a note and become a gate.
+	RequiresChecklist []string `yaml:"requires_checklist"`
 
 	line int
 }
@@ -200,6 +210,9 @@ func (s *Schema) validate(path string) error {
 		problems = append(problems, fmt.Sprintf(format, args...))
 	}
 
+	// States reference checklist fields, so the field index must exist first.
+	s.index()
+
 	if s.Version != Version {
 		add("version %d is not supported; this build understands version %d", s.Version, Version)
 	}
@@ -217,6 +230,17 @@ func (s *Schema) validate(path string) error {
 				st.line, st.Name, seenState[st.Name])
 		default:
 			seenState[st.Name] = st.line
+		}
+		for _, name := range st.RequiresChecklist {
+			def, ok := s.fields[name]
+			switch {
+			case !ok:
+				add("line %d: state %q requires checklist %q, which is not a defined field",
+					st.line, st.Name, name)
+			case def.Type != Checklist:
+				add("line %d: state %q requires checklist %q, but that field is a %s",
+					st.line, st.Name, name, def.Type)
+			}
 		}
 		if !validCategory(st.Category) {
 			add("line %d: state %q has category %q; valid categories are %s",
@@ -250,10 +274,10 @@ func (s *Schema) validate(path string) error {
 			add("line %d: field %q has type %q; valid types are %s",
 				f.line, f.Name, f.Type, join(fieldTypes))
 		}
-		if f.Type == Enum && len(f.Values) == 0 {
-			add("line %d: enum field %q must list its values", f.line, f.Name)
+		if (f.Type == Enum || f.Type == MultiEnum) && len(f.Values) == 0 {
+			add("line %d: %s field %q must list its values", f.line, f.Type, f.Name)
 		}
-		if f.Type != Enum && len(f.Values) > 0 {
+		if f.Type != Enum && f.Type != MultiEnum && len(f.Values) > 0 {
 			add("line %d: field %q is not an enum but lists values", f.line, f.Name)
 		}
 	}
@@ -323,6 +347,11 @@ func (s *Schema) Field(name string) (Field, bool) { f, ok := s.fields[name]; ret
 
 // CanTransition reports whether from -> to is permitted.
 func (s *Schema) CanTransition(from, to string) bool { return s.transitions[from][to] }
+
+// RequiredChecklists names the checklist fields that must be complete to enter a state.
+func (s *Schema) RequiredChecklists(state string) []string {
+	return s.states[state].RequiresChecklist
+}
 
 // RequiresEvidence reports whether entering a state demands evidence.
 func (s *Schema) RequiresEvidence(state string) bool { return s.states[state].RequiresEvidence }

@@ -10,6 +10,7 @@ states:
   - name: in_review
     category: active
     requires_evidence: true
+    requires_checklist: [acceptance]
   - name: done
     category: closed
   - name: abandoned
@@ -40,6 +41,11 @@ fields:
     type: string
   - name: evidence
     type: text
+  - name: kpi
+    type: multi_enum
+    values: [conversion, p95_latency, churn, cost_per_order]
+  - name: acceptance
+    type: checklist
 
 issue_types:
   - name: epic
@@ -47,7 +53,7 @@ issue_types:
   - name: feature
     fields: [title, priority]
   - name: story
-    fields: [title, priority]
+    fields: [title, priority, kpi, acceptance]
   - name: task
     fields: [title, priority]
   - name: bug

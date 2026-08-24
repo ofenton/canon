@@ -36,6 +36,22 @@ type Issue struct {
 	Transitions []Transition
 	// DependsOn lists the issues this one waits on, sorted.
 	DependsOn []string
+	// Multi holds multi-valued fields, each sorted.
+	Multi map[string][]string
+	// Checklists holds checkable items per checklist field, in the order added.
+	Checklists map[string][]ChecklistItem
+}
+
+// ChecklistItem is one acceptance criterion, and whether it has been met.
+//
+// Items are their own events rather than a value inside a field, so the log records
+// who checked what and when. "Three of five met" is then a count over data, not a
+// sentence someone wrote.
+type ChecklistItem struct {
+	Text      string
+	Checked   bool
+	CheckedBy string
+	CheckedAt time.Time
 }
 
 // Transition records one state change.
@@ -425,6 +441,14 @@ func (p *Projection) Snapshot() string {
 		for _, on := range issue.DependsOn {
 			fmt.Fprintf(h, "  depends>%s\n", on)
 		}
+		for _, k := range sortedMultiKeys(issue.Multi) {
+			fmt.Fprintf(h, "  multi %s=%s\n", k, strings.Join(issue.Multi[k], ","))
+		}
+		for _, k := range sortedChecklistKeys(issue.Checklists) {
+			for _, item := range issue.Checklists[k] {
+				fmt.Fprintf(h, "  check %s[%s]=%t@%s\n", k, item.Text, item.Checked, item.CheckedBy)
+			}
+		}
 	}
 	for _, proposal := range p.Proposals("") {
 		fmt.Fprintf(h, "proposal\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\n",
@@ -452,12 +476,14 @@ func (p *Projection) apply(e *event.Event) error {
 	switch e.Type {
 	case "issue.created":
 		issue := &Issue{
-			ID:        e.Subject,
-			Title:     str(e.Payload["title"]),
-			State:     str(e.Payload["state"]),
-			Type:      str(e.Payload["type"]),
-			Fields:    map[string]string{},
-			CreatedAt: e.At,
+			ID:         e.Subject,
+			Title:      str(e.Payload["title"]),
+			State:      str(e.Payload["state"]),
+			Type:       str(e.Payload["type"]),
+			Fields:     map[string]string{},
+			Multi:      map[string][]string{},
+			Checklists: map[string][]ChecklistItem{},
+			CreatedAt:  e.At,
 		}
 		// Everything else in the payload is a schema field. Reading only the two
 		// named above silently dropped fields supplied at creation, which surfaced
@@ -609,6 +635,69 @@ func (p *Projection) apply(e *event.Event) error {
 		}
 		actor.Teams = remove(actor.Teams, str(e.Payload["team"]))
 
+	case "field.multi_set":
+		issue, err := p.require(e)
+		if err != nil {
+			return err
+		}
+		field := str(e.Payload["field"])
+		if field == "" {
+			return fmt.Errorf("event %s: field.multi_set with no field name", e.ID)
+		}
+		issue.Multi[field] = toStrings(e.Payload["values"])
+		p.touch(issue, e)
+
+	case "checklist.item_added":
+		issue, err := p.require(e)
+		if err != nil {
+			return err
+		}
+		field := str(e.Payload["field"])
+		issue.Checklists[field] = append(issue.Checklists[field],
+			ChecklistItem{Text: str(e.Payload["text"])})
+		p.touch(issue, e)
+
+	case "checklist.item_checked", "checklist.item_unchecked":
+		issue, err := p.require(e)
+		if err != nil {
+			return err
+		}
+		field, text := str(e.Payload["field"]), str(e.Payload["text"])
+		items := issue.Checklists[field]
+		found := false
+		for i := range items {
+			if items[i].Text != text {
+				continue
+			}
+			found = true
+			items[i].Checked = e.Type == "checklist.item_checked"
+			if items[i].Checked {
+				items[i].CheckedBy, items[i].CheckedAt = e.Actor.ID, e.At
+			} else {
+				items[i].CheckedBy, items[i].CheckedAt = "", time.Time{}
+			}
+		}
+		if !found {
+			return fmt.Errorf("event %s: no checklist item %q in %q on %s",
+				e.ID, text, field, e.Subject)
+		}
+		p.touch(issue, e)
+
+	case "checklist.item_removed":
+		issue, err := p.require(e)
+		if err != nil {
+			return err
+		}
+		field, text := str(e.Payload["field"]), str(e.Payload["text"])
+		kept := issue.Checklists[field][:0]
+		for _, item := range issue.Checklists[field] {
+			if item.Text != text {
+				kept = append(kept, item)
+			}
+		}
+		issue.Checklists[field] = kept
+		p.touch(issue, e)
+
 	case "issue.dependency_added":
 		issue, err := p.require(e)
 		if err != nil {
@@ -686,6 +775,57 @@ func (p *Projection) Boards() []*Board {
 	for _, name := range names {
 		out = append(out, p.boards[name])
 	}
+	return out
+}
+
+// ChecklistProgress returns how many items in a checklist are met, and how many
+// there are. A field that is not a checklist reports zero of zero.
+func (i *Issue) ChecklistProgress(field string) (done, total int) {
+	for _, item := range i.Checklists[field] {
+		total++
+		if item.Checked {
+			done++
+		}
+	}
+	return done, total
+}
+
+// ChecklistComplete reports whether every item is met. An empty checklist counts as
+// complete: there is nothing outstanding, and refusing on "no criteria yet" would
+// make the gate impossible to pass rather than merely strict.
+func (i *Issue) ChecklistComplete(field string) bool {
+	done, total := i.ChecklistProgress(field)
+	return done == total
+}
+
+func toStrings(v any) []string {
+	raw, ok := v.([]any)
+	if !ok {
+		return nil
+	}
+	out := make([]string, 0, len(raw))
+	for _, item := range raw {
+		out = append(out, str(item))
+	}
+	sort.Strings(out)
+	return out
+}
+
+func sortedMultiKeys(m map[string][]string) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func sortedChecklistKeys(m map[string][]ChecklistItem) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
 	return out
 }
 
