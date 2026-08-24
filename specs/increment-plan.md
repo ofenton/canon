@@ -549,7 +549,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-022: Render checklists and multi-value fields
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-progress
 - **Tier:** 2 (High)
 - **Traces:** R50, R51
 - **Scope:** Render checklists and multi-value fields in the issue detail view, with keyboard toggling and adding of checklist items. UI only. No other changes.
