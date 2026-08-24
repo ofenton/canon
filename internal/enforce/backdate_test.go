@@ -58,7 +58,7 @@ func TestWriteDatedBeforeTheIssueExistedIsRefused(t *testing.T) {
 	if err := e.CreateAs(admin, "CANON-1", "story", map[string]string{"title": "Real"}, "platform", at(20)); err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	err := e.AuthoriseBackdate(admin, "CANON-1", at(10), at(30))
+	err := e.CheckNotBeforeCreation("CANON-1", at(10))
 	if err == nil {
 		t.Fatal("expected a write dated before creation to be refused")
 	}

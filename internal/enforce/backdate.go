@@ -43,13 +43,33 @@ func (e *Enforcer) AuthoriseBackdate(p Principal, subject string, at, now time.T
 	var ownerTeam string
 	if issue, ok := e.view.Issue(subject); ok {
 		ownerTeam = issue.Team
-		if at.Before(issue.CreatedAt) {
-			return fmt.Errorf("cannot write %s dated %s: the issue was created %s, and an event before that would describe an issue that did not exist",
-				subject, at.UTC().Format(time.RFC3339), issue.CreatedAt.UTC().Format(time.RFC3339))
-		}
 	}
 
 	return e.authorise(p, BackdateOp, subject, ownerTeam)
+}
+
+// CheckNotBeforeCreation refuses an event dated before the issue it describes existed.
+//
+// This is separate from AuthoriseBackdate because it is not true of every backdated
+// write. An issue's own history cannot begin before the issue does — transitioning it
+// last March when it was created in August describes something that did not happen.
+// A *commit*, though, routinely predates the issue that tracks it: that is the whole
+// NOJIRA case, where work is done first and recorded afterwards. Folding both rules
+// into one check made linking real history impossible, which was found building
+// feat-024 and is why the two are now asked separately.
+func (e *Enforcer) CheckNotBeforeCreation(subject string, at time.Time) error {
+	if err := e.refresh(); err != nil {
+		return err
+	}
+	issue, ok := e.view.Issue(subject)
+	if !ok {
+		return nil
+	}
+	if at.Before(issue.CreatedAt) {
+		return fmt.Errorf("cannot write %s dated %s: the issue was created %s, and an event before that would describe an issue that did not exist",
+			subject, at.UTC().Format(time.RFC3339), issue.CreatedAt.UTC().Format(time.RFC3339))
+	}
+	return nil
 }
 
 // futureTolerance is the clock skew accepted before a timestamp is treated as

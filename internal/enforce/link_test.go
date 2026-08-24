@@ -3,6 +3,7 @@ package enforce
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ofenton/canon/internal/schema"
 )
@@ -169,4 +170,30 @@ func TestLinkIsAKnownVerb(t *testing.T) {
 	}
 	t.Fatalf("%q is not in schema.Verbs (%v), so no role could ever be granted it",
 		LinkOp, schema.Verbs)
+}
+
+// A commit routinely predates the issue that tracks it — work done first, recorded
+// afterwards. That is the whole NOJIRA case, so a link is exempt from the rule that
+// an issue's own history cannot begin before the issue does.
+func TestACommitMayPredateTheIssueThatTracksIt(t *testing.T) {
+	e, admin := linkFixture(t) // CANON-1 is created at at(0)
+	authored := at(0).Add(-72 * time.Hour)
+
+	wrote, err := e.LinkCommit(admin, "CANON-1", Commit{SHA: "abcdef1", At: authored}, at(40))
+	if err != nil {
+		t.Fatalf("linking a commit older than its issue must be allowed: %v", err)
+	}
+	if !wrote {
+		t.Fatal("expected the link to be written")
+	}
+
+	commits, _ := e.CommitsOf("CANON-1")
+	if len(commits) != 1 || !commits[0].At.Equal(authored) {
+		t.Fatalf("expected one commit dated %s, got %+v", authored, commits)
+	}
+
+	// The issue's own history is still fenced: only the link is exempt.
+	if err := e.CheckNotBeforeCreation("CANON-1", authored); err == nil {
+		t.Fatal("an issue's own events must still be refused before its creation")
+	}
 }
