@@ -546,6 +546,27 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Evidence:** see `specs/increments/feat-021-validate-the-hierarchy-against-an-existing-log.md`
 
 
+## feat-022: Render checklists and multi-value fields
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 2 (High)
+- **Traces:** R50, R51
+- **Scope:** Render checklists and multi-value fields in the issue detail view, with keyboard toggling and adding of checklist items. UI only. No other changes.
+- **Acceptance Criteria:**
+  - [ ] WHEN an issue carries a checklist THE SYSTEM SHALL show every item, whether it is met, the count met, and allow a user to toggle one without leaving the keyboard
+  - [ ] WHEN an issue carries a multi-value field THE SYSTEM SHALL show every value
+  - [ ] WHEN a checklist blocks the state an issue is trying to reach THE SYSTEM SHALL make that visible on the issue
+  - [ ] WHEN a user adds a checklist item THE SYSTEM SHALL do so without leaving the keyboard
+- **Test Strategy:**
+  - Drive adding, toggling and untoggling a checklist item by keyboard in the browser test
+  - Assert the progress count updates and the item shows who met it
+  - Assert every new action appears in the action registry
+- **Dependencies:** feat-019
+- **Rollback Plan:** Remove the checklist and multi-value sections from the detail view
+- **Risk:** Low — rendering over an API that already exists, in a view that already exists
+
+
 ---
 
 ## Sequencing
