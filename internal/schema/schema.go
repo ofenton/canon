@@ -78,10 +78,10 @@ type Transition struct {
 
 // Field is a value an issue may carry.
 type Field struct {
-	Name     string    `yaml:"name"`
-	Type     FieldType `yaml:"type"`
-	Required bool      `yaml:"required"`
-	Values   []string  `yaml:"values"`
+	Name     string    `yaml:"name" json:"name"`
+	Type     FieldType `yaml:"type" json:"type"`
+	Required bool      `yaml:"required" json:"required"`
+	Values   []string  `yaml:"values" json:"values,omitempty"`
 
 	line int
 }
@@ -89,8 +89,8 @@ type Field struct {
 // IssueType names a set of fields. It is a view over fields, not a storage type:
 // epics, stories and sub-tasks are parent/child relations, not separate entities.
 type IssueType struct {
-	Name   string   `yaml:"name"`
-	Fields []string `yaml:"fields"`
+	Name   string   `yaml:"name" json:"name"`
+	Fields []string `yaml:"fields" json:"fields"`
 
 	line int
 }

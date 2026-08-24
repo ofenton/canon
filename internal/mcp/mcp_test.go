@@ -216,7 +216,7 @@ func TestFullLifecycleOverMCPOnly(t *testing.T) {
 		t.Fatalf("approve: %s", text)
 	}
 	text, _ = callText(t, admin, "get_issue", map[string]any{"id": "CANON-1"})
-	if !strings.Contains(text, `"State":"done"`) {
+	if !strings.Contains(text, `"state":"done"`) {
 		t.Errorf("issue should be done after approval, got: %s", text)
 	}
 }
