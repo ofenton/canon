@@ -3,85 +3,187 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Canon</title>
 <style>
+  /* Primer-ish. GitHub's palette and conventions, because a tracker is not the place
+     to teach somebody a new visual language: every developer already knows what a grey
+     bordered surface with a 6px radius and a coloured state pill means here.
+
+     Copied by eye rather than by importing Primer — one embedded file with no external
+     requests is a property the product claims, and a CSS dependency would end it. */
   :root {
-    --bg: #fbfbfa; --fg: #1c1c1a; --dim: #6b6b66; --line: #e3e3df;
-    --accent: #2f5d50; --warn: #8a5a2b; --sel: #eef3f1;
-    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+    --bg: #ffffff; --bg-inset: #f6f8fa; --bg-hover: #f6f8fa;
+    --fg: #1f2328; --dim: #59636e; --faint: #818b98;
+    --line: #d1d9e0; --line-soft: #d1d9e0b3;
+    --accent: #0969da; --accent-bg: #ddf4ff;
+    --open: #1a7f37; --open-bg: #dafbe1;
+    --active: #9a6700; --active-bg: #fff8c5;
+    --closed: #8250df; --closed-bg: #fbefff;
+    --warn: #bc4c00; --warn-bg: #fff1e5;
+    --danger: #d1242f;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --shadow: 0 1px 0 rgba(31,35,40,.04);
+    --radius: 6px;
   }
   @media (prefers-color-scheme: dark) {
-    :root { --bg:#16171a; --fg:#e6e6e3; --dim:#8d8d88; --line:#2a2c31;
-            --accent:#7fb3a2; --warn:#d3a06a; --sel:#20242a; }
+    :root {
+      --bg:#0d1117; --bg-inset:#151b23; --bg-hover:#151b23;
+      --fg:#f0f6fc; --dim:#9198a1; --faint:#6b7280;
+      --line:#3d444d; --line-soft:#3d444db3;
+      --accent:#4493f8; --accent-bg:#121d2f;
+      --open:#3fb950; --open-bg:#0f2417;
+      --active:#d29922; --active-bg:#2b2410;
+      --closed:#ab7df8; --closed-bg:#221033;
+      --warn:#db6d28; --warn-bg:#2b1a0f;
+      --danger:#f85149;
+      --shadow:0 1px 0 rgba(1,4,9,.2);
+    }
   }
   * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.5 system-ui, sans-serif; }
-  header { display:flex; align-items:baseline; gap:1rem; padding:.6rem 1rem;
-           border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--bg); }
-  header b { font-size:1rem; letter-spacing:.02em; }
-  header .who { color:var(--dim); font-family:var(--mono); font-size:12px; }
-  nav { margin-left:auto; display:flex; gap:.75rem; }
-  nav button { background:none; border:none; color:var(--dim); cursor:pointer;
-               font:inherit; padding:.15rem .3rem; border-radius:3px; }
-  nav button[aria-current="true"] { color:var(--fg); background:var(--sel); }
-  main { padding:1rem; max-width:70rem; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font:14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans",
+              Helvetica, Arial, sans-serif; }
+  a { color:var(--accent); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+
+  header { display:flex; align-items:center; gap:1rem; padding:.75rem 1.5rem;
+           border-bottom:1px solid var(--line); position:sticky; top:0; z-index:5;
+           background:var(--bg-inset); }
+  header b { font-size:1rem; font-weight:600; letter-spacing:-.01em; }
+  header .who { color:var(--dim); font-size:12px; }
+  nav { margin-left:auto; display:flex; gap:.25rem; }
+  nav button { background:none; border:1px solid transparent; color:var(--fg);
+               cursor:pointer; font:inherit; padding:.3rem .6rem;
+               border-radius:var(--radius); display:flex; align-items:center; gap:.4rem; }
+  nav button:hover { background:var(--bg-hover); border-color:var(--line-soft); }
+  nav button[aria-current="true"] { font-weight:600; background:var(--bg);
+                                    border-color:var(--line); box-shadow:var(--shadow); }
+  main { padding:1.5rem; max-width:76rem; margin:0 auto; }
+
+  /* A bordered surface is GitHub's fundamental unit: the list, the panel, the box. */
+  .surface { border:1px solid var(--line); border-radius:var(--radius);
+             background:var(--bg); overflow:hidden; }
+  .surface > .surface-head { background:var(--bg-inset); padding:.6rem .9rem;
+                             border-bottom:1px solid var(--line); font-size:13px;
+                             color:var(--dim); display:flex; align-items:center; gap:.6rem; }
+
   table { border-collapse:collapse; width:100%; }
   th { text-align:left; font-weight:600; color:var(--dim); font-size:12px;
-       text-transform:uppercase; letter-spacing:.04em; padding:.35rem .5rem; }
-  td { padding:.35rem .5rem; border-top:1px solid var(--line); }
-  tr[aria-selected="true"] td { background:var(--sel); }
+       padding:.5rem .9rem; background:var(--bg-inset);
+       border-bottom:1px solid var(--line); }
+  td { padding:.6rem .9rem; border-top:1px solid var(--line-soft); }
+  tbody tr:first-child td { border-top:none; }
+  tbody tr:hover td { background:var(--bg-hover); }
+  tbody tr { cursor:pointer; }
+  tr[aria-selected="true"] td { background:var(--accent-bg); }
   tr:focus { outline:2px solid var(--accent); outline-offset:-2px; }
-  .id { font-family:var(--mono); color:var(--dim); white-space:nowrap; }
-  .state { font-family:var(--mono); font-size:12px; }
-  .state.active { color:var(--accent); }
-  .state.closed { color:var(--dim); }
+  td.title { font-weight:600; }
+  .id { font-family:var(--mono); color:var(--dim); white-space:nowrap; font-size:12px; }
+
+  /* State pills, the way an issue's status reads on GitHub. */
+  .state { font-size:12px; font-weight:500; padding:.1rem .6rem; border-radius:2rem;
+           border:1px solid transparent; white-space:nowrap; display:inline-block; }
+  .state.open   { color:var(--open);   background:var(--open-bg);   border-color:var(--open); }
+  .state.active { color:var(--active); background:var(--active-bg); border-color:var(--active); }
+  .state.closed { color:var(--closed); background:var(--closed-bg); border-color:var(--closed); }
+
+  .btn { font:inherit; font-size:13px; padding:.3rem .75rem; border-radius:var(--radius);
+         border:1px solid var(--line); background:var(--bg-inset); color:var(--fg);
+         cursor:pointer; box-shadow:var(--shadow); display:inline-flex;
+         align-items:center; gap:.4rem; }
+  .btn:hover { background:var(--bg-hover); border-color:var(--dim); }
+  .btn:disabled { color:var(--faint); cursor:default; background:var(--bg-inset);
+                  border-color:var(--line-soft); }
+  .btn:disabled:hover { border-color:var(--line-soft); }
+  .btn.primary { background:var(--open); border-color:var(--open); color:#fff; font-weight:500; }
+  .btn.primary:hover { filter:brightness(1.08); border-color:var(--open); }
+  .btn-row { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
+
+  .toolbar { display:flex; gap:.5rem; align-items:center; margin-bottom:1rem;
+             flex-wrap:wrap; }
+  .toolbar input[type="search"] { flex:1; min-width:14rem; }
+
   .cols { display:flex; gap:1rem; overflow-x:auto; align-items:flex-start; }
-  .col { min-width:15rem; flex:1; border:1px solid var(--line); border-radius:6px; }
-  .col h3 { margin:0; padding:.5rem .6rem; font-size:12px; text-transform:uppercase;
-            letter-spacing:.04em; color:var(--dim); border-bottom:1px solid var(--line); }
-  .col ul { list-style:none; margin:0; padding:.4rem; }
-  .col li { padding:.35rem .4rem; border-radius:4px; }
-  dialog { border:1px solid var(--line); border-radius:8px; background:var(--bg);
-           color:var(--fg); padding:1rem; min-width:22rem; }
-  dialog::backdrop { background:rgba(0,0,0,.35); }
-  input, select { font:inherit; padding:.4rem .5rem; border:1px solid var(--line);
-                  border-radius:4px; background:var(--bg); color:var(--fg); width:100%; }
+  .col { min-width:16rem; flex:1; border:1px solid var(--line);
+         border-radius:var(--radius); background:var(--bg); }
+  .col h3 { margin:0; padding:.6rem .8rem; font-size:12px; font-weight:600;
+            color:var(--dim); border-bottom:1px solid var(--line);
+            background:var(--bg-inset); }
+  .col ul { list-style:none; margin:0; padding:.5rem; }
+  .col li { padding:.4rem .5rem; border-radius:var(--radius); }
+  .col li:hover { background:var(--bg-hover); }
+
+  dialog { border:1px solid var(--line); border-radius:var(--radius); background:var(--bg);
+           color:var(--fg); padding:0; min-width:26rem; box-shadow:0 8px 24px rgba(31,35,40,.2); }
+  dialog form { padding:1rem; }
+  dialog label { display:block; font-weight:600; margin-bottom:.5rem; }
+  dialog::backdrop { background:rgba(31,35,40,.4); }
+
+  input, select { font:inherit; padding:.4rem .7rem; border:1px solid var(--line);
+                  border-radius:var(--radius); background:var(--bg); color:var(--fg);
+                  width:100%; }
+  input:focus, select:focus { outline:none; border-color:var(--accent);
+                              box-shadow:0 0 0 3px var(--accent-bg); }
   kbd { font-family:var(--mono); font-size:11px; border:1px solid var(--line);
-        border-bottom-width:2px; border-radius:3px; padding:0 .3rem; color:var(--dim); }
+        border-bottom-width:2px; border-radius:var(--radius); padding:.05rem .35rem;
+        color:var(--dim); background:var(--bg-inset); }
+
   .hint { color:var(--dim); font-size:12px; margin-top:.5rem; }
-  .err { color:var(--warn); font-family:var(--mono); font-size:12px; white-space:pre-wrap; }
-  .metrics dt { color:var(--dim); font-size:12px; }
-  .metrics dd { margin:0 0 .6rem; font-family:var(--mono); }
-  .detail { max-width:52rem; }
-  .detail h2 { margin:.2rem 0 .1rem; font-size:1.05rem; }
-  .detail .crumbs { color:var(--dim); font-size:12px; font-family:var(--mono); margin-bottom:.6rem; }
-  .detail .crumbs a { color:var(--dim); }
-  .detail section { border-top:1px solid var(--line); padding:.6rem 0; }
-  .detail h4 { margin:0 0 .35rem; font-size:11px; text-transform:uppercase;
-               letter-spacing:.05em; color:var(--dim); font-weight:600; }
-  .detail dl { display:grid; grid-template-columns:8rem 1fr; gap:.15rem .8rem; margin:0; }
-  .detail dt { color:var(--dim); font-size:12px; }
+  .err { color:var(--danger); font-size:13px; white-space:pre-wrap;
+         border:1px solid var(--danger); background:var(--warn-bg);
+         border-radius:var(--radius); padding:.6rem .8rem; }
+
+  .metrics { display:grid; grid-template-columns:repeat(auto-fit, minmax(14rem,1fr));
+             gap:1rem; }
+  .metrics .card { border:1px solid var(--line); border-radius:var(--radius);
+                   padding:.9rem 1rem; background:var(--bg); }
+  .metrics dt { color:var(--dim); font-size:12px; margin-bottom:.2rem; }
+  .metrics dd { margin:0; font-size:1.4rem; font-weight:600; letter-spacing:-.02em; }
+  .metrics dd.small { font-size:13px; font-weight:400; font-family:var(--mono);
+                      color:var(--fg); }
+
+  .detail { max-width:56rem; }
+  .detail h2 { margin:.2rem 0 .5rem; font-size:1.5rem; font-weight:600;
+               letter-spacing:-.02em; }
+  .detail .crumbs { color:var(--dim); font-size:12px; margin-bottom:.4rem; }
+  .detail section { border-top:1px solid var(--line); padding:.9rem 0; }
+  .detail h4 { margin:0 0 .5rem; font-size:12px; color:var(--dim); font-weight:600; }
+  .detail dl { display:grid; grid-template-columns:9rem 1fr; gap:.3rem .8rem; margin:0; }
+  .detail dt { color:var(--dim); font-size:13px; }
   .detail dd { margin:0; }
+
   .rel { list-style:none; margin:0; padding:0; }
-  .rel li { padding:.15rem 0; }
-  .rel li[tabindex]:focus { outline:2px solid var(--accent); outline-offset:2px; border-radius:3px; }
+  .rel li { padding:.3rem .5rem; border-radius:var(--radius); }
+  .rel li[tabindex] { cursor:pointer; }
+  .rel li[tabindex]:hover { background:var(--bg-hover); }
+  .rel li[tabindex]:focus { outline:2px solid var(--accent); outline-offset:-2px; }
+
   .check { list-style:none; margin:0; padding:0; }
-  .check li { display:flex; gap:.5rem; align-items:baseline; padding:.2rem .3rem; border-radius:3px; }
-  .check li[tabindex]:focus { outline:2px solid var(--accent); outline-offset:1px; }
+  .check li { display:flex; gap:.6rem; align-items:baseline; padding:.35rem .5rem;
+              border-radius:var(--radius); cursor:pointer; }
+  .check li:hover { background:var(--bg-hover); }
+  .check li[tabindex]:focus { outline:2px solid var(--accent); outline-offset:-2px; }
   .check .box { font-family:var(--mono); color:var(--dim); }
-  .check li.met .box { color:var(--accent); }
+  .check li.met .box { color:var(--open); }
   .check li.met .text { color:var(--dim); text-decoration:line-through; }
-  .check .who { color:var(--dim); font-size:11px; font-family:var(--mono); margin-left:auto; }
-  .progress { font-family:var(--mono); font-size:12px; color:var(--dim); }
-  .progress.blocking { color:var(--warn); }
+  .check .who { color:var(--dim); font-size:11px; margin-left:auto; }
+  .progress { font-size:12px; color:var(--dim); }
+  .progress.blocking { color:var(--warn); font-weight:500; }
+
   .tags { display:flex; gap:.35rem; flex-wrap:wrap; }
-  .tag { font-family:var(--mono); font-size:12px; border:1px solid var(--line);
-         border-radius:10px; padding:.05rem .5rem; color:var(--dim); }
-  .banner { border-left:3px solid var(--warn); background:color-mix(in srgb, var(--warn) 8%, transparent);
-            padding:.45rem .6rem; margin:.4rem 0; border-radius:0 4px 4px 0; }
-  .banner.cycle { border-left-color:var(--warn); }
+  .tag { font-size:12px; border:1px solid var(--line); border-radius:2rem;
+         padding:.05rem .6rem; color:var(--dim); background:var(--bg-inset); }
+
+  /* GitHub's flash: a coloured left edge on a tinted surface. */
+  .banner { border:1px solid var(--warn); border-left-width:4px; background:var(--warn-bg);
+            padding:.6rem .8rem; margin:.5rem 0; border-radius:var(--radius);
+            font-size:13px; }
   .banner b { color:var(--warn); }
-  #status { position:fixed; bottom:0; left:0; right:0; padding:.4rem 1rem;
-            border-top:1px solid var(--line); background:var(--bg);
-            font-family:var(--mono); font-size:12px; color:var(--dim); }
+
+  .blank { text-align:center; padding:3rem 1rem; color:var(--dim); }
+  .blank h3 { margin:0 0 .4rem; color:var(--fg); font-size:1rem; }
+
+  #status { position:fixed; bottom:0; left:0; right:0; padding:.5rem 1.5rem;
+            border-top:1px solid var(--line); background:var(--bg-inset);
+            font-size:12px; color:var(--dim); }
 </style>
 
 <header>
@@ -410,7 +512,10 @@ function table(main, headers, rows) {
     body.append(tr);
   });
   t.append(body);
-  main.append(t);
+  const surface = document.createElement("div");
+  surface.className = "surface";
+  surface.append(t);
+  main.append(surface);
   const rowEls = body.querySelectorAll("tr");
   if (rowEls[state.cursor]) rowEls[state.cursor].focus();
 }
@@ -438,10 +543,20 @@ async function renderIssues(main, seq) {
     ? `showing ${shown} of ${total}${scope} — narrow it with /`
     : `${total} issue${total === 1 ? "" : "s"}${scope}`;
   main.append(caption);
+  if (!state.issues.length) {
+    const blank = document.createElement("div");
+    blank.className = "blank";
+    blank.innerHTML = state.query
+      ? `<h3>Nothing matches</h3><p>No issue matches <b>${escape(state.query)}</b>.</p>`
+      : `<h3>No issues yet</h3><p>Create the first one.</p>`;
+    main.append(blank);
+    return;
+  }
   table(main, ["", "Title", "State", "Team"], state.issues.map((i) => ({
     id: i.id,
-    html: `<td class="id">${i.id}</td><td>${escape(i.title)}</td>` +
-          `<td class="state ${categoryOf(i.state)}">${i.state}</td><td>${i.team ?? ""}</td>`,
+    html: `<td class="id">${i.id}</td><td class="title">${escape(i.title)}</td>` +
+          `<td><span class="state ${categoryOf(i.state)}">${escape(i.state)}</span></td>` +
+          `<td>${escape(i.team ?? "")}</td>`,
   })));
 }
 
@@ -609,7 +724,11 @@ async function renderMetrics(main, seq) {
   const f = res.body;
   const dl = document.createElement("dl");
   dl.className = "metrics";
-  const row = (k, v) => `<dt>${k}</dt><dd>${v}</dd>`;
+  // Each number gets its own card, so the two that are counts read as big numbers
+  // and the three that are distributions read as text. A single definition list made
+  // "31" and "p50 11m · p85 1.2h · p95 9h" the same size, which is the wrong emphasis.
+  const row = (k, v, small) =>
+    `<div class="card"><dt>${k}</dt><dd${small ? ' class="small"' : ""}>${v}</dd></div>`;
   // Days are what the API reports; hours and minutes are what a reader can act on.
   // A team shipping in an afternoon should not be told its cycle time is 0d.
   const dur = (d) => {
@@ -623,9 +742,9 @@ async function renderMetrics(main, seq) {
   dl.innerHTML =
     row("Completed (30d)", f.completed) +
     row("In progress", f.in_progress) +
-    row("Cycle time", pct(f.cycle_time)) +
-    row("Lead time", pct(f.lead_time)) +
-    row("Ageing", (f.ageing ?? []).map((a) => `${a.id} ${dur(a.days)}`).join(" · ") || "nothing ageing");
+    row("Cycle time", pct(f.cycle_time), true) +
+    row("Lead time", pct(f.lead_time), true) +
+    row("Ageing", (f.ageing ?? []).map((a) => `${a.id} ${dur(a.days)}`).join(" · ") || "nothing ageing", true);
   main.append(dl);
   const note = document.createElement("p");
   note.className = "hint";
