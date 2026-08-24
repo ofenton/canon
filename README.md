@@ -6,7 +6,7 @@ accretion — and where coding agents are first-class users rather than an API a
 Apache-2.0. Self-hosted. One static binary, one file of data, no external services.
 
 > **Status: in development.** The domain, authorisation, HTTP API, MCP server, web UI, queries,
-> boards, flow metrics, commit linking and webhooks work. There is no authentication yet.
+> boards, flow metrics, commit linking, webhooks and token authentication work.
 > See [What is not built](#what-is-not-built).
 
 ## The problem
@@ -197,6 +197,42 @@ Delivery is asynchronous and bounded, and a write never waits on it. A subscribe
 down or decommissioned cannot make a transition slower or make it fail — the event is already in
 the log, and the log is the record. Retries stop at five, because an unbounded retry against a
 subscriber nobody remembers configuring is a queue that grows for ever.
+
+## Authentication
+
+Canon issues its own bearer tokens. There is no external service to configure and no account to
+create — a self-hosted tracker that cannot start without a cloud provider is not self-hosted.
+
+```bash
+./bin/canon token -actor you
+# token for you:
+#
+#   canon_X1k6udlYjidoADYCYSdgOVnQPk_qEjAw553RdcoYrjE
+#
+# This is the only time it is shown — Canon stores a hash, not the token.
+
+curl -H 'Authorization: Bearer canon_...' http://localhost:8080/api/issues
+```
+
+**Canon stores a SHA-256 hash, never the token.** A slow KDF like bcrypt exists to defend
+low-entropy secrets people chose; these are 256 random bits, with no dictionary to attack, so a fast
+hash is correct and costs nothing per request. It matters here because the log is append-only:
+anything written is permanent.
+
+**Authentication turns on per actor.** An actor holding a token must present one; an actor holding
+none is trusted as before. That is what stops issuing the first token locking every administrator
+out of their own instance, and `canon serve` names who can still be impersonated:
+
+```
+  auth   PARTIAL — still claimable without a token: mallory
+```
+
+Revoking withdraws every token an actor holds — somebody revoking is responding to a suspected leak
+and does not know which token leaked. Rotation is `-revoke` then issue.
+
+**Identity, not permission.** What an actor may do is still decided by their roles in `canon.yaml`.
+`enforce.Verify` is a seam: replacing it with one that trusts a signed OIDC claim from Cognito,
+Entra or Keycloak changes that function and nothing else.
 
 **Recording history: `backdate`.** Every write is stamped with the server's clock unless the
 caller adds `?at=<RFC 3339>`, which records the instant the thing actually happened. That is how
@@ -412,9 +448,9 @@ file, which is what makes "keep this one file" a true statement.
 
 Honest list, so nobody is surprised:
 
-- **Authentication.** `X-Canon-Actor` is trusted. It must name a registered actor with real roles,
-  which is a meaningful narrowing, but anyone who can reach the port can claim any registered
-  identity. **Do not expose an instance to a network you do not control.**
+- **An identity provider.** Canon issues its own tokens; it does not speak OIDC or SAML, so there
+  is no single sign-on. `enforce.Verify` is the seam an external provider would replace, and
+  nothing above it would change — but nobody has written that.
 - **Signed webhooks.** Deliveries carry no signature, so a subscriber cannot verify one came from
   Canon, and they are held in memory rather than queued — a subscriber that is down while Canon
   restarts misses those transitions.

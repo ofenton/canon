@@ -11,6 +11,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -96,6 +97,8 @@ func (s *Server) Routes() map[string]http.HandlerFunc {
 		"GET /api/actors":                           s.listActors,
 		"POST /api/actors":                          s.registerActor,
 		"GET /api/actors/{id}":                      s.getActor,
+		"POST /api/actors/{id}/tokens":              s.issueToken,
+		"DELETE /api/actors/{id}/tokens":            s.revokeTokens,
 		"POST /api/actors/{id}/roles":               s.grantRole,
 		"DELETE /api/actors/{id}/roles/{role}":      s.revokeRole,
 		"POST /api/actors/{id}/teams":               s.addToTeam,
@@ -110,10 +113,15 @@ func (s *Server) Routes() map[string]http.HandlerFunc {
 // become a meaningless tool. Keeping them apart also lets the "every route is under
 // /api" test stay strict instead of carving out an exception.
 func (s *Server) Handler() http.Handler {
-	mux := http.NewServeMux()
+	api := http.NewServeMux()
 	for pattern, handler := range s.Routes() {
-		mux.HandleFunc(pattern, handler)
+		api.HandleFunc(pattern, handler)
 	}
+
+	mux := http.NewServeMux()
+	// Every API route is behind authentication. The UI shell is not: it is a static
+	// page that carries no data, and every call it makes comes back through here.
+	mux.Handle("/api/", s.authenticate(api))
 	mux.Handle("/", ui.Handler())
 	return mux
 }
@@ -124,7 +132,7 @@ func (s *Server) APIHandler() http.Handler {
 	for pattern, handler := range s.Routes() {
 		mux.HandleFunc(pattern, handler)
 	}
-	return mux
+	return s.authenticate(mux)
 }
 
 // ---------------------------------------------------------------- reads
@@ -183,7 +191,35 @@ func (s *Server) listEvents(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"events": events})
+	writeJSON(w, http.StatusOK, map[string]any{"events": redactSecrets(events)})
+}
+
+// redactSecrets removes stored credential material from an event stream.
+//
+// The hash is not the token and a 256-bit random secret is not recoverable from it,
+// so this is defence in depth rather than a fix for a disclosure. It matters because
+// the reasoning that makes the hash safe is a property of the token, not of the hash:
+// anything that ever weakens token entropy would turn this route into the attack, and
+// nobody would think to look here. Handing it out buys nothing either way.
+func redactSecrets(events []*event.Event) []*event.Event {
+	out := make([]*event.Event, 0, len(events))
+	for _, e := range events {
+		if _, sensitive := e.Payload["hash"]; !sensitive {
+			out = append(out, e)
+			continue
+		}
+		clone := *e
+		clone.Payload = make(map[string]any, len(e.Payload))
+		for k, v := range e.Payload {
+			if k == "hash" {
+				clone.Payload[k] = "[redacted]"
+				continue
+			}
+			clone.Payload[k] = v
+		}
+		out = append(out, &clone)
+	}
+	return out
 }
 
 func (s *Server) listIssues(w http.ResponseWriter, r *http.Request) {
@@ -844,6 +880,10 @@ func (s *Server) registerActor(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if err := s.enforcer.AuthoriseAdmin(p, body.ID); err != nil {
+		writeDomainError(w, err)
+		return
+	}
 	kind := event.ActorKind(body.Kind)
 	if body.Kind == "" {
 		kind = event.ActorHuman
@@ -866,6 +906,10 @@ func (s *Server) grantRole(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if err := s.enforcer.AuthoriseAdmin(p, r.PathValue("id")); err != nil {
+		writeDomainError(w, err)
+		return
+	}
 	if err := s.enforcer.GrantRole(r.PathValue("id"), body.Role, s.now(), p.Actor); err != nil {
 		writeDomainError(w, err)
 		return
@@ -876,6 +920,10 @@ func (s *Server) grantRole(w http.ResponseWriter, r *http.Request) {
 func (s *Server) revokeRole(w http.ResponseWriter, r *http.Request) {
 	p, ok := s.principal(w, r)
 	if !ok {
+		return
+	}
+	if err := s.enforcer.AuthoriseAdmin(p, r.PathValue("id")); err != nil {
+		writeDomainError(w, err)
 		return
 	}
 	if err := s.enforcer.RevokeRole(r.PathValue("id"), r.PathValue("role"), s.now(), p.Actor); err != nil {
@@ -896,6 +944,10 @@ func (s *Server) addToTeam(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if err := s.enforcer.AuthoriseAdmin(p, r.PathValue("id")); err != nil {
+		writeDomainError(w, err)
+		return
+	}
 	if err := s.enforcer.AddToTeam(r.PathValue("id"), body.Team, s.now(), p.Actor); err != nil {
 		writeDomainError(w, err)
 		return
@@ -906,6 +958,10 @@ func (s *Server) addToTeam(w http.ResponseWriter, r *http.Request) {
 func (s *Server) removeFromTeam(w http.ResponseWriter, r *http.Request) {
 	p, ok := s.principal(w, r)
 	if !ok {
+		return
+	}
+	if err := s.enforcer.AuthoriseAdmin(p, r.PathValue("id")); err != nil {
+		writeDomainError(w, err)
 		return
 	}
 	if err := s.enforcer.RemoveFromTeam(r.PathValue("id"), r.PathValue("team"), s.now(), p.Actor); err != nil {
@@ -1025,6 +1081,57 @@ func (s *Server) schemaUsage(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// issueToken generates a token for an actor. The token is in the response and nowhere
+// else, ever again.
+func (s *Server) issueToken(w http.ResponseWriter, r *http.Request) {
+	p, ok := s.principal(w, r)
+	if !ok {
+		return
+	}
+	target := r.PathValue("id")
+	// Issuing somebody else a token is granting them access, so it needs the same
+	// authority as granting a role. Issuing your own is always allowed: that is how
+	// an actor rotates a token they believe has leaked, and needing to ask somebody
+	// else first is how a leaked token stays live over a weekend.
+	if target != p.Actor.ID {
+		if err := s.enforcer.AuthoriseAdmin(p, target); err != nil {
+			writeDomainError(w, err)
+			return
+		}
+	}
+
+	token, err := s.enforcer.IssueToken(target, s.now(), p.Actor)
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{
+		"actor": target,
+		"token": token,
+		"note":  "store this now; it cannot be shown again",
+	})
+}
+
+// revokeTokens withdraws every token an actor holds.
+func (s *Server) revokeTokens(w http.ResponseWriter, r *http.Request) {
+	p, ok := s.principal(w, r)
+	if !ok {
+		return
+	}
+	target := r.PathValue("id")
+	if target != p.Actor.ID {
+		if err := s.enforcer.AuthoriseAdmin(p, target); err != nil {
+			writeDomainError(w, err)
+			return
+		}
+	}
+	if err := s.enforcer.RevokeToken(target, s.now(), p.Actor); err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // at resolves the instant a write should be recorded at.
 //
 // Every write is stamped with the current time unless the caller supplies "at",
@@ -1060,19 +1167,91 @@ func (s *Server) at(w http.ResponseWriter, r *http.Request, p enforce.Principal,
 	return when.UTC(), true
 }
 
-func (s *Server) principal(w http.ResponseWriter, r *http.Request) (enforce.Principal, bool) {
-	id := r.Header.Get(ActorHeader)
-	if id == "" {
-		writeError(w, http.StatusUnauthorized,
-			fmt.Errorf("%s header is required", ActorHeader))
-		return enforce.Principal{}, false
+// principalKey is where authenticate stores the caller for the request.
+type principalKey struct{}
+
+// authenticate resolves the caller once, for every route.
+//
+// Middleware rather than a call in each handler, because a per-handler check is a
+// check somebody forgets: before this, every write authenticated and **no read did**,
+// so an unauthenticated caller could read the entire tracker. Wrapping the router
+// means a new route is behind this by construction rather than by remembering.
+func (s *Server) authenticate(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		id, err := s.identify(r)
+		if err != nil {
+			writeError(w, http.StatusUnauthorized, err)
+			return
+		}
+		if id == "" {
+			writeError(w, http.StatusUnauthorized,
+				fmt.Errorf("%s header or Authorization: Bearer <token> is required", ActorHeader))
+			return
+		}
+		p, err := s.enforcer.Principal(id)
+		if err != nil {
+			writeError(w, http.StatusUnauthorized, err)
+			return
+		}
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), principalKey{}, p)))
+	})
+}
+
+// identify decides who is calling: the token if there is one, the claim if the actor
+// being claimed has no token, and an error if they have one and it was not presented.
+func (s *Server) identify(r *http.Request) (string, error) {
+	if token := bearer(r); token != "" {
+		// The token decides. A header claiming somebody else is ignored rather than
+		// rejected: an old client sending both keeps working and cannot escalate.
+		return s.enforcer.Verify(token)
 	}
-	p, err := s.enforcer.Principal(id)
+
+	claimed := r.Header.Get(ActorHeader)
+	if claimed == "" {
+		return "", nil
+	}
+	needsToken, err := s.enforcer.ActorRequiresToken(claimed)
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, err)
+		return "", err
+	}
+	if needsToken {
+		return "", fmt.Errorf("%s holds a token, so a claimed identity is not accepted; send Authorization: Bearer <token>", claimed)
+	}
+	return claimed, nil
+}
+
+// principal returns the caller resolved by authenticate.
+//
+// Once any actor holds a token, a bearer token is the only accepted identity and the
+// X-Canon-Actor header stops being trusted — a caller cannot present a valid token and
+// then claim to be somebody else, which is the whole point of the change. An instance
+// where nobody holds a token keeps the previous behaviour, so an upgrade cannot lock
+// an existing deployment out of itself.
+func (s *Server) principal(w http.ResponseWriter, r *http.Request) (enforce.Principal, bool) {
+	p, ok := r.Context().Value(principalKey{}).(enforce.Principal)
+	if !ok {
+		// Only reachable if a route is mounted outside authenticate, which the
+		// contract test forbids.
+		writeError(w, http.StatusUnauthorized, fmt.Errorf("not authenticated"))
 		return enforce.Principal{}, false
 	}
 	return p, true
+}
+
+// bearer reads a token from the Authorization header, or from the query string.
+//
+// The query string is there for the web UI, which cannot set a header on a page load.
+// It is a real trade: tokens in URLs end up in server logs and browser history. It is
+// accepted here because the alternative is a cookie and a session layer, and neither
+// belongs in a tracker that is meant to be one binary — but it is the first thing to
+// revisit if Canon ever faces a hostile network.
+func bearer(r *http.Request) string {
+	if h := r.Header.Get("Authorization"); h != "" {
+		if token, ok := strings.CutPrefix(h, "Bearer "); ok {
+			return strings.TrimSpace(token)
+		}
+	}
+	return strings.TrimSpace(r.URL.Query().Get("token"))
 }
 
 // writeDomainError maps a domain error to a status.

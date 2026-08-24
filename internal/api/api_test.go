@@ -153,6 +153,8 @@ func TestEveryRouteIsExercised(t *testing.T) {
 		{"GET /api/actors", "GET", "/api/actors", "ollie", nil, 200},
 		{"POST /api/actors", "POST", "/api/actors", "ollie", map[string]string{"id": "kim"}, 201},
 		{"GET /api/actors/{id}", "GET", "/api/actors/kim", "ollie", nil, 200},
+		{"POST /api/actors/{id}/tokens", "POST", "/api/actors/kim/tokens", "ollie", nil, 201},
+		{"DELETE /api/actors/{id}/tokens", "DELETE", "/api/actors/kim/tokens", "ollie", nil, 204},
 		{"POST /api/actors/{id}/roles", "POST", "/api/actors/kim/roles", "ollie", map[string]string{"role": "member"}, 204},
 		{"DELETE /api/actors/{id}/roles/{role}", "DELETE", "/api/actors/kim/roles/member", "ollie", nil, 204},
 		{"POST /api/actors/{id}/teams", "POST", "/api/actors/kim/teams", "ollie", map[string]string{"team": "platform"}, 204},
@@ -233,7 +235,9 @@ func TestAuthorisationAtTheBoundary(t *testing.T) {
 		want                      int
 	}{
 		{"no actor header", "", "POST", "/api/issues", map[string]string{"title": "x"}, 401},
-		{"unregistered actor", "ghost", "GET", "/api/issues", nil, 200},
+		// Reads used to be open to anyone — this expectation was 200 until feat-031,
+		// when authentication moved into middleware covering every route.
+		{"unregistered actor", "ghost", "GET", "/api/issues", nil, 401},
 		{"unregistered actor writing", "ghost", "POST", "/api/issues", map[string]string{"title": "x"}, 401},
 		{"reporter may not set priority", "jo", "PATCH", "/api/issues/CANON-1/fields", map[string]string{"priority": "p1"}, 422},
 		{"member may set priority", "sam", "PATCH", "/api/issues/CANON-1/fields", map[string]string{"priority": "p1"}, 204},
