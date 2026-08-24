@@ -128,16 +128,19 @@ func (s *Server) APIHandler() http.Handler {
 
 func (s *Server) getSchema(w http.ResponseWriter, r *http.Request) {
 	type stateView struct {
-		Name             string   `json:"name"`
-		Category         string   `json:"category"`
-		RequiresEvidence bool     `json:"requires_evidence,omitempty"`
-		To               []string `json:"to"`
+		Name              string   `json:"name"`
+		Category          string   `json:"category"`
+		RequiresEvidence  bool     `json:"requires_evidence,omitempty"`
+		RequiresChecklist []string `json:"requires_checklist,omitempty"`
+		To                []string `json:"to"`
 	}
 	states := make([]stateView, 0, len(s.schema.States))
 	for _, st := range s.schema.States {
 		states = append(states, stateView{
 			Name: st.Name, Category: string(st.Category),
-			RequiresEvidence: st.RequiresEvidence, To: s.schema.PermittedFrom(st.Name),
+			RequiresEvidence:  st.RequiresEvidence,
+			RequiresChecklist: st.RequiresChecklist,
+			To:                s.schema.PermittedFrom(st.Name),
 		})
 	}
 	// The permitted parents and children per type, so a client can tell a user what

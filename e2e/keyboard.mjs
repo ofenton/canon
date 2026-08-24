@@ -201,6 +201,85 @@ await page.keyboard.press("Escape");
 await page.waitForFunction(() => document.querySelector(".detail") === null, { timeout: 5000 });
 check("Escape returns to the list", true);
 
+// ---- checklists -----------------------------------------------------------
+// Acceptance criteria are the thing someone opens an issue to tick, so all of this
+// has to work without reaching for the mouse.
+// A story, created here rather than seeded before the run: pre-seeding changes the
+// row order and silently breaks the j/k assertions above.
+await page.evaluate(async (actor) => {
+  const post = (path, body, method = "POST") => fetch("/api" + path, {
+    method,
+    headers: { "X-Canon-Actor": actor, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  await post("/issues", { id: "STORY-1", title: "Reindex on write", type: "story", team: "platform" });
+  await post("/issues/STORY-1/multi/kpi", { values: ["conversion", "p95_latency"] }, "PUT");
+}, actor);
+
+await page.keyboard.press("g");
+await page.keyboard.press("i");
+await page.waitForFunction(() =>
+  [...document.querySelectorAll("#main tbody tr")].some((r) => r.dataset.id === "STORY-1"),
+  { timeout: 5000 });
+await page.evaluate(() => {
+  const rows = [...document.querySelectorAll("#main tbody tr")];
+  const t = rows.find((r) => r.dataset.id === "STORY-1");
+  rows.forEach((r) => r.setAttribute("aria-selected", String(r === t)));
+  t?.focus();
+});
+await page.keyboard.press("Enter");
+await page.waitForSelector(".detail");
+
+await page.keyboard.press("n");
+await page.waitForFunction(() => document.activeElement?.id === "prompt-input");
+await page.keyboard.type("THE SYSTEM SHALL return matching rows");
+await page.keyboard.press("Enter");
+await page.waitForFunction(() => document.querySelectorAll("#main .check li").length === 1,
+  { timeout: 5000 });
+check("n adds a checklist item by keyboard", true);
+
+await page.keyboard.press("n");
+await page.waitForFunction(() => document.activeElement?.id === "prompt-input");
+await page.keyboard.type("THE SYSTEM SHALL respond under 200ms");
+await page.keyboard.press("Enter");
+await page.waitForFunction(() => document.querySelectorAll("#main .check li").length === 2,
+  { timeout: 5000 });
+
+const before = await page.locator(".progress").first().textContent();
+check("the checklist shows how many are met", before.includes("0 of 2"), before.trim());
+check("the checklist says what it blocks", before.includes("blocks"), before.trim());
+
+// Select the first item and tick it with Space.
+await page.evaluate(() => {
+  const rows = [...document.querySelectorAll("#main .check li, #main .rel li")];
+  rows.forEach((r, i) => r.setAttribute("aria-selected", String(i === 0)));
+  rows[0]?.focus();
+});
+await page.keyboard.press(" ");
+await page.waitForFunction(() => document.querySelector("#main .check li.met") !== null,
+  { timeout: 5000 });
+const after = await page.locator(".progress").first().textContent();
+check("Space ticks the selected item", after.includes("1 of 2"), after.trim());
+
+const who = await page.locator("#main .check li.met .who").first().textContent();
+check("a met item shows who met it", who.trim() === actor, who.trim());
+
+// And untick it again.
+await page.evaluate(() => {
+  const rows = [...document.querySelectorAll("#main .check li, #main .rel li")];
+  rows.forEach((r, i) => r.setAttribute("aria-selected", String(i === 0)));
+  rows[0]?.focus();
+});
+await page.keyboard.press(" ");
+await page.waitForFunction(() => document.querySelector("#main .check li.met") === null,
+  { timeout: 5000 });
+check("Space unticks it again", true);
+
+// Multi-value fields render every value.
+const tags = await page.locator("#main .tag").allTextContents();
+check("multi-value fields show every value",
+  tags.includes("conversion") && tags.includes("p95_latency"), tags.join(", "));
+
 check("no uncaught exceptions", consoleErrors.length === 0, consoleErrors.slice(0, 2).join(" | "));
 
 await browser.close();
