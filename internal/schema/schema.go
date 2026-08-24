@@ -104,6 +104,7 @@ type Schema struct {
 	IssueTypes  []IssueType  `yaml:"issue_types"`
 	Roles       []Role       `yaml:"roles"`
 	Teams       []Team       `yaml:"teams"`
+	Webhooks    []Webhook    `yaml:"webhooks"`
 	Hierarchy   Hierarchy    `yaml:"hierarchy"`
 
 	states      map[string]State
@@ -157,7 +158,7 @@ func (s *Schema) checkUnknownKeys(root *yaml.Node, path string) error {
 	known := map[string]bool{
 		"version": true, "states": true, "transitions": true,
 		"fields": true, "issue_types": true, "roles": true, "hierarchy": true,
-		"teams": true,
+		"teams": true, "webhooks": true,
 	}
 	var unknown []string
 	for i := 0; i+1 < len(root.Content); i += 2 {
@@ -309,6 +310,7 @@ func (s *Schema) validate(path string) error {
 	s.validateRoles(add)
 	s.validateHierarchy(add)
 	s.validateTeams(add)
+	s.validateWebhooks(add)
 
 	if len(problems) == 0 {
 		return nil
