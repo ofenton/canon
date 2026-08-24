@@ -55,6 +55,7 @@ var descriptions = map[string]string{
 	"GET /api/issues/{id}/children":             "List an issue's direct children.",
 	"GET /api/issues/{id}/ancestors":            "List an issue's parents up to its root, nearest first, with its depth.",
 	"GET /api/issues/{id}/tree":                 "List everything beneath an issue, each with its depth. Pass depth to limit how far down.",
+	"GET /api/schema/usage":                     "Report every field, state, issue type, team and role in the schema with how many issues use it and when it was last used. Unused configuration is listed first.",
 	"GET /api/issues/{id}/commits":              "List the commits linked to an issue, oldest first by the time they were authored.",
 	"PUT /api/issues/{id}/commits":              "Link a commit to an issue. Safe to repeat: linking the same commit twice records it once. Supply the commit's own author time as \"at\" when linking work done earlier.",
 	"GET /api/issues/{id}/dependencies":         "List what an issue waits on, what waits on it, whether it is blocked and by what, and any dependency cycle it is part of.",
