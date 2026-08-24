@@ -226,3 +226,26 @@ func TestNoEstimationAnywhereInTheSource(t *testing.T) {
 		}
 	}
 }
+
+// Work that takes hours must not report as zero. A two-day project reported p50, p85
+// and p95 all as 0d, which reads as a broken metric rather than as fast work.
+func TestSubDayDurationsSurviveRounding(t *testing.T) {
+	cases := []struct {
+		d    time.Duration
+		want float64
+	}{
+		{24 * time.Hour, 1},
+		{12 * time.Hour, 0.5},
+		{time.Hour, 0.0417},
+		{15 * time.Minute, 0.0104},
+		{time.Minute, 0.0007},
+	}
+	for _, c := range cases {
+		if got := days(c.d); got != c.want {
+			t.Errorf("days(%s) = %v, want %v", c.d, got, c.want)
+		}
+		if c.d > 0 && days(c.d) == 0 {
+			t.Errorf("days(%s) rounded to zero", c.d)
+		}
+	}
+}
