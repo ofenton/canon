@@ -343,3 +343,121 @@ func TestBlockedAndDependsOnQueries(t *testing.T) {
 		t.Error("blocked must take true or false")
 	}
 }
+
+// searchFixture builds issues whose text is worth searching, which the shared seed's
+// "issue CANON-1" titles are not.
+func searchFixture(t *testing.T) (*schema.Schema, *projection.Projection) {
+	t.Helper()
+	sch, e, log := fixture(t)
+	p, err := e.Principal("ollie")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mk := func(id, title, component string) {
+		fields := map[string]string{"title": title, "priority": "p2"}
+		if component != "" {
+			fields["component"] = component
+		}
+		if err := e.CreateAs(p, id, "bug", fields, "platform", at(1)); err != nil {
+			t.Fatalf("create %s: %v", id, err)
+		}
+	}
+	mk("CANON-1", "Search is slow on large boards", "search")
+	mk("CANON-2", "Reindex on write", "indexer")
+	mk("CANON-3", "Tidy the logs", "")
+	return sch, view(t, log)
+}
+
+// AC: WHEN a user submits a query THE SYSTEM SHALL return matching results across
+// titles and text fields.
+func TestBareWordSearchesTitlesAndFields(t *testing.T) {
+	s, v := searchFixture(t)
+
+	cases := []struct {
+		query string
+		want  []string
+		why   string
+	}{
+		{"slow", []string{"CANON-1"}, "a word in the title"},
+		{"SLOW", []string{"CANON-1"}, "case-insensitive"},
+		{"reindex", []string{"CANON-2"}, "another title"},
+		{"indexer", []string{"CANON-2"}, "a value in a non-title field"},
+		{"CANON-3", []string{"CANON-3"}, "the id itself"},
+		{"nonexistent", nil, "matches nothing"},
+	}
+	for _, c := range cases {
+		q, err := Parse(c.query, s)
+		if err != nil {
+			t.Fatalf("parse %q: %v", c.query, err)
+		}
+		got := ids(q.Filter(v, s))
+		if strings.Join(got, ",") != strings.Join(c.want, ",") {
+			t.Errorf("%q returned %v, want %v (%s)", c.query, got, c.want, c.why)
+		}
+	}
+}
+
+// A search combines with the rest of the language rather than replacing it.
+func TestSearchCombinesWithFilters(t *testing.T) {
+	s, v := searchFixture(t)
+
+	// "i" appears in all three titles — Search is, Reindex, Tidy — so narrowing it
+	// with a filter proves the terms compose rather than one winning.
+	wide, err := Parse("i", s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := ids(wide.Filter(v, s)); len(got) != 3 {
+		t.Fatalf("the letter i appears in all three titles, got %v", got)
+	}
+	narrowed, err := Parse("i component=indexer", s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := ids(narrowed.Filter(v, s)); strings.Join(got, ",") != "CANON-2" {
+		t.Fatalf("adding a filter should narrow the search to CANON-2, got %v", got)
+	}
+
+	negated, err := Parse("!slow", s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, issue := range negated.Filter(v, s) {
+		if containsFold(issue.Title, "slow") {
+			t.Fatalf("!slow returned %q, which contains it", issue.Title)
+		}
+	}
+}
+
+// A bare word naming a key is a half-written term, not a search for that word. The
+// error offers both readings, because either could be what was meant.
+func TestBareKeyNameIsRefusedButQuotingSearches(t *testing.T) {
+	s, _ := searchFixture(t)
+
+	_, err := Parse("team", s)
+	if err == nil {
+		t.Fatal("a bare key name should be refused")
+	}
+	if !strings.Contains(err.Error(), "team=value") || !strings.Contains(err.Error(), "search") {
+		t.Fatalf("the error should offer both readings, got: %v", err)
+	}
+	if _, err := Parse(`"team"`, s); err != nil {
+		t.Fatalf("quoting should search for the word: %v", err)
+	}
+}
+
+// Structural attributes are exactly addressable, so a bare word must not match them —
+// otherwise "todo" becomes an unusable search term.
+func TestSearchDoesNotMatchStateOrTeam(t *testing.T) {
+	s, v := searchFixture(t)
+
+	for _, word := range []string{`"todo"`, `"platform"`, `"bug"`} {
+		q, err := Parse(word, s)
+		if err != nil {
+			t.Fatalf("parse %s: %v", word, err)
+		}
+		if got := ids(q.Filter(v, s)); len(got) != 0 {
+			t.Errorf("%s matched %v on a structural attribute rather than on text", word, got)
+		}
+	}
+}

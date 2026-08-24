@@ -159,7 +159,7 @@ const ACTIONS = [
   { key: " ",     name: "Tick or untick an item", run: toggleChecklistItem },
   { key: "n",     name: "Add a checklist item",  run: promptChecklistItem },
   { key: "t",     name: "Transition selected",  run: promptTransition },
-  { key: "/",     name: "Filter with a query",  run: promptQuery },
+  { key: "/",     name: "Search or filter",     run: promptQuery },
   { key: "r",     name: "Reload",               run: render },
   { key: "g i",   name: "Go to issues",         run: () => go("issues") },
   { key: "g b",   name: "Go to boards",         run: () => go("boards") },
@@ -238,7 +238,7 @@ function ask(label, hint, onSubmit) {
 }
 
 function promptQuery() {
-  ask("Filter", "e.g. team=platform priority=p1 · Esc cancels", async (q) => {
+  ask("Search", "a word searches · team=platform priority=p1 filters · Esc cancels", async (q) => {
     state.query = q;
     render();
   });
