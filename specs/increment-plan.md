@@ -815,7 +815,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## chore-004: Open the repository
 
 - **Type:** chore
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 2 (High)
 - **Traces:** R30
 - **Scope:** Make the repository public and give an arriving stranger what they need: a changelog recording the breaking change already shipped, how to contribute, how to report a vulnerability, and branch protection now that a public repository allows it. No code changes.
@@ -823,7 +823,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
   - [x] THE SYSTEM SHALL record every change that would break an existing client, including the ones already shipped
   - [x] THE SYSTEM SHALL tell a contributor how the increment workflow works before they open a pull request
   - [x] THE SYSTEM SHALL give a security researcher a private way to report a vulnerability
-  - [ ] WHEN a pull request targets main THE SYSTEM SHALL require its checks to pass before merging
+  - [x] WHEN a pull request targets main THE SYSTEM SHALL require its checks to pass before merging
 - **Test Strategy:**
   - Attempt a direct push to main and confirm it is refused
   - Read the repository as an outsider would: clone, build, run, in that order
