@@ -1005,7 +1005,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-038: A catalogue of products
 
 - **Type:** feature
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 2 (High)
 - **Traces:** R55, R57, R58
 - **Scope:** Discover repositories across an organisation, present each as a product with its purpose taken from `specs/product.md`, and state when each was last ingested so a stale view reads as stale.
