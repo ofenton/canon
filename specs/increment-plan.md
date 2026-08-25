@@ -968,7 +968,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-036: Flow measured from real transitions
 
 - **Type:** feature
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 1 (Critical)
 - **Traces:** R56
 - **Scope:** Feed the existing metrics from ingested transitions instead of authored events, and retire `scripts/import-ledger.py`, whose approximation was measured at roughly thirty times out.
