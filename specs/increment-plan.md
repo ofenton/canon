@@ -949,7 +949,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-035: Ingest a repository
 
 - **Type:** feature
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 1 (Critical)
 - **Traces:** R52, R53
 - **Scope:** Read a repository that follows the template — clone or fetch, parse `specs/product.md` and `specs/increment-plan.md`, and derive each increment's status history from the commit history of the ledger file. Additive: nothing existing is removed, so main keeps working.
