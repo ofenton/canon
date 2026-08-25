@@ -94,6 +94,13 @@ Three consequences follow:
 - **R60:** THE SYSTEM SHALL offer the same surface to agents over MCP as to humans over HTTP, with a
   test asserting parity.
 
+- **R70:** THE SYSTEM SHALL read the repositories it tracks from a list of sources, where a source is
+  a local directory, a repository, or an organisation.
+- **R71:** WHEN a source cannot be reached THE SYSTEM SHALL report which one and continue with the
+  rest, so one unreachable host does not empty the catalogue.
+- **R72:** THE SYSTEM SHALL hold nothing in its cache that it did not read from a source, so
+  discarding the cache loses no data.
+
 ### The web interface
 
 Canon is agent-first, and the interface is where that claim is tested: whatever an agent can ask

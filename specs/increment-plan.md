@@ -1083,7 +1083,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## chore-006: Delete what the rewrite left behind
 
 - **Type:** chore
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 3 (Medium)
 - **Traces:** R58
 - **Scope:** Remove `deploy/canon.yaml`, the ignore rules for a database Canon cannot write, and the scratch directories nothing creates. The README already claims "no database, and nothing to configure" and the repository contradicted it. A structural test makes the claim enforced rather than stated.
@@ -1117,6 +1117,82 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Rollback Plan:** Stop writing the URL; the in-memory state still drives every view
 - **Risk:** Low — additive to state that already exists
 - **Evidence:** see `specs/increments/ui-001-every-view-has-a-url.md`
+
+## docs-007: Where Canon looks
+
+- **Type:** docs
+- **Status:** in-progress
+- **Tier:** 1 (Critical)
+- **Traces:** R70
+- **Scope:** Record that Canon reads a list of sources rather than scanning one local directory, and why that does not reintroduce configuration. ADR-0010, three requirements, three increments. No code changes.
+- **Acceptance Criteria:**
+  - [ ] THE SYSTEM SHALL state where the list of tracked repositories lives and what a source is
+  - [ ] THE SYSTEM SHALL distinguish the list from the configuration `chore-006` removed, precisely enough that the next plausible file can be judged against it
+  - [ ] THE SYSTEM SHALL say what changes about Canon holding nothing
+- **Test Strategy:**
+  - Every new requirement claimed by a planned increment
+  - The ADR amends 0009 rather than contradicting it silently
+- **Dependencies:** none
+- **Rollback Plan:** Restore the previous spec and plan from git
+- **Risk:** Low — documentation and planning
+- **Evidence:** _(filled in at verify)_
+
+## feat-040: A list of the repositories to track
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 1 (Critical)
+- **Traces:** R70, R71
+- **Scope:** Read sources from a file and from `-source` flags: a local directory, a local repository, and lines Canon does not yet know how to fetch, which it reports rather than ignores. Directory scanning becomes one source kind rather than the entry point.
+- **Acceptance Criteria:**
+  - [ ] WHEN given a list of sources THE SYSTEM SHALL ingest every repository each one names
+  - [ ] WHEN a source cannot be read THE SYSTEM SHALL report which one and ingest the rest
+  - [ ] THE SYSTEM SHALL parse the list without a schema, so it cannot become configuration
+- **Test Strategy:**
+  - Unit over a list mixing a directory, a repository and an unreadable entry
+  - A test asserting one bad source does not empty the catalogue
+- **Dependencies:** none
+- **Rollback Plan:** Restore `Discover(root)` as the entry point; the flag keeps working
+- **Risk:** Low — additive; the existing behaviour becomes one source kind
+- **Evidence:** _(filled in at verify)_
+
+## feat-041: Track a repository over the network
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 1 (Critical)
+- **Traces:** R70, R71, R72
+- **Scope:** Fetch git URLs into a cache of bare clones and ingest from there, refreshing on the same timer. Credentials come from git's own helpers; Canon stores none. Deleting the cache must lose nothing.
+- **Acceptance Criteria:**
+  - [ ] WHEN a source is a git URL THE SYSTEM SHALL clone it and ingest it like a local repository
+  - [ ] WHEN the cache is deleted THE SYSTEM SHALL rebuild it and produce the same catalogue
+  - [ ] WHEN a remote is unreachable THE SYSTEM SHALL keep serving what it read last and say when that was
+- **Test Strategy:**
+  - Unit against a local bare repository served over `file://`, so the test needs no network
+  - A test that deletes the cache and compares the catalogue before and after
+- **Dependencies:** feat-040
+- **Rollback Plan:** Reject remote sources; local ones are unaffected
+- **Risk:** Medium — the first time Canon writes to disk, and the first network dependency
+- **Evidence:** _(filled in at verify)_
+
+## feat-042: Discover an organisation
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 2 (High)
+- **Traces:** R52, R70
+- **Scope:** Expand an organisation entry such as `github:ofenton` to every repository in it that contains the ledger, using a token from the environment. This is what makes the list name places rather than repositories, and it is what R52 has asked for since the reframe.
+- **Acceptance Criteria:**
+  - [ ] WHEN a source names an organisation THE SYSTEM SHALL ingest every repository in it that contains the ledger
+  - [ ] WHEN a repository in the organisation does not contain the ledger THE SYSTEM SHALL skip it without reporting it as a failure
+  - [ ] WHEN no token is available THE SYSTEM SHALL say so for that source and continue with the others
+- **Test Strategy:**
+  - Unit against a stubbed host API, including a repository without the artifact
+  - A test asserting a missing token degrades that source only
+- **Dependencies:** feat-041
+- **Rollback Plan:** Remove the source kind; explicit URLs still work
+- **Risk:** Medium — a host-specific API, and the first credential Canon reads
+- **Evidence:** _(filled in at verify)_
 
 ## ui-002: Pointer parity, and a narrow screen
 
