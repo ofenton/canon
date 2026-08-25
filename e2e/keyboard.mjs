@@ -91,15 +91,15 @@ await mouse.waitForFunction(() => document.querySelector("#main").textContent.in
   { timeout: 8000 });
 check("clicking a nav item navigates", true);
 
-const filter = mouse.locator("#q");
-if (await filter.count()) {
-  await filter.selectOption("done");
-  await mouse.waitForTimeout(600);
-  const statuses = await mouse.locator("#main tbody .state").allTextContents();
-  check("the status filter narrows the list",
-    statuses.length > 0 && statuses.every((s) => s.trim() === "done"),
-    `${statuses.length} row(s)`);
-}
+// Required, not conditional: the work view always carries a status filter, and a
+// check guarded by "if the control is there" reports a pass when it has gone.
+await mouse.waitForSelector("#q", { timeout: 8000 });
+await mouse.locator("#q").selectOption("done");
+await mouse.waitForFunction(() => location.search.includes("status=done"), { timeout: 8000 });
+const statuses = await mouse.locator("#main tbody .state").allTextContents();
+check("the status filter narrows the list",
+  statuses.length > 0 && statuses.every((s) => s.trim() === "done"),
+  `${statuses.length} row(s)`);
 
 const next = mouse.locator("#next");
 check("pagination controls are present", await next.count() === 1);

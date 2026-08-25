@@ -1083,21 +1083,21 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## ui-001: Every view has a URL
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-progress
 - **Tier:** 1 (Critical)
 - **Traces:** R64
 - **Scope:** Put the view, the selected product, the filters and the page into the URL, and read them back on load. Browser back and forward move between views. A reporting tool whose findings cannot be sent to somebody is much less useful than one whose can.
 - **Acceptance Criteria:**
-  - [ ] WHEN a view is reached THE SYSTEM SHALL update the URL so that opening it reproduces the view
-  - [ ] WHEN the browser back button is used THE SYSTEM SHALL return to the previous view
-  - [ ] WHEN a URL naming a product that does not exist is opened THE SYSTEM SHALL say so rather than showing an empty screen
+  - [x] WHEN a view is reached THE SYSTEM SHALL update the URL so that opening it reproduces the view
+  - [x] WHEN the browser back button is used THE SYSTEM SHALL return to the previous view
+  - [x] WHEN a URL naming a product that does not exist is opened THE SYSTEM SHALL say so rather than showing an empty screen
 - **Test Strategy:**
   - Browser test: navigate, copy the URL, open it in a fresh page, assert the same view
   - Browser test: back and forward across three views
 - **Dependencies:** none
 - **Rollback Plan:** Stop writing the URL; the in-memory state still drives every view
 - **Risk:** Low — additive to state that already exists
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/ui-001-every-view-has-a-url.md`
 
 ## ui-002: Pointer parity, and a narrow screen
 
@@ -1159,7 +1159,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## docs-006: Requirements for the interface
 
 - **Type:** docs
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 2 (High)
 - **Traces:** R64
 - **Scope:** Give the web interface requirements. The reframed spec has none, so the UI exists and nothing asks it for anything. Replan the two UI increments written against the old product, marking what of them already landed. No code changes.

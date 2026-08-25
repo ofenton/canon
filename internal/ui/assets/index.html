@@ -209,17 +209,71 @@ const ACTIONS = [
   { key: "g c",    name: "Go to conformance",   run: () => go("conformance") },
 ];
 
-function go(view) {
-  state.view = view;
-  state.detail = null;
+// The URL is the view. A reporting tool whose findings cannot be sent to somebody is
+// much less useful than one whose can, so every screen has to survive being copied out
+// of the address bar.
+//
+// Query parameters rather than paths: the UI is served at the root and the API under
+// /api, and a path-based router here would need the server to serve this file for
+// arbitrary paths — more moving parts for a nicer-looking URL.
+function stateToParams() {
+  const q = new URLSearchParams();
+  // A product detail carries none of the list's filters, because it applies none of
+  // them. A URL that names state the view ignores is a URL that lies about itself.
+  if (state.detail) {
+    q.set("product", state.detail);
+    return q;
+  }
+  if (state.view !== "products") q.set("view", state.view);
+  if (state.status) q.set("status", state.status);
+  if (state.blocked) q.set("blocked", "true");
+  if (state.offset) q.set("offset", state.offset);
+  return q;
+}
+
+// syncURL writes the current view to the address bar.
+//
+// push adds a history entry, so browser back undoes the navigation. Filters and paging
+// push too: "back" after narrowing a list should widen it again, which is what people
+// expect and what a replaceState would quietly refuse them.
+function syncURL(push) {
+  const q = stateToParams().toString();
+  const url = location.pathname + (q ? "?" + q : "");
+  if (url === location.pathname + location.search) return;
+  if (push) history.pushState(null, "", url);
+  else history.replaceState(null, "", url);
+}
+
+function applyURL() {
+  const q = new URLSearchParams(location.search);
+  state.detail = q.get("product");
+  state.view = state.detail ? "products" : (q.get("view") ?? "products");
+  state.status = q.get("status") ?? "";
+  state.blocked = q.get("blocked") === "true";
+  state.offset = Number(q.get("offset")) || 0;
   state.cursor = 0;
-  state.offset = 0;
+}
+
+// navigate is the one way a view changes: patch the state, record it, draw it.
+function navigate(patch) {
+  Object.assign(state, patch);
+  state.cursor = 0;
+  syncURL(true);
   render();
+}
+
+function go(view) {
+  navigate({ view, detail: null, offset: 0 });
 }
 
 function back() {
   if (el("help").open) return el("help").close();
-  if (state.detail) { state.detail = null; state.cursor = 0; render(); }
+  // Browser back, so the address bar and the screen never disagree about where you
+  // are. Falls through to leaving the detail view when there is no history to pop.
+  if (state.detail) {
+    if (history.length > 1) history.back();
+    else navigate({ detail: null });
+  }
 }
 
 function rows() { return [...document.querySelectorAll("#main tbody tr")]; }
@@ -235,9 +289,7 @@ function move(step) {
 function open() {
   const row = rows()[state.cursor];
   if (!row?.dataset.product) return;
-  state.detail = row.dataset.product;
-  state.cursor = 0;
-  render();
+  navigate({ detail: row.dataset.product });
 }
 
 let renderSeq = 0;
@@ -333,8 +385,8 @@ async function renderWork(main, seq) {
     `<button class="btn" id="blocked" aria-pressed="${state.blocked}">Blocked only</button>` +
     `<span class="muted" id="count"></span>`;
   main.append(bar);
-  el("q").addEventListener("change", (e) => { state.status = e.target.value; state.offset = 0; render(); });
-  el("blocked").addEventListener("click", () => { state.blocked = !state.blocked; state.offset = 0; render(); });
+  el("q").addEventListener("change", (e) => navigate({ status: e.target.value, offset: 0 }));
+  el("blocked").addEventListener("click", () => navigate({ blocked: !state.blocked, offset: 0 }));
 
   const total = res.body.total ?? 0;
   const shown = res.body.increments?.length ?? 0;
@@ -361,8 +413,8 @@ async function renderWork(main, seq) {
     `<button class="btn" id="prev" ${state.offset === 0 ? "disabled" : ""}>Previous</button>` +
     `<button class="btn" id="next" ${state.offset + shown >= total ? "disabled" : ""}>Next</button>`;
   main.append(pager);
-  el("prev").addEventListener("click", () => { state.offset = Math.max(0, state.offset - state.limit); render(); });
-  el("next").addEventListener("click", () => { state.offset += state.limit; render(); });
+  el("prev").addEventListener("click", () => navigate({ offset: Math.max(0, state.offset - state.limit) }));
+  el("next").addEventListener("click", () => navigate({ offset: state.offset + state.limit }));
 }
 
 const card = (k, v, small) =>
@@ -428,6 +480,15 @@ async function renderConformance(main, seq) {
 async function renderProduct(main, name, seq) {
   const res = await api("/products/" + encodeURIComponent(name));
   if (!current(seq)) return;
+  if (res.body?.error && !res.body.repository) {
+    // Most likely a stale link: a product that was renamed, or removed from the
+    // directory Canon watches. Saying which name failed beats an empty screen.
+    main.innerHTML = `<div class="blank"><h3>No product called ${escape(name)}</h3>
+      <p>It may have been renamed, or removed from the repositories Canon reads.</p>
+      <p><button class="btn" id="to-products">See every product</button></p></div>`;
+    el("to-products").addEventListener("click", () => go("products"));
+    return;
+  }
   if (!res.ok) return fail(main, res);
   const e = res.body;
   const repo = e.repository;
@@ -494,6 +555,12 @@ help.innerHTML = `<div style="padding:1rem;min-width:22rem">
   `</tbody></table><p class="hint"><kbd>Esc</kbd> close</p></div>`;
 document.body.append(help);
 
+// Back and forward move between views, so the address bar and the screen never
+// disagree about where you are.
+window.addEventListener("popstate", () => { applyURL(); render(); });
+
+applyURL();
+syncURL(false);
 say("? for keyboard help · Canon shows what it read; it accepts no writes");
 render();
 </script>
