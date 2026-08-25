@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ofenton/canon/internal/source"
 )
 
 var fixed = time.Date(2026, 8, 25, 9, 0, 0, 0, time.UTC)
@@ -76,7 +78,7 @@ func TestDiscoverFindsProductsByArtifact(t *testing.T) {
 	// Not a product: no ledger.
 	os.MkdirAll(filepath.Join(root, "notes", ".git"), 0o755)
 
-	found, err := Discover(root)
+	found, err := source.Discover(root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +100,7 @@ func TestCatalogueCarriesPurposeAndCounts(t *testing.T) {
 	root := t.TempDir()
 	product(t, root, "widgets", true)
 
-	sources, _ := Discover(root)
+	sources, _ := source.Discover(root)
 	c := New()
 	c.Refresh(sources, now)
 
@@ -125,7 +127,7 @@ func TestRefreshTimeIsRecorded(t *testing.T) {
 	}
 	root := t.TempDir()
 	product(t, root, "widgets", true)
-	sources, _ := Discover(root)
+	sources, _ := source.Discover(root)
 
 	c := New()
 	if !c.RefreshedAt().IsZero() {
@@ -153,7 +155,7 @@ func TestAnUnreadableSourceIsReportedNotDropped(t *testing.T) {
 	product(t, root, "widgets", true)
 	product(t, root, "halfway", false) // files, no commits
 
-	sources, _ := Discover(root)
+	sources, _ := source.Discover(root)
 	if len(sources) != 2 {
 		t.Fatalf("both should be discovered, got %v", sources)
 	}
@@ -192,7 +194,7 @@ func TestRefreshReplaces(t *testing.T) {
 	product(t, root, "gadgets", true)
 
 	c := New()
-	sources, _ := Discover(root)
+	sources, _ := source.Discover(root)
 	c.Refresh(sources, now)
 	if len(c.Entries()) != 2 {
 		t.Fatalf("expected two products")
@@ -226,5 +228,40 @@ func TestReadsDoNotTouchTheSource(t *testing.T) {
 	}
 	if _, ok := c.Entry("Widgets"); !ok {
 		t.Fatal("lookup by name should also answer from memory")
+	}
+}
+
+// AC: WHEN a source cannot be read THE SYSTEM SHALL report which one and ingest the rest.
+//
+// At the catalogue rather than in source, because the requirement is about what a person
+// sees. A source that failed has to survive as far as the API, and the way it does that
+// is by being an entry — the same shape an unreadable repository already takes.
+func TestAFailedSourceAppearsRatherThanVanishing(t *testing.T) {
+	root := t.TempDir()
+	product(t, root, "orders", true)
+
+	c := New()
+	c.RefreshFrom(source.Resolve([]source.Source{
+		{Line: "/no/such/place", Kind: source.Directory},
+		{Line: root, Kind: source.Directory},
+	}), now)
+
+	entries := c.Entries()
+	if len(entries) != 2 {
+		t.Fatalf("got %d entries, want the good source and the bad one", len(entries))
+	}
+	var failed, read int
+	for _, e := range entries {
+		if e.Err != "" {
+			failed++
+			if !strings.Contains(e.Err, "/no/such/place") {
+				t.Errorf("the failure does not name its source: %s", e.Err)
+			}
+			continue
+		}
+		read++
+	}
+	if failed != 1 || read != 1 {
+		t.Fatalf("%d failed and %d read; one bad source must not empty the catalogue", failed, read)
 	}
 }

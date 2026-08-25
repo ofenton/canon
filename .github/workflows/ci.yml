@@ -77,7 +77,7 @@ jobs:
         run: |
           make build
           ./bin/canon catalogue .
-          ./bin/canon serve -addr :8093 -products . -refresh 0 &
+          ./bin/canon serve -addr :8093 -source . -refresh 0 &
           for i in $(seq 1 30); do
             curl -sf http://localhost:8093/api/products >/dev/null && break
             sleep 1

@@ -12,6 +12,7 @@ import (
 	"github.com/ofenton/canon/internal/api"
 	"github.com/ofenton/canon/internal/catalogue"
 	"github.com/ofenton/canon/internal/mcp"
+	"github.com/ofenton/canon/internal/source"
 )
 
 // version is set at build time via -ldflags.
@@ -24,7 +25,7 @@ It authors nothing: a repository owns its own work, and this reads it.
 
 usage:
   canon version                 print the build version
-  canon catalogue <root>        list every product found under a directory
+  canon catalogue               list every product Canon can find
   canon ingest <path>           read one repository and print what was derived
   canon flow <path>             report how long work actually took
   canon conform <path>          report how faithfully a repository follows the template
@@ -46,11 +47,15 @@ conform flags:
 
 serve flags:
   -addr string      address to listen on (default ":8080")
-  -products string  directory to discover products under (default ".")
   -refresh duration how often to re-read the repositories (default 5m, 0 disables)
 
-mcp flags:
-  -products string  directory to discover products under (default ".")
+where to look (catalogue, serve and mcp):
+  -source string    a place to look; repeatable
+  -sources string   a file listing places to look (default canon.sources if present)
+
+A source is a place, not a repository to register: a local directory scanned one level
+deep, a local repository, or — once built — a repository to fetch and an organisation to
+expand. With no source given, Canon reads the working directory.
 
 A product is any repository containing specs/increment-plan.md. There is nothing to
 register and nothing to configure: adopting Canon is committing that file.
@@ -93,36 +98,33 @@ func run(args []string) error {
 }
 
 // load builds a server with its catalogue already filled.
-func load(root string) (*api.Server, []string, error) {
+func load(sources []source.Source) (*api.Server, []source.Result) {
 	srv := api.New(catalogue.New(), time.Now)
-	sources, err := catalogue.Discover(root)
-	if err != nil {
-		return nil, nil, err
-	}
-	srv.Catalogue().Refresh(sources, time.Now)
-	return srv, sources, nil
+	results := source.Resolve(sources)
+	srv.Catalogue().RefreshFrom(results, time.Now)
+	return srv, results
 }
 
 // serve runs the read surface over HTTP.
 func serve(args []string) error {
 	fs := flag.NewFlagSet("serve", flag.ContinueOnError)
 	addr := fs.String("addr", ":8080", "address to listen on")
-	root := fs.String("products", ".", "directory to discover products under")
 	every := fs.Duration("refresh", 5*time.Minute, "how often to re-read the repositories")
+	sources := sourceFlags(fs)
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-
-	srv, sources, err := load(*root)
+	list, err := sources()
 	if err != nil {
 		return err
 	}
 
+	srv, results := load(list)
+
 	fmt.Printf("canon %s listening on %s\n", version, *addr)
-	fmt.Printf("  products %d discovered under %s\n", len(sources), *root)
-	if len(sources) == 0 {
-		fmt.Printf("           nothing found — a product is a repository with %s\n",
-			"specs/increment-plan.md")
+	report(results)
+	if len(source.Paths(results)) == 0 {
+		fmt.Printf("  nothing found — a product is a repository with %s\n", "specs/increment-plan.md")
 	}
 
 	// Re-reading on a timer is what stops a long-running instance quietly showing
@@ -132,9 +134,7 @@ func serve(args []string) error {
 		fmt.Printf("  refresh  every %s\n", *every)
 		go func() {
 			for range time.Tick(*every) {
-				if found, err := catalogue.Discover(*root); err == nil {
-					srv.Catalogue().Refresh(found, time.Now)
-				}
+				srv.Catalogue().RefreshFrom(source.Resolve(list), time.Now)
 			}
 		}()
 	}
@@ -154,14 +154,15 @@ func serve(args []string) error {
 // caused here, so there is nobody to record.
 func mcpCmd(args []string) error {
 	fs := flag.NewFlagSet("mcp", flag.ContinueOnError)
-	root := fs.String("products", ".", "directory to discover products under")
+	sources := sourceFlags(fs)
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-
-	srv, _, err := load(*root)
+	list, err := sources()
 	if err != nil {
 		return err
 	}
+
+	srv, _ := load(list)
 	return mcp.NewServer(srv.APIHandler(), srv.Routes(), "").Serve(os.Stdin, os.Stdout)
 }

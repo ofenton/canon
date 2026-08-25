@@ -37,15 +37,20 @@ git. See [ADR-0009](decisions/0009-canon-as-aggregator.md).
 Measured, smallest dependency first. A package may only import packages above it in this table;
 that ordering is the architecture.
 
+Lines are non-test Go only, `find internal/<pkg> -name '*.go' ! -name '*_test.go'`. Every figure here
+had drifted by `feat-040` — `ingest` read 754 against 684, `api` 476 against 319 — because nothing
+checks them. They are measured again below; they will drift again until something does.
+
 | Package | Lines | Responsibility | Imports |
 |---|---:|---|---|
-| `internal/ingest` | 754 | Reads a repository: parses the ledger and spec, derives status history from the ledger's commit history | — |
-| `internal/ui` | 111 | Serves one embedded HTML file | — |
-| `internal/metrics` | 348 | Flow measured from derived transitions | `ingest` |
-| `internal/conform` | 322 | Runs the template's rules and reports what fails | `ingest` |
-| `internal/catalogue` | 290 | Discovers repositories and holds what was read | `ingest`, `conform` |
-| `internal/api` | 476 | The read surface, and pagination | `catalogue`, `conform`, `ingest`, `metrics`, `ui` |
-| `internal/mcp` | 298 | MCP over stdio, **derived from the API's route table** | — (takes routes as data) |
+| `internal/ingest` | 684 | Reads a repository: parses the ledger and spec, derives status history from the ledger's commit history | — |
+| `internal/ui` | 33 | Serves one embedded HTML file | — |
+| `internal/metrics` | 322 | Flow measured from derived transitions | `ingest` |
+| `internal/conform` | 247 | Runs the template's rules and reports what fails | `ingest` |
+| `internal/source` | 231 | Says where Canon looks: parses the list of sources and resolves each to repositories | `ingest` |
+| `internal/catalogue` | 146 | Holds what was read from each repository, and when | `ingest`, `conform`, `source` |
+| `internal/api` | 319 | The read surface, and pagination | `catalogue`, `conform`, `ingest`, `metrics`, `ui` |
+| `internal/mcp` | 325 | MCP over stdio, **derived from the API's route table** | — (takes routes as data) |
 | `cmd/canon` | 446 | `catalogue`, `ingest`, `flow`, `conform`, `serve`, `mcp` | all |
 
 **3,045 non-test lines, down from 14,783.** The event log, the projection, schema enforcement,
@@ -71,7 +76,7 @@ Canon stores none of it.
 ## Runtime
 
 ```bash
-canon serve -products ~/code -addr :8080 -refresh 5m
+canon serve -source ~/code -addr :8080 -refresh 5m
 ```
 
 One process, one port, no database, no configuration file. Reads never touch git: the catalogue is
@@ -125,6 +130,8 @@ those are the ones that survive a careless change.
 | A dependency outside the ledger is not a block | `TestADanglingDependencyIsNotABlock` |
 | A dependency cycle is found and reported once | `TestCyclesAreFound`, `TestACycleIsReportedOnce` |
 | Every action works by keyboard and by pointer | `e2e/keyboard.mjs` — two runs, one sending no clicks and one sending no keys |
+| One unreachable source never empties the catalogue | `internal/catalogue.TestAFailedSourceAppearsRatherThanVanishing` — a failed source survives as an entry |
+| The list of sources has no schema | `internal/source.TestTheListHasNoSchema` — a nested key must parse as two opaque lines, and the package may not import a decoder |
 | The repository holds no state and no configuration | `cmd/canon.TestTheRepositoryHoldsNoStateOrConfiguration` — reads `git ls-files`, so a claim in the README is not the only guard |
 | Every view has a URL that reproduces it | `e2e/urls.mjs` — a copied URL is opened in a fresh page and compared |
 | Every piece of view state reaches the URL | `internal/ui.TestEveryPieceOfViewStateIsInTheURL` — parses the state object, so new state fails by default |
