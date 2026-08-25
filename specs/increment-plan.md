@@ -1044,7 +1044,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-039: Read-only agent surface
 
 - **Type:** feature
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 2 (High)
 - **Traces:** R60, R63
 - **Scope:** Restore MCP parity against the reduced route table, and show what is blocked and why from dependencies declared in ingested ledgers.
