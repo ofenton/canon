@@ -987,7 +987,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-037: Conformance, reported not enforced
 
 - **Type:** feature
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 1 (Critical)
 - **Traces:** R54, R61, R62
 - **Scope:** Run the template's own rules across every ingested repository and report what fails, per repository, without refusing anything. A repository that does not conform is reported and skipped, never fatal to the rest.
@@ -1005,22 +1005,22 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-038: A catalogue of products
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-review
 - **Tier:** 2 (High)
 - **Traces:** R55, R57, R58
 - **Scope:** Discover repositories across an organisation, present each as a product with its purpose taken from `specs/product.md`, and state when each was last ingested so a stale view reads as stale.
 - **Acceptance Criteria:**
-  - [ ] WHEN given an organisation THE SYSTEM SHALL discover repositories containing a ledger and list them as products
-  - [ ] THE SYSTEM SHALL show each product's purpose from its own spec
-  - [ ] THE SYSTEM SHALL state when each repository was last ingested
-  - [ ] THE SYSTEM SHALL answer without cloning anything at request time
+  - [x] WHEN given an organisation THE SYSTEM SHALL discover repositories containing a ledger and list them as products
+  - [x] THE SYSTEM SHALL show each product's purpose from its own spec
+  - [x] THE SYSTEM SHALL state when each repository was last ingested
+  - [x] THE SYSTEM SHALL answer without cloning anything at request time
 - **Test Strategy:**
   - Browser test over several ingested fixtures, by mouse and by keyboard
   - Assert no network call happens during a read
 - **Dependencies:** feat-035
 - **Rollback Plan:** Serve the single-repository view; ingest is unaffected
 - **Risk:** Low — presentation over ingested state
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/feat-038-a-catalogue-of-products.md`
 
 ## cut-001: Delete the write path
 

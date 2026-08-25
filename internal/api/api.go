@@ -22,6 +22,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ofenton/canon/internal/catalogue"
 	"github.com/ofenton/canon/internal/enforce"
 	"github.com/ofenton/canon/internal/event"
 	"github.com/ofenton/canon/internal/metrics"
@@ -36,6 +37,11 @@ const ActorHeader = "X-Canon-Actor"
 
 // Server exposes Canon over HTTP.
 type Server struct {
+	// products is the catalogue of ingested repositories. Reads answer from it and
+	// never touch git, which is what R57 asks for: an aggregator that clones on
+	// request is a proxy with worse latency.
+	products *catalogue.Catalogue
+
 	enforcer *enforce.Enforcer
 	log      *event.Store
 	schema   *schema.Schema
@@ -54,8 +60,12 @@ func New(s *schema.Schema, log *event.Store, e *enforce.Enforcer, now func() tim
 	if now == nil {
 		now = time.Now
 	}
-	return &Server{enforcer: e, log: log, schema: s, now: now, view: projection.New(log)}
+	return &Server{enforcer: e, log: log, schema: s, now: now,
+		view: projection.New(log), products: catalogue.New()}
 }
+
+// Catalogue returns the server's product catalogue, so a caller can refresh it.
+func (s *Server) Catalogue() *catalogue.Catalogue { return s.products }
 
 // Routes is the complete API surface, in one place.
 //
@@ -63,6 +73,8 @@ func New(s *schema.Schema, log *event.Store, e *enforce.Enforcer, now func() tim
 // can enumerate it, and so a reader can see the whole interface at once.
 func (s *Server) Routes() map[string]http.HandlerFunc {
 	return map[string]http.HandlerFunc{
+		"GET /api/products":                         s.listProducts,
+		"GET /api/products/{name}":                  s.getProduct,
 		"GET /api/schema":                           s.getSchema,
 		"GET /api/schema/usage":                     s.schemaUsage,
 		"GET /api/events":                           s.listEvents,
@@ -1130,6 +1142,58 @@ func (s *Server) revokeTokens(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// listProducts returns the catalogue: every product Canon knows about.
+//
+// Answered entirely from what was ingested. Nothing here reads git, so the response
+// is as current as the last refresh and says so.
+func (s *Server) listProducts(w http.ResponseWriter, r *http.Request) {
+	entries := s.products.Entries()
+	out := make([]map[string]any, 0, len(entries))
+	for _, e := range entries {
+		row := map[string]any{
+			"name":         e.Name(),
+			"source":       e.Source,
+			"refreshed_at": e.RefreshedAt,
+		}
+		if e.Err != "" {
+			row["error"] = e.Err
+			out = append(out, row)
+			continue
+		}
+		var open, done int
+		for _, inc := range e.Repository.Increments {
+			if inc.Status == "done" || inc.Status == "abandoned" {
+				done++
+			} else {
+				open++
+			}
+		}
+		row["purpose"] = e.Repository.Purpose
+		row["head"] = e.Repository.Head
+		row["remote"] = e.Repository.Remote
+		row["open"] = open
+		row["done"] = done
+		row["conforms"] = e.Report.Conforms()
+		row["findings"] = len(e.Report.Findings)
+		out = append(out, row)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"products":     out,
+		"refreshed_at": s.products.RefreshedAt(),
+	})
+}
+
+// getProduct returns one product with its increments and conformance report.
+func (s *Server) getProduct(w http.ResponseWriter, r *http.Request) {
+	e, ok := s.products.Entry(r.PathValue("name"))
+	if !ok {
+		writeError(w, http.StatusNotFound,
+			fmt.Errorf("no product called %q; GET /api/products lists them", r.PathValue("name")))
+		return
+	}
+	writeJSON(w, http.StatusOK, e)
 }
 
 // at resolves the instant a write should be recorded at.
