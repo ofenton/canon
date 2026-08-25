@@ -1140,14 +1140,14 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-040: A list of the repositories to track
 
 - **Type:** feature
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 1 (Critical)
 - **Traces:** R70, R71
 - **Scope:** Read sources from a file and from `-source` flags: a local directory, a local repository, and lines Canon does not yet know how to fetch, which it reports rather than ignores. Directory scanning becomes one source kind rather than the entry point.
 - **Acceptance Criteria:**
-  - [ ] WHEN given a list of sources THE SYSTEM SHALL ingest every repository each one names
-  - [ ] WHEN a source cannot be read THE SYSTEM SHALL report which one and ingest the rest
-  - [ ] THE SYSTEM SHALL parse the list without a schema, so it cannot become configuration
+  - [x] WHEN given a list of sources THE SYSTEM SHALL ingest every repository each one names
+  - [x] WHEN a source cannot be read THE SYSTEM SHALL report which one and ingest the rest
+  - [x] THE SYSTEM SHALL parse the list without a schema, so it cannot become configuration
 - **Test Strategy:**
   - Unit over a list mixing a directory, a repository and an unreadable entry
   - A test asserting one bad source does not empty the catalogue
