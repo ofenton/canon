@@ -1025,7 +1025,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## cut-001: Delete the write path
 
 - **Type:** refactor
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 1 (Critical)
 - **Traces:** R59
 - **Scope:** Remove everything that exists to defend writes Canon no longer accepts: authorisation, authentication, the actor registry, proposals, boards, backdating, checklists, dependency and commit-link writes, and the write half of the API and CLI. Reads become open to any authenticated member. Roughly 5,000 lines.
