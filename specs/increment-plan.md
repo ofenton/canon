@@ -1197,7 +1197,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## ui-002: Pointer parity, and a narrow screen
 
 - **Type:** feature
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 2 (High)
 - **Traces:** R65, R67
 - **Scope:** Give every registry action a pointer affordance, and make the layout work below 40rem. A structural test asserts the parity so a new action cannot be keyboard-only by omission.
@@ -1216,7 +1216,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## ui-003: Search across every product
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-progress
 - **Tier:** 2 (High)
 - **Traces:** R66
 - **Scope:** Search increment titles, ids and field values across every ingested product, served from `/api/increments?q=`. One input, no per-field controls: a filter bar with a control per field is the accretion this product refuses.
@@ -1230,7 +1230,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Dependencies:** ui-001
 - **Rollback Plan:** Remove the parameter; the status and blocked filters are unaffected
 - **Risk:** Low — a read filter over data already in memory
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/ui-003-search.md`
 
 ## ui-004: What changed recently
 

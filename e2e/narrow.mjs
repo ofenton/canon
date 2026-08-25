@@ -102,6 +102,50 @@ check("cells carry their column name", labelled.labelled === labelled.cells,
   `${labelled.labelled}/${labelled.cells}`);
 check("the row stacks rather than scrolling", labelled.stacked);
 
+// --- search --------------------------------------------------------------------
+// One input, across every product, and in the URL — the state guard in internal/ui
+// refuses a query that is not, which is why ui-001 came first.
+const find = await browser.newPage();
+find.on("pageerror", (e) => errors.push(String(e)));
+await find.goto(base + "/?view=work");
+await find.waitForSelector("#search", { timeout: 10000 });
+
+const before = Number((await find.locator("#count").textContent()).match(/of (\d+)/)?.[1] ?? 0);
+await find.locator("#search").type("revert", { delay: 20 });
+await find.waitForFunction(() => location.search.includes("q=revert"), { timeout: 8000 });
+const after = Number((await find.locator("#count").textContent()).match(/of (\d+)/)?.[1] ?? 0);
+check("searching narrows the list", after > 0 && after < before, `${before} → ${after}`);
+check("the query is in the URL", find.url().includes("q=revert"));
+
+// Typing must not take the caret out of the box: the toolbar is rebuilt on every render,
+// so the caret is briefly gone by construction and has to come back. Waiting rather than
+// sampling — an immediate check reads the moment mid-render and fails a working build.
+const keptFocus = await find.waitForFunction(
+  () => document.activeElement?.id === "search", null, { timeout: 4000 })
+  .then(() => true).catch(() => false);
+check("the search box gets the caret back after the rebuild", keptFocus);
+
+// Refining from a later page must not land on an empty one.
+await find.goto(base + "/?view=work&offset=50");
+await find.waitForSelector("#search", { timeout: 8000 });
+await find.locator("#search").type("revert", { delay: 20 });
+await find.waitForFunction(() => location.search.includes("q=revert"), { timeout: 8000 });
+check("refining returns to the first page", !find.url().includes("offset="), new URL(find.url()).search);
+check("and shows results rather than nothing",
+  (await find.locator("#main tbody tr").count()) > 0);
+
+const shouted = await browser.newPage();
+await shouted.goto(base + "/?view=work&q=REVERT");
+await shouted.waitForSelector("#main tbody tr, #main .blank", { timeout: 10000 });
+check("case does not matter", (await shouted.locator("#main tbody tr").count()) > 0);
+await shouted.close();
+
+await find.goto(base + "/?view=work&q=zzzz-no-such-thing");
+await find.waitForSelector("#main .blank", { timeout: 8000 });
+check("a search with no results says what was searched",
+  (await find.locator("#main .blank").textContent()).includes("every product"));
+await find.close();
+
 check("no uncaught exceptions", errors.length === 0, errors[0]);
 await browser.close();
 console.log(failures.length ? `\n  ${failures.length} failure(s)` : "\n  all checks passed");

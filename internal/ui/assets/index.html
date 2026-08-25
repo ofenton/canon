@@ -87,6 +87,9 @@
   .state.closed { color:var(--closed); background:var(--closed-bg); border-color:var(--closed); }
 
   .toolbar { display:flex; gap:.5rem; align-items:center; margin-bottom:1rem; flex-wrap:wrap; }
+  #search { font:inherit; padding:.35rem .6rem; border:1px solid var(--line);
+    border-radius:var(--radius); background:var(--bg); color:var(--fg); min-width:16rem; flex:1 1 16rem; }
+  #search:focus { outline:2px solid var(--accent); outline-offset:-1px; }
   input, select { font:inherit; padding:.4rem .7rem; border:1px solid var(--line);
                   border-radius:var(--radius); background:var(--bg); color:var(--fg); }
   input:focus, select:focus { outline:none; border-color:var(--accent);
@@ -189,7 +192,7 @@
 // Canon shows what it derived from repositories. There is nothing to write here, so
 // there is no create form, no editing and no undo: every screen is a view of somebody
 // else's git history.
-const state = { view: "products", detail: null, cursor: 0, status: "", blocked: false, offset: 0, limit: 50 };
+const state = { view: "products", detail: null, cursor: 0, query: "", status: "", blocked: false, offset: 0, limit: 50 };
 
 const el = (id) => document.getElementById(id);
 const escape = (s) => String(s ?? "").replace(/[&<>"']/g,
@@ -278,6 +281,7 @@ function stateToParams() {
     return q;
   }
   if (state.view !== "products") q.set("view", state.view);
+  if (state.query) q.set("q", state.query);
   if (state.status) q.set("status", state.status);
   if (state.blocked) q.set("blocked", "true");
   if (state.offset) q.set("offset", state.offset);
@@ -301,6 +305,7 @@ function applyURL() {
   const q = new URLSearchParams(location.search);
   state.detail = q.get("product");
   state.view = state.detail ? "products" : (q.get("view") ?? "products");
+  state.query = q.get("q") ?? "";
   state.status = q.get("status") ?? "";
   state.blocked = q.get("blocked") === "true";
   state.offset = Number(q.get("offset")) || 0;
@@ -401,7 +406,10 @@ function table(main, headers, entries) {
   surface.className = "surface";
   surface.append(t);
   main.append(surface);
-  rows()[state.cursor]?.focus();
+  // Focusing the selected row is how the keyboard stays usable across a re-render. It is
+  // also how the caret gets pulled out of the search box mid-word, because searching
+  // re-renders on every pause. Whoever has the caret keeps it.
+  if (caretAt === null) rows()[state.cursor]?.focus();
 }
 
 async function renderProducts(main, seq) {
@@ -434,6 +442,7 @@ async function renderProducts(main, seq) {
 
 async function renderWork(main, seq) {
   const q = new URLSearchParams();
+  if (state.query) q.set("q", state.query);
   if (state.status) q.set("status", state.status);
   if (state.blocked) q.set("blocked", "true");
   q.set("limit", state.limit);
@@ -445,6 +454,8 @@ async function renderWork(main, seq) {
   const bar = document.createElement("div");
   bar.className = "toolbar";
   bar.innerHTML =
+    `<input id="search" type="search" placeholder="Search every product"
+            value="${escape(state.query)}" autocomplete="off" spellcheck="false">` +
     `<select id="q"><option value="">every status</option>` +
     ["planned", "approved", "in-progress", "in-review", "done", "abandoned"]
       .map((s) => `<option ${s === state.status ? "selected" : ""}>${s}</option>`).join("") +
@@ -452,6 +463,25 @@ async function renderWork(main, seq) {
     `<button class="btn" id="blocked" aria-pressed="${state.blocked}">Blocked only</button>` +
     `<span class="muted" id="count"></span>`;
   main.append(bar);
+  // Typing re-renders, which rebuilds this toolbar and would take the caret out of the
+  // box mid-word. The debounce keeps that to once per pause, and restoring focus and
+  // the caret position afterwards makes the rebuild invisible.
+  const search = el("search");
+  if (caretAt !== null) {
+    search.focus();
+    search.setSelectionRange(caretAt, caretAt);
+  }
+  search.addEventListener("input", (e) => {
+    caretAt = e.target.selectionStart;
+    const value = e.target.value;
+    clearTimeout(searching);
+    // Once per pause, not once per keystroke: each one is a request and a re-render.
+    searching = setTimeout(() => {
+      // Back to the first page. A refined search holding an old offset pages into
+      // nothing, which reads as "no results" for a search that has plenty.
+      navigate({ query: value, offset: 0 });
+    }, 250);
+  });
   el("q").addEventListener("change", (e) => navigate({ status: e.target.value, offset: 0 }));
   el("blocked").addEventListener("click", () => navigate({ blocked: !state.blocked, offset: 0 }));
 
@@ -462,7 +492,9 @@ async function renderWork(main, seq) {
 
   if (!shown) {
     main.append(Object.assign(document.createElement("div"),
-      { className: "blank", innerHTML: "<h3>Nothing matches</h3>" }));
+      { className: "blank", innerHTML: state.query
+        ? `<h3>Nothing matches ${escape(state.query)}</h3><p>Searched every product Canon has read.</p>`
+        : "<h3>Nothing matches</h3>" }));
     return;
   }
   table(main, ["Product", "ID", "Title", "Status", "Waiting on"], res.body.increments.map((i) => ({
@@ -591,6 +623,17 @@ async function renderProduct(main, name, seq) {
 
 // Keyboard dispatch. Chords like "g p" wait briefly for their second key.
 let pending = "";
+let searching = 0;
+// Where the caret was in the search box, or null when the box is not being used.
+//
+// Kept outside render because the toolbar is rebuilt every time, and the rebuild would
+// otherwise take the caret out of the box mid-word. Restoring inside the builder rather
+// than after navigate() is what makes it reliable: render is asynchronous, so anything
+// that refocuses immediately refocuses the input that is about to be replaced.
+let caretAt = null;
+document.addEventListener("focusin", (ev) => {
+  if (ev.target.id !== "search") caretAt = null;
+});
 document.addEventListener("keydown", (ev) => {
   if (["INPUT", "SELECT", "TEXTAREA"].includes(ev.target.tagName) && ev.key !== "Escape") return;
   const combo = pending ? pending + " " + ev.key : ev.key;
