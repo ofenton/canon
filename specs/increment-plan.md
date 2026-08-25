@@ -946,6 +946,138 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Risk:** Low — a decision document, though it proposes deleting roughly half the codebase
 - **Evidence:** see `specs/increments/docs-004-adr-0009-canon-as-aggregator.md`
 
+## feat-035: Ingest a repository
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 1 (Critical)
+- **Traces:** R52, R53
+- **Scope:** Read a repository that follows the template — clone or fetch, parse `specs/product.md` and `specs/increment-plan.md`, and derive each increment's status history from the commit history of the ledger file. Additive: nothing existing is removed, so main keeps working.
+- **Acceptance Criteria:**
+  - [ ] WHEN given a repository containing `specs/increment-plan.md` THE SYSTEM SHALL ingest every increment without per-repository configuration
+  - [ ] THE SYSTEM SHALL derive each status transition and its timestamp from the ledger file's commit history rather than approximating it
+  - [ ] WHEN a repository is ingested twice THE SYSTEM SHALL produce the same result
+- **Test Strategy:**
+  - Ingest this repository and compare the derived transitions against `git log -p specs/increment-plan.md`
+  - Ingest twice, assert the projection fingerprint matches
+- **Dependencies:** none
+- **Rollback Plan:** Remove the ingest command; nothing else depends on it yet
+- **Risk:** Medium — the parser meets other people's markdown, and being wrong quietly is the failure mode
+- **Evidence:** _(filled in at verify)_
+
+## feat-036: Flow measured from real transitions
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 1 (Critical)
+- **Traces:** R56
+- **Scope:** Feed the existing metrics from ingested transitions instead of authored events, and retire `scripts/import-ledger.py`, whose approximation was measured at roughly thirty times out.
+- **Acceptance Criteria:**
+  - [ ] THE SYSTEM SHALL report cycle and lead time from transitions derived from commit history
+  - [ ] THE SYSTEM SHALL report no estimate of any kind
+  - [ ] WHEN two status changes share a commit THE SYSTEM SHALL report them at the same instant rather than inventing an interval
+- **Test Strategy:**
+  - Compare reported percentiles against the same figures computed directly from `git log`
+  - The existing estimation-refusal tests must still pass
+- **Dependencies:** feat-035
+- **Rollback Plan:** Point metrics back at the projection's authored transitions
+- **Risk:** Low — the metrics code is unchanged; only its input changes
+- **Evidence:** _(filled in at verify)_
+
+## feat-037: Conformance, reported not enforced
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 1 (Critical)
+- **Traces:** R54, R61, R62
+- **Scope:** Run the template's own rules across every ingested repository and report what fails, per repository, without refusing anything. A repository that does not conform is reported and skipped, never fatal to the rest.
+- **Acceptance Criteria:**
+  - [ ] WHEN a repository fails a rule THE SYSTEM SHALL name the rule and the increment, and continue with the others
+  - [ ] WHEN an increment traces to a requirement that does not exist THE SYSTEM SHALL report it against that repository
+  - [ ] THE SYSTEM SHALL report the proportion of commits carrying no increment reference, per repository
+- **Test Strategy:**
+  - Fixtures: a conforming repository, one with an illegal status, one with a dangling trace, one with no ledger at all
+- **Dependencies:** feat-035
+- **Rollback Plan:** Stop reporting conformance; ingest is unaffected
+- **Risk:** Low — read-only
+- **Evidence:** _(filled in at verify)_
+
+## feat-038: A catalogue of products
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 2 (High)
+- **Traces:** R55, R57, R58
+- **Scope:** Discover repositories across an organisation, present each as a product with its purpose taken from `specs/product.md`, and state when each was last ingested so a stale view reads as stale.
+- **Acceptance Criteria:**
+  - [ ] WHEN given an organisation THE SYSTEM SHALL discover repositories containing a ledger and list them as products
+  - [ ] THE SYSTEM SHALL show each product's purpose from its own spec
+  - [ ] THE SYSTEM SHALL state when each repository was last ingested
+  - [ ] THE SYSTEM SHALL answer without cloning anything at request time
+- **Test Strategy:**
+  - Browser test over several ingested fixtures, by mouse and by keyboard
+  - Assert no network call happens during a read
+- **Dependencies:** feat-035
+- **Rollback Plan:** Serve the single-repository view; ingest is unaffected
+- **Risk:** Low — presentation over ingested state
+- **Evidence:** _(filled in at verify)_
+
+## cut-001: Delete the write path
+
+- **Type:** refactor
+- **Status:** approved
+- **Tier:** 1 (Critical)
+- **Traces:** R59
+- **Scope:** Remove everything that exists to defend writes Canon no longer accepts: authorisation, authentication, the actor registry, proposals, boards, backdating, checklists, dependency and commit-link writes, and the write half of the API and CLI. Reads become open to any authenticated member. Roughly 5,000 lines.
+- **Acceptance Criteria:**
+  - [ ] THE SYSTEM SHALL serve every read to any member of the organisation with no per-team visibility rules
+  - [ ] THE SYSTEM SHALL expose no route that writes an issue
+  - [ ] THE SYSTEM SHALL continue to pass every read-path test unchanged
+- **Test Strategy:**
+  - A structural test asserting no write route exists in the route table
+  - The read surface, keyboard suite and MCP parity tests must pass unchanged
+- **Dependencies:** feat-035, feat-036, feat-037, feat-038
+- **Rollback Plan:** Revert the commit; the deletion is one change and touches nothing that ingest depends on
+- **Risk:** High — the largest single change in the project, and the risk is deleting something a read path quietly needed
+- **Evidence:** _(filled in at verify)_
+
+## feat-039: Read-only agent surface
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 2 (High)
+- **Traces:** R60, R63
+- **Scope:** Restore MCP parity against the reduced route table, and show what is blocked and why from dependencies declared in ingested ledgers.
+- **Acceptance Criteria:**
+  - [ ] THE SYSTEM SHALL offer agents over MCP exactly the routes it offers humans over HTTP
+  - [ ] WHERE a ledger declares dependencies THE SYSTEM SHALL show what is blocked and by what
+- **Test Strategy:**
+  - The existing parity test, against the reduced surface
+  - Fixture with a declared dependency chain, including a cycle
+- **Dependencies:** cut-001
+- **Rollback Plan:** Leave the MCP surface as it is
+- **Risk:** Low — the parity test is the guard
+- **Evidence:** _(filled in at verify)_
+
+## docs-005: Reframe the product spec
+
+- **Type:** docs
+- **Status:** in-review
+- **Tier:** 1 (Critical)
+- **Traces:** R52
+- **Scope:** Rewrite `specs/product.md` for Canon as an aggregator, and plan the increments that deliver it. The requirements delivered under the previous framing are kept, marked superseded, because 43 increments trace to them. No code changes.
+- **Acceptance Criteria:**
+  - [x] THE SYSTEM SHALL state the new framing and why it changed, with the evidence that changed it
+  - [x] THE SYSTEM SHALL preserve every requirement that a delivered increment traces to
+  - [x] THE SYSTEM SHALL state what the reframe gives up, not only what it gains
+- **Test Strategy:**
+  - `check-traceability.py` must still resolve every trace from every delivered increment
+  - Every new Must requirement must be claimed by a planned increment
+- **Dependencies:** none
+- **Rollback Plan:** Restore the previous `specs/product.md` from git
+- **Risk:** Medium — a spec nobody rereads is how a project drifts back to what it was
+- **Evidence:** see `specs/increments/docs-005-reframe-the-product-spec.md`
+
 ## Sequencing
 
 | Day | Increments | Milestone |
