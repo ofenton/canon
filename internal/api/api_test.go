@@ -303,3 +303,67 @@ func userNamed(path []string) bool {
 	}
 	return false
 }
+
+// AC: WHEN a person submits a word THE SYSTEM SHALL return matching increments from every
+// product.
+//
+// AC: THE SYSTEM SHALL match without regard to case.
+func TestSearchReadsEveryFieldNotJustTheTitle(t *testing.T) {
+	_, h := server(t)
+
+	for _, tc := range []struct {
+		query, why string
+		want       int
+	}{
+		{"reindex", "a word in a title", 1},
+		{"REINDEX", "the same word shouted; nobody types things the way they are written", 1},
+		{"feat-002", "an id", 1},
+		{"cache", "a word in one title and one scope", 1},
+		{"widgets", "the product's name", 2},
+		{"in-progress", "a status", 1},
+		{"revert", "a rollback plan — a field the template does not fix", 2},
+		{"nothing-matches-this", "a word nobody wrote", 0},
+	} {
+		_, body := get(t, h, "/api/increments?q="+tc.query)
+		if got := int(body["total"].(float64)); got != tc.want {
+			t.Errorf("q=%q matched %d, want %d (%s)", tc.query, got, tc.want, tc.why)
+		}
+	}
+}
+
+// AC: WHEN a search is refined THE SYSTEM SHALL return to the first page rather than an
+// empty one.
+//
+// The server's half: a narrowed search must report the total it actually found, or a UI
+// holding an old offset pages into nothing.
+func TestSearchReportsItsOwnTotal(t *testing.T) {
+	_, h := server(t)
+
+	_, all := get(t, h, "/api/increments")
+	_, narrowed := get(t, h, "/api/increments?q=reindex")
+	if narrowed["total"].(float64) >= all["total"].(float64) {
+		t.Fatalf("a search did not narrow anything: %v of %v", narrowed["total"], all["total"])
+	}
+	_, past := get(t, h, "/api/increments?q=reindex&offset=50")
+	if n := len(past["increments"].([]any)); n != 0 {
+		t.Errorf("offset past a narrowed result returned %d rows", n)
+	}
+	if past["total"].(float64) != narrowed["total"].(float64) {
+		t.Errorf("total changed with offset: %v then %v", narrowed["total"], past["total"])
+	}
+}
+
+// Search spans products, which is the question no single repository can answer.
+func TestSearchSpansEveryProduct(t *testing.T) {
+	_, h := server(t)
+	_, body := get(t, h, "/api/increments?q=e")
+	rows, _ := body["increments"].([]any)
+	if len(rows) == 0 {
+		t.Fatal("nothing matched a letter that appears everywhere")
+	}
+	for _, r := range rows {
+		if r.(map[string]any)["product"] == nil {
+			t.Fatal("a result does not say which product it came from")
+		}
+	}
+}

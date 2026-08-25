@@ -49,7 +49,7 @@ checks them. They are measured again below; they will drift again until somethin
 | `internal/conform` | 247 | Runs the template's rules and reports what fails | `ingest` |
 | `internal/source` | 580 | Says where Canon looks: parses the list, expands organisations, fetches into the cache | `ingest` |
 | `internal/catalogue` | 156 | Holds what was read from each repository, and when | `ingest`, `conform`, `source` |
-| `internal/api` | 325 | The read surface, and pagination | `catalogue`, `conform`, `ingest`, `metrics`, `ui` |
+| `internal/api` | 371 | The read surface, and pagination | `catalogue`, `conform`, `ingest`, `metrics`, `ui` |
 | `internal/mcp` | 325 | MCP over stdio, **derived from the API's route table** | — (takes routes as data) |
 | `cmd/canon` | 446 | `catalogue`, `ingest`, `flow`, `conform`, `serve`, `mcp` | all |
 
@@ -135,6 +135,8 @@ those are the ones that survive a careless change.
 | A dependency outside the ledger is not a block | `TestADanglingDependencyIsNotABlock` |
 | A dependency cycle is found and reported once | `TestCyclesAreFound`, `TestACycleIsReportedOnce` |
 | Every action works by keyboard and by pointer | `e2e/keyboard.mjs` — two runs, one sending no clicks and one sending no keys |
+| Search reads every field, not only titles | `internal/api.TestSearchReadsEveryFieldNotJustTheTitle` — ids, statuses, criteria and the fields the template does not fix |
+| The caret survives a re-render | `e2e/narrow.mjs` — searching re-renders on every pause, and whoever has the caret keeps it |
 | Every action declares its pointer path | `internal/ui.TestEveryActionHasAPointerPath` — parses the registry, so keyboard-only cannot happen by omission |
 | The page works at 400px with every column shown | `e2e/narrow.mjs` — four views, `scrollWidth` against the viewport, and cells carrying their column name |
 | A repository without the ledger is skipped, not reported | `internal/source.TestAnOrganisationExpandsToItsProducts` — most of an organisation has not adopted the template |

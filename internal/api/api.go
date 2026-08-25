@@ -132,6 +132,7 @@ func (s *Server) getProduct(w http.ResponseWriter, r *http.Request) {
 func (s *Server) listIncrements(w http.ResponseWriter, r *http.Request) {
 	status := r.URL.Query().Get("status")
 	product := r.URL.Query().Get("product")
+	query := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("q")))
 	// blocked=true narrows to work that cannot start, which is the question worth
 	// asking across products: everything else is a list somebody has to read.
 	blockedOnly := r.URL.Query().Get("blocked") == "true"
@@ -160,6 +161,9 @@ func (s *Server) listIncrements(w http.ResponseWriter, r *http.Request) {
 			if blockedOnly && len(blocked[inc.ID]) == 0 {
 				continue
 			}
+			if !matches(inc, e.Name(), query) {
+				continue
+			}
 			all = append(all, row{Product: e.Name(), Increment: inc, BlockedBy: blocked[inc.ID]})
 		}
 	}
@@ -182,6 +186,48 @@ func (s *Server) listIncrements(w http.ResponseWriter, r *http.Request) {
 		"offset":       offset,
 		"refreshed_at": s.products.RefreshedAt(),
 	})
+}
+
+// matches reports whether an increment answers a search.
+//
+// One input, no per-field controls. A filter bar with a control per field is the
+// accretion this product refuses: the fields come from somebody else's ledger, so a
+// control per field is a control per convention Canon does not own.
+//
+// Everything an increment carries is searchable, including the fields the template does
+// not fix — a scope, a rollback plan, a risk. Those are where the words people actually
+// remember live, and a search that only reads titles finds nothing when somebody
+// searches for the thing they were worried about.
+func matches(inc ingest.Increment, product, query string) bool {
+	if query == "" {
+		return true
+	}
+	if contains(inc.ID, query) || contains(inc.Title, query) ||
+		contains(inc.Status, query) || contains(inc.Type, query) || contains(product, query) {
+		return true
+	}
+	for _, v := range inc.Fields {
+		if contains(v, query) {
+			return true
+		}
+	}
+	for _, c := range inc.Criteria {
+		if contains(c.Text, query) {
+			return true
+		}
+	}
+	for _, t := range inc.Traces {
+		if contains(t, query) {
+			return true
+		}
+	}
+	return false
+}
+
+// contains matches without regard to case, because nobody types an increment id the way
+// it is written.
+func contains(haystack, needle string) bool {
+	return strings.Contains(strings.ToLower(haystack), needle)
 }
 
 // metrics reports flow, measured from transitions derived from commit history.
