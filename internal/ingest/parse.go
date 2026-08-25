@@ -64,6 +64,7 @@ func parseLedger(text string) []Increment {
 	var out []Increment
 	var current *Increment
 	inCriteria := false
+	field := ""
 
 	flush := func() {
 		if current != nil {
@@ -76,7 +77,7 @@ func parseLedger(text string) []Increment {
 		if m := headingRe.FindStringSubmatch(line); m != nil {
 			flush()
 			current = &Increment{ID: m[1], Title: m[2], Fields: map[string]string{}}
-			inCriteria = false
+			inCriteria, field = false, ""
 			continue
 		}
 		if current == nil {
@@ -93,6 +94,12 @@ func parseLedger(text string) []Increment {
 		if m := fieldRe.FindStringSubmatch(line); m != nil {
 			key, value := strings.TrimSpace(m[1]), strings.TrimSpace(m[2])
 			inCriteria = key == "Acceptance Criteria"
+			// A field's value may be on the following indented lines rather than
+			// inline — Test Strategy and Acceptance Criteria are always written that
+			// way. Reading only the inline part reported every increment in this
+			// repository as having no test strategy, which is the kind of
+			// false-positive storm that makes a conformance report worthless.
+			field = strings.ToLower(strings.ReplaceAll(key, " ", "_"))
 			switch key {
 			case "Status":
 				current.Status = strings.ToLower(value)
@@ -104,10 +111,20 @@ func parseLedger(text string) []Increment {
 				current.DependsOn = idList(value)
 			default:
 				if value != "" {
-					current.Fields[strings.ToLower(strings.ReplaceAll(key, " ", "_"))] = value
+					current.Fields[field] = value
 				}
 			}
 			continue
+		}
+
+		// Continuation: an indented line under the field just seen.
+		if field != "" && strings.HasPrefix(line, "  ") && strings.TrimSpace(line) != "" {
+			text := strings.TrimSpace(line)
+			if !inCriteria {
+				current.Fields[field] = strings.TrimSpace(current.Fields[field] + " " + strings.TrimPrefix(text, "- "))
+			}
+		} else if strings.TrimSpace(line) == "" {
+			field = ""
 		}
 
 		if inCriteria {

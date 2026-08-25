@@ -331,3 +331,40 @@ func TestAnIncrementCanLeaveTheLedgerAndReturn(t *testing.T) {
 		}
 	}
 }
+
+// A field's value may be on the following indented lines rather than inline — Test
+// Strategy and Acceptance Criteria are always written that way. Reading only the
+// inline part reported every increment in this repository as having no test strategy.
+func TestMultiLineFieldValuesAreCaptured(t *testing.T) {
+	body := `# Plan
+
+## feat-001: Something
+
+- **Type:** feature
+- **Status:** approved
+- **Scope:** One line, inline.
+- **Test Strategy:**
+  - Unit: the parser
+  - Integration: a real repository
+- **Risk:** Low
+
+## Sequencing
+`
+	dir := repo(t, []struct{ ledger, when, message string }{
+		{body, "2026-08-01T09:00:00Z", "plan"},
+	})
+	r, err := Repo(dir, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := r.Increments[0].Fields["test_strategy"]
+	if got == "" {
+		t.Fatal("a multi-line field was read as empty")
+	}
+	if !strings.Contains(got, "Unit: the parser") || !strings.Contains(got, "Integration") {
+		t.Fatalf("test strategy = %q, want both lines", got)
+	}
+	if r.Increments[0].Fields["scope"] != "One line, inline." {
+		t.Fatalf("an inline field was disturbed: %q", r.Increments[0].Fields["scope"])
+	}
+}
