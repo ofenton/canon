@@ -190,3 +190,81 @@ func after(src, marker string) string {
 	}
 	return rest
 }
+
+// Every action is performable by pointer as well as by keyboard.
+//
+// Structural, and checked at the registry rather than by listing controls: an action
+// added without a pointer path fails here, so keyboard-only cannot happen by omission.
+// The browser test then drives the controls this asserts exist — one says the pairing is
+// declared, the other says it works.
+func TestEveryActionHasAPointerPath(t *testing.T) {
+	src := page(t)
+
+	_, rest, ok := strings.Cut(src, "const ACTIONS = [")
+	if !ok {
+		t.Fatal("the action registry is gone; this test no longer guards anything")
+	}
+	registry, _, _ := strings.Cut(rest, "\n];")
+
+	var actions int
+	for _, line := range strings.Split(registry, "\n") {
+		if !strings.Contains(line, "key:") {
+			continue
+		}
+		actions++
+		key := between(line, `key: "`, `"`)
+		if !strings.Contains(line, "pointer:") {
+			t.Errorf("%q has no pointer path, so it can only be performed from a keyboard", key)
+			continue
+		}
+		// A selector for a control has to name something that exists. `row` and
+		// `.title` are the two affordances that are the content itself.
+		pointer := between(line, `pointer: "`, `"`)
+		if pointer == "" {
+			pointer = between(line, `pointer: '`, `'`)
+		}
+		switch {
+		case pointer == "":
+			t.Errorf("%q declares an empty pointer path", key)
+		case strings.HasPrefix(pointer, "#"):
+			if !strings.Contains(src, `id="`+strings.TrimPrefix(pointer, "#")+`"`) {
+				t.Errorf("%q points at %s, which no element has", key, pointer)
+			}
+		case strings.HasPrefix(pointer, "nav "):
+			if !strings.Contains(src, between(pointer, "[", "]")) {
+				t.Errorf("%q points at %s, which no element matches", key, pointer)
+			}
+		}
+	}
+	if actions < 8 {
+		t.Fatalf("only %d actions found; the registry was not parsed", actions)
+	}
+}
+
+// A narrow screen shows every column rather than hiding half of each row behind a
+// sideways scroll, so the rules that stack a table have to be present.
+func TestTheLayoutRespondsToANarrowScreen(t *testing.T) {
+	src := page(t)
+	if !strings.Contains(src, "@media (max-width:") {
+		t.Fatal("there is no narrow-screen rule; the only @media block is dark mode")
+	}
+	if !strings.Contains(src, "content:attr(data-label)") {
+		t.Error("cells do not show their column name, so a stacked row is a list of unlabelled values")
+	}
+	if !strings.Contains(src, "cell.dataset.label = headers[c]") {
+		t.Error("cells are not given their column name when the row is built")
+	}
+}
+
+// between returns what sits between two markers, or empty.
+func between(s, open, close string) string {
+	_, rest, ok := strings.Cut(s, open)
+	if !ok {
+		return ""
+	}
+	out, _, ok := strings.Cut(rest, close)
+	if !ok {
+		return ""
+	}
+	return out
+}

@@ -73,7 +73,7 @@ jobs:
           npm install --no-audit --no-fund
           npx playwright install --with-deps chromium-headless-shell
 
-      - name: Drive the UI by keyboard, by pointer, and by URL
+      - name: Drive the UI by keyboard, by pointer, by URL, and at 400px
         run: |
           make build
           ./bin/canon catalogue .
@@ -84,6 +84,7 @@ jobs:
           done
           node e2e/keyboard.mjs http://localhost:8093
           node e2e/urls.mjs http://localhost:8093
+          node e2e/narrow.mjs http://localhost:8093
 
   ledger:
     runs-on: ubuntu-latest
