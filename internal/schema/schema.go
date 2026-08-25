@@ -347,6 +347,19 @@ func (s *Schema) index() {
 }
 
 // HasState reports whether name is a defined state.
+// NewFixed builds a schema from a fixed set of states, indexed and ready to query.
+//
+// A Schema constructed as a struct literal is half-formed: the exported slices are
+// populated but the lookup maps behind HasState, HasField and Role are nil, so those
+// return false for everything while category(), which scans the slice, keeps working.
+// One of those answers is right and the other is silently wrong. This is the only
+// supported way to build a schema outside Load, and it indexes.
+func NewFixed(states []State) *Schema {
+	s := &Schema{Version: 1, States: states}
+	s.index()
+	return s
+}
+
 func (s *Schema) HasState(name string) bool { _, ok := s.states[name]; return ok }
 
 // HasField reports whether name is a defined field.
