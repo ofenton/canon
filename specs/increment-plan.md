@@ -1159,7 +1159,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## docs-006: Requirements for the interface
 
 - **Type:** docs
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 2 (High)
 - **Traces:** R64
 - **Scope:** Give the web interface requirements. The reframed spec has none, so the UI exists and nothing asks it for anything. Replan the two UI increments written against the old product, marking what of them already landed. No code changes.
