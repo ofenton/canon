@@ -33,6 +33,7 @@ usage:
   canon usage [flags]           report what each declared thing is actually doing
   canon ingest <path>           read a repository that follows the template
   canon flow <path>             report how long work actually took
+  canon conform <path>          report how faithfully a repository follows the template
   canon events [flags]          print the event log as JSON
   canon bootstrap [flags]       create the first admin on an empty log
   canon token [flags]           issue or revoke an actor's API token
@@ -52,6 +53,10 @@ ingest flags:
 
 flow flags:
   -days int         window in days (default 30)
+
+conform flags:
+  -json             print the report as JSON
+  -strict           exit non-zero on warnings as well as errors
 
 usage flags:
   -db string        path to the event log (default "canon.db")
@@ -145,6 +150,8 @@ func run(args []string) error {
 		return ingestCmd(args[1:])
 	case "flow":
 		return flowCmd(args[1:])
+	case "conform":
+		return conformCmd(args[1:])
 	case "events":
 		return events(args[1:])
 	case "bootstrap":

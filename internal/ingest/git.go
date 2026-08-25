@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -101,4 +102,66 @@ func git(repo string, args ...string) (string, error) {
 		return "", fmt.Errorf("git %s: %w", strings.Join(args, " "), err)
 	}
 	return string(out), nil
+}
+
+// trailerRe finds the increment a commit claims, and the sanctioned way of saying a
+// commit deliberately has none. Both are the template's conventions.
+var (
+	trailerRe   = regexp.MustCompile(`(?mi)^\s*Increment\s*:\s*([a-z]{2,6}-\d{3})\s*$`)
+	untrackedRe = regexp.MustCompile(`(?mi)^\s*Untracked\s*:\s*\S`)
+)
+
+// CommitStats counts how much of a repository's history carries an increment
+// reference.
+//
+// Merge commits are excluded. A merge is not work — the commits it joins are, and
+// they are already counted. Counting merges put 25 of this repository's own 33
+// "unexplained" commits into that bucket, which is a number nobody would act on.
+type CommitStats struct {
+	Total     int      `json:"total"`
+	Tracked   int      `json:"tracked"`
+	Declared  int      `json:"declared_untracked"`
+	Unhandled []string `json:"unexplained,omitempty"`
+}
+
+// Commits summarises the reference discipline of a repository's history.
+func Commits(repo string) (CommitStats, error) {
+	const sep = "\x1e"
+	out, err := git(repo, "log", "--no-merges", "--format=%h%x1f%s%x1f%b"+sep)
+	if err != nil {
+		return CommitStats{}, err
+	}
+
+	var stats CommitStats
+	for _, record := range strings.Split(out, sep) {
+		record = strings.TrimLeft(record, "\n")
+		if strings.TrimSpace(record) == "" {
+			continue
+		}
+		parts := strings.SplitN(record, "\x1f", 3)
+		if len(parts) < 2 {
+			continue
+		}
+		sha, subject := parts[0], parts[1]
+		body := ""
+		if len(parts) > 2 {
+			body = parts[2]
+		}
+		message := subject + "\n" + body
+
+		stats.Total++
+		switch {
+		case trailerRe.MatchString(message):
+			stats.Tracked++
+		case untrackedRe.MatchString(message):
+			stats.Declared++
+		default:
+			// Named, not just counted: a commit nobody can find is a commit nobody
+			// can link afterwards.
+			if len(stats.Unhandled) < 20 {
+				stats.Unhandled = append(stats.Unhandled, sha+" "+subject)
+			}
+		}
+	}
+	return stats, nil
 }
