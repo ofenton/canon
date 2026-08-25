@@ -7,6 +7,30 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## Unreleased
 
+### Changed
+
+- **BREAKING: Canon is an aggregator, not a tracker.** It reads repositories that follow the
+  agentic SDLC template and derives everything it shows. It accepts no writes: there is no API to
+  create an issue, no schema to configure, no identity to hold, and no database. Point it at a
+  directory with `canon serve -products <dir>`.
+- **BREAKING: every write route, command and concept was removed** — the event log, projections,
+  schema enforcement, authorisation, authentication, the actor registry, proposals, boards, the
+  query language, `canon new`, `canon link`, `canon token`, `canon bootstrap`, `canon backup`,
+  `canon rebuild`, `canon events`, `canon trace`, `canon usage`. 14,783 non-test lines became 3,045.
+- **BREAKING: `canon.yaml` is gone.** The template fixes states, types and required fields, so
+  there was nothing left to configure.
+- **BREAKING: the API is six read routes** — `/api/products`, `/api/products/{name}`,
+  `/api/increments`, `/api/metrics`, `/api/conformance`, `/api/schema`.
+- **Zero third-party dependencies.** `go.mod` is three lines.
+
+### Added
+
+- `canon catalogue`, `canon ingest`, `canon flow`, `canon conform` — reading repositories from the
+  command line.
+- Conformance reporting, including a rule no repository can check for itself: cycle time that
+  understates the work because `in-progress` is recorded alongside the finished code.
+
+
 ### Added
 
 - **Authentication.** Canon issues bearer tokens (`canon token -actor <id>`), stored as a SHA-256

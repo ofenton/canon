@@ -1005,7 +1005,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-038: A catalogue of products
 
 - **Type:** feature
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 2 (High)
 - **Traces:** R55, R57, R58
 - **Scope:** Discover repositories across an organisation, present each as a product with its purpose taken from `specs/product.md`, and state when each was last ingested so a stale view reads as stale.
@@ -1025,21 +1025,21 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## cut-001: Delete the write path
 
 - **Type:** refactor
-- **Status:** approved
+- **Status:** in-progress
 - **Tier:** 1 (Critical)
 - **Traces:** R59
 - **Scope:** Remove everything that exists to defend writes Canon no longer accepts: authorisation, authentication, the actor registry, proposals, boards, backdating, checklists, dependency and commit-link writes, and the write half of the API and CLI. Reads become open to any authenticated member. Roughly 5,000 lines.
 - **Acceptance Criteria:**
-  - [ ] THE SYSTEM SHALL serve every read to any member of the organisation with no per-team visibility rules
-  - [ ] THE SYSTEM SHALL expose no route that writes an issue
-  - [ ] THE SYSTEM SHALL continue to pass every read-path test unchanged
+  - [x] THE SYSTEM SHALL serve every read to any member of the organisation with no per-team visibility rules
+  - [x] THE SYSTEM SHALL expose no route that writes an issue
+  - [x] THE SYSTEM SHALL continue to pass every read-path test unchanged
 - **Test Strategy:**
   - A structural test asserting no write route exists in the route table
   - The read surface, keyboard suite and MCP parity tests must pass unchanged
 - **Dependencies:** feat-035, feat-036, feat-037, feat-038
 - **Rollback Plan:** Revert the commit; the deletion is one change and touches nothing that ingest depends on
 - **Risk:** High — the largest single change in the project, and the risk is deleting something a read path quietly needed
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/cut-001-delete-the-write-path.md`
 
 ## feat-039: Read-only agent surface
 

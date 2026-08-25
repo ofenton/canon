@@ -83,3 +83,22 @@ func catalogueCmd(args []string) error {
 		c.RefreshedAt().Format(time.RFC3339))
 	return nil
 }
+
+// ago renders a timestamp the way somebody reads it when deciding whether to trust a
+// number: "4 hours ago" answers the question, a date makes them do arithmetic.
+func ago(t time.Time) string {
+	if t.IsZero() {
+		return "never read"
+	}
+	d := time.Since(t)
+	switch {
+	case d < time.Minute:
+		return "just now"
+	case d < time.Hour:
+		return fmt.Sprintf("%dm ago", int(d.Minutes()))
+	case d < 48*time.Hour:
+		return fmt.Sprintf("%dh ago", int(d.Hours()))
+	default:
+		return fmt.Sprintf("%dd ago", int(d.Hours()/24))
+	}
+}

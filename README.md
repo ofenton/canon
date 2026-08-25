@@ -1,488 +1,126 @@
 # Canon
 
-An issue tracker where the organisation's schema is versioned configuration, not per-project
-accretion — and where coding agents are first-class users rather than an API afterthought.
+Point it at your repositories and see what every team is building.
 
-Apache-2.0. Self-hosted. One static binary, one file of data, no external services.
+Canon reads repositories that follow the [agentic SDLC template](https://github.com/ofenton/canon)
+and derives everything it shows: what products exist, what is in flight, how long work actually
+takes, and which repositories have drifted from the convention.
 
-> **Status: in development.** The domain, authorisation, HTTP API, MCP server, web UI, queries,
-> boards, flow metrics, commit linking, webhooks and token authentication work.
-> See [What is not built](#what-is-not-built).
+**It authors nothing.** A repository owns its own work; Canon reads it.
+
+Apache-2.0. Self-hosted. One static binary, **no dependencies at all** — `go.mod` is three lines —
+no database, and nothing to configure.
 
 ## The problem
 
-Jira was the most criticised developer tool of 2025 — more complaints than the next four
-combined. The usual explanations (it's slow, there are too many fields) are symptoms. The disease
-is that **configuration is per-project and unbounded**, so every team's setup diverges and the
-divergence destroys the one thing an org-wide tracker exists to provide: a question you can ask
-across teams and get a true answer to.
+Work already happens in repositories. Agents plan it, build it and record it there, in a spec, a
+ledger and a commit history that is precise about who changed what and when.
 
-Measured across hundreds of enterprise Jira Cloud instances:
+Nothing shows it together. Ask *"what is every team building, and how long is it taking"* and the
+answer is somebody opening twelve repositories — or a second tracker typed into by hand, which
+disagrees with the first by Wednesday.
 
-| | Observed | Actually needed |
-|---|---|---|
-| Workflows per instance | 90–100 | a handful |
-| Permission schemes | 40–100+ | 10–15 |
-| Custom fields | 700–800+, **over half unused in 12 months** | tens |
-| Spellings of "completed" | 16 | 1 |
-| Projects inactive 6+ months but fully configured | ~half | none |
+That second tracker is the common answer and the wrong one. It creates two sources of truth for the
+same facts, with no reconciliation beyond somebody remembering.
 
-The mechanism is always *incremental decisions without visibility*. Each request is individually
-reasonable — one more status, our team works differently — and nobody ever sees the aggregate, so
-nobody ever says no. Then reporting collapses, because you cannot filter "completed work" when
-completed has sixteen spellings.
-
-Linear's answer is to remove configurability. That works to roughly fifty engineers and one
-process, and has nothing to say to an organisation that genuinely contains a regulated team, a
-support team and a product team.
-
-## The idea
-
-**Configuration is a versioned, org-owned artifact.**
-
-The whole organisation's schema — states, transitions, fields, issue types and roles — lives in
-one `canon.yaml`, in git, changed by pull request. A team cannot unilaterally add a status,
-because there is nowhere local to add one. They open a PR against the shared schema, someone
-reviews it, and it applies everywhere at once.
-
-Two consequences, and they are the product:
-
-- **Drift is structurally impossible**, not discouraged. There is no per-project override to
-  drift from.
-- **Complexity has a visible price.** The 700th field is a line in a diff that a human has to
-  approve — the moment Jira never has.
-
-The organisation can be as complex as it genuinely needs. It just has to be complex
-**deliberately, visibly, in one place, with a reviewer**.
-
-### Other opinions Canon holds
-
-- **One entity.** All work is an `Issue` with an optional parent. Epics, stories and sub-tasks are
-  parent/child relations, not types. Boards are saved queries.
-- **No estimation.** There is no story point, velocity or burndown field, and none will be added.
-  Flow is measured from recorded state transitions, not guessed in advance.
-- **Agents are first-class.** One API serves the UI, the CLI and agents, with a test asserting
-  parity. Every write records whether a human or an agent made it, and which model.
-- **Agents propose, humans decide.** An operation an agent may not perform outright returns
-  `202 proposal_required` rather than a refusal, so the attempt is recorded for a human.
-- **History is the storage model.** Canon stores an append-only event log; current state is a
-  projection you can discard and rebuild at any time.
+We know because we built one. Canon began as a Jira replacement, and **96% of the data it held was
+reconstructible from the repositories it tracked**. A thing you can rebuild from git is a cache of
+git. See [ADR-0009](docs/decisions/0009-canon-as-aggregator.md).
 
 ## Quick start
 
-Requires Go 1.26+ to build. No database to provision, nothing else to install.
+Requires Go 1.26+ to build. Nothing else.
 
 ```bash
 git clone https://github.com/ofenton/canon.git && cd canon
 make build
 
-cp internal/schema/testdata/canon.yaml .            # a realistic starting schema
-./bin/canon bootstrap -actor you -team platform     # create the first admin, once
-./bin/canon serve                                   # listens on :8080
+./bin/canon catalogue ~/code      # what products are there?
+./bin/canon serve -products ~/code
 ```
 
-In another terminal:
+A product is any repository containing `specs/increment-plan.md`. There is nothing to register and
+nothing to configure: **adopting Canon is committing that file.**
+
+## What it tells you
 
 ```bash
-A=http://localhost:8080/api
-H='X-Canon-Actor: you'
+$ canon flow ~/code/widgets
 
-curl -X POST $A/issues -H "$H" -d '{"title":"Search is slow","team":"platform"}'
-# {"id":"CANON-1"}
+Widgets — last 30 days
+  completed 45 · started 46 · in progress 2
 
-curl $A/issues/CANON-1 -H "$H"
-curl $A/schema -H "$H"        # what this organisation permits
+  cycle time     p50 14m  · p85 1.2h  · p95 9.1h   (n=44)
+  lead time      p50 3.1h · p85 15.1h · p95 17.2h  (n=45)
 ```
-
-### Try to break it
-
-This is the part worth five minutes:
 
 ```bash
-curl -X PATCH $A/issues/CANON-1/fields -H "$H" -d '{"storyPoints":"8"}'
-# 422  field "storyPoints" is not defined in the schema; defined fields are component,
-#      evidence, priority, title
+$ canon conform ~/code/widgets
 
-curl -X POST $A/issues/CANON-1/transition -H "$H" -d '{"to":"done"}'
-# 422  CANON-1 cannot move from "todo" to "done"; permitted transitions from "todo"
-#      are abandoned, in_progress
-
-curl -X POST $A/issues -d '{"title":"x"}'
-# 401  X-Canon-Actor header is required
+  warning  —  cycle time understates the work: 6 of 26 increments record
+              in-progress within 2m0s of in-review, so it measures two
+              commits rather than the work. Set in-progress before
+              starting, not alongside the result
+  note     —  9 of 143 commits (6%) carry no increment reference
 ```
 
-Errors name what you should have done, not just that you were wrong. That matters most for
-agents, which can act on the first and only retry blindly on the second.
+That warning is the point of a central view: it is a property of *how a team runs the loop*, not of
+any one commit, so no repository-local check can see it.
 
-Now edit `canon.yaml` — add a `sprints:` key, misspell a state in a transition, remove a state
-that issues are sitting in — and restart. It refuses to start and tells you the line.
+## Where the numbers come from
 
-### The agent path
-
-```bash
-curl -X POST $A/actors -H "$H" -d '{"id":"agent:one","kind":"agent","model":"claude-opus-5"}'
-curl -X POST $A/actors/agent:one/roles -H "$H" -d '{"role":"agent"}'
-curl -X POST $A/actors/agent:one/teams -H "$H" -d '{"team":"platform"}'
-
-AH='X-Canon-Actor: agent:one'
-curl -X POST $A/issues/CANON-1/transition -H "$AH" -d '{"to":"in_progress"}'
-# 204
-
-curl -X POST $A/issues/CANON-1/transition -H "$AH" -d '{"to":"in_review"}'
-# 422  state "in_review" requires evidence; supply it with the transition
-
-curl -X POST $A/issues/CANON-1/transition -H "$AH" \
-     -d '{"to":"in_review","evidence":"312 passed in 41s"}'
-# 204
-
-curl -X POST $A/issues/CANON-1/transition -H "$AH" -d '{"to":"done"}'
-# 202  {"status":"proposal_required","operation":"transition:in_review->done"}
-```
-
-The agent may start work and move it to review with evidence, but completing it is a proposal for
-a human. That is declared in `canon.yaml`, not in code.
-
-## canon.yaml
-
-```yaml
-version: 1
-
-states:
-  - {name: todo, category: open}
-  - {name: in_progress, category: active}
-  - {name: in_review, category: active, requires_evidence: true}
-  - {name: done, category: closed}
-
-transitions:
-  - {from: todo, to: in_progress}
-  - {from: in_progress, to: in_review}
-  - {from: in_review, to: done}
-
-fields:
-  - {name: title, type: string, required: true}
-  - {name: priority, type: enum, values: [p1, p2, p3, p4]}
-
-issue_types:
-  - {name: bug, fields: [title, priority]}
-
-roles:
-  - name: admin
-    can: [create, delete, reparent, backdate, "field:*", "transition:*"]
-  - name: member
-    scope: team                       # only issues owned by a team you belong to
-    can: [create, reparent, "field:*", "transition:*"]
-  - name: agent
-    scope: team
-    can: [create, "field:*", "transition:todo->in_progress"]
-    propose: [delete, "transition:*"] # anything else awaits a human
-```
-
-`category` is a closed set — open, active, closed. That is the direct answer to "completed has
-sixteen spellings": without a fixed grouping, no cross-team question has a true answer.
-
-Every grant is validated against the rest of the schema at load. `field:storyPoints` or
-`transition:todo->shipped` is refused by name, because a typo in a permission grants nothing and
-is invisible at runtime.
-
-**Webhooks** are declared in the schema too, because where work notifications go is an
-organisational decision rather than a per-team one:
-
-```yaml
-webhooks:
-  - {url: "https://hooks.example.com/canon"}          # every transition
-  - {url: "https://deploy.example.com/on-done", states: [done], retries: 3}
-```
-
-Delivery is asynchronous and bounded, and a write never waits on it. A subscriber that is slow,
-down or decommissioned cannot make a transition slower or make it fail — the event is already in
-the log, and the log is the record. Retries stop at five, because an unbounded retry against a
-subscriber nobody remembers configuring is a queue that grows for ever.
-
-## Authentication
-
-Canon issues its own bearer tokens. There is no external service to configure and no account to
-create — a self-hosted tracker that cannot start without a cloud provider is not self-hosted.
-
-```bash
-./bin/canon token -actor you
-# token for you:
-#
-#   canon_X1k6udlYjidoADYCYSdgOVnQPk_qEjAw553RdcoYrjE
-#
-# This is the only time it is shown — Canon stores a hash, not the token.
-
-curl -H 'Authorization: Bearer canon_...' http://localhost:8080/api/issues
-```
-
-**Canon stores a SHA-256 hash, never the token.** A slow KDF like bcrypt exists to defend
-low-entropy secrets people chose; these are 256 random bits, with no dictionary to attack, so a fast
-hash is correct and costs nothing per request. It matters here because the log is append-only:
-anything written is permanent.
-
-**Authentication turns on per actor.** An actor holding a token must present one; an actor holding
-none is trusted as before. That is what stops issuing the first token locking every administrator
-out of their own instance, and `canon serve` names who can still be impersonated:
+The template requires that every status change is a commit. So `git log -p specs/increment-plan.md`
+**is** the transition log — exact, with no heuristic:
 
 ```
-  auth   PARTIAL — still claimable without a token: mallory
+feat-025
+  09:18:37  (new)     -> approved
+  10:26:42  approved  -> in-review
+  10:26:48  in-review -> done
 ```
 
-Revoking withdraws every token an actor holds — somebody revoking is responding to a suspected leak
-and does not know which token leaked. Rotation is `-revoke` then issue.
+The one honest limit: two status changes in one commit share a timestamp. That is exact about what
+git recorded, which is the most any reader can claim.
 
-**Identity, not permission.** What an actor may do is still decided by their roles in `canon.yaml`.
-`enforce.Verify` is a seam: replacing it with one that trusts a signed OIDC claim from Cognito,
-Entra or Keycloak changes that function and nothing else.
+## Opinions Canon holds
 
-**Recording history: `backdate`.** Every write is stamped with the server's clock unless the
-caller adds `?at=<RFC 3339>`, which records the instant the thing actually happened. That is how
-an import replays a tracker that predates Canon, and how a commit is linked with the timestamp it
-carried. `backdate` is a grant of its own because the risk differs in kind: permission to
-transition an issue says nothing about whether you may record that it happened last Tuesday. No
-existing schema has the verb, so it is refused until somebody adds it deliberately. Events are
-still ordered by arrival, so a backdated event replays *after* what was already there — it adds to
-history rather than rewriting it.
-
-**Roles are policy; membership is state.** Which roles exist lives in `canon.yaml` and changes by
-pull request. Who holds one, and which team they are in, lives in the event log and changes by
-API call — making every joiner a pull request would teach people to route around the system.
-
-## API
-
-One API. The CLI, agents and (eventually) the web UI all use it; a test fails if any route exists
-outside `/api`, or if the contract test does not exercise every route.
-
-Every request needs an `X-Canon-Actor` header naming a registered actor.
-
-| Method | Path | Purpose |
-|---|---|---|
-| `GET` | `/api/schema` | The organisation's schema, with permitted transitions per state |
-| `GET` | `/api/events` | The raw event log (`?subject=`, `?since=`) |
-| `GET` | `/api/issues` | List issues (`?q=` query, or `?state=` / `?team=` shorthands) |
-| `POST` | `/api/issues` | Create — only `title` is required |
-| `GET` | `/api/issues/{id}` | One issue's projected state |
-| `DELETE` | `/api/issues/{id}` | Delete; children are lifted to the grandparent |
-| `PATCH` | `/api/issues/{id}/fields` | Set one or more fields |
-| `POST` | `/api/issues/{id}/transition` | `{"to": …, "evidence": …}` |
-| `PUT` | `/api/issues/{id}/parent` | Set or clear the parent |
-| `GET` | `/api/issues/{id}/children` | Direct children |
-| `GET` | `/api/boards` | Saved boards, and the keys you may group by |
-| `POST` | `/api/boards` | Save a board: a name, a query, a grouping key |
-| `GET` | `/api/boards/{name}` | Render a board against current data |
-| `DELETE` | `/api/boards/{name}` | Delete a saved board |
-| `GET` | `/api/proposals` | Open proposals awaiting a human (`?status=all` for history) |
-| `GET` | `/api/proposals/{id}` | One proposal |
-| `POST` | `/api/proposals/{id}/approve` | Apply it, on the approver's authority |
-| `POST` | `/api/proposals/{id}/reject` | Decline it, with an optional `reason` |
-| `GET` | `/api/metrics` | Measured flow (`?days=`, `?q=` to scope it) |
-| `GET` | `/api/actors` | Registered actor ids |
-| `POST` | `/api/actors` | Register a human or agent |
-| `GET` | `/api/actors/{id}` | An actor's roles and teams |
-| `POST` | `/api/actors/{id}/roles` | Grant a role |
-| `DELETE` | `/api/actors/{id}/roles/{role}` | Revoke a role |
-| `POST` | `/api/actors/{id}/teams` | Add to a team |
-| `DELETE` | `/api/actors/{id}/teams/{team}` | Remove from a team |
-
-**Status codes.** `422` means the schema or your role refused it. `401` means the actor header is
-missing or names nobody. `202` with `proposal_required` means an agent's attempt was recorded for
-a human — a different outcome from a refusal, and worth handling differently.
-
-## Commands
-
-```
-canon bootstrap -actor <id> [-team <t>]   create the first admin on an empty log
-canon serve [-addr :8080]                 run the HTTP API
-canon mcp -actor <id>                     serve MCP over stdio, for agents
-canon schema                              validate canon.yaml and summarise it
-canon events [-subject <id>] [-since <n>] print the event log as JSON
-canon rebuild                             discard projections and replay the log
-canon backup -out <file>                  consistent copy, safe while running
-canon version
-```
-
-All accept `-db` (default `canon.db`) and, where relevant, `-schema` (default `canon.yaml`).
-
-## Queries and boards
-
-The query language is deliberately small — term, comparison, negation, implicit AND. There is no
-OR: two queries are two boards. JQL is what the other end of that road looks like.
-
-```
-team=platform                 exact match on a built-in attribute
-priority=p1                   or on any field in canon.yaml
-category=open                 states grouped, so this survives a state being renamed
-!team=platform                negation
-title~slow                    substring
-team=platform priority=p1     implicit AND
-```
-
-Keys *and values* are checked against the schema, so a typo is refused rather than quietly
-matching nothing — which looks exactly like "no work":
-
-```
-GET /api/issues?q=storyPoints=8
-400  query key "storyPoints" is not a field in this organisation's schema;
-     valid keys are actor, category, component, evidence, parent, priority, state, team, title
-```
-
-**A board is a saved query plus a grouping key, and nothing else.**
-
-```
-$ curl -X POST $A/boards -H "$H" -d '{"name":"platform","query":"team=platform","group_by":"state"}'
-$ curl $A/boards/platform -H "$H"
-
-platform  (team=platform  grouped by state)
-  todo           CANON-2
-  in_progress    CANON-1
-```
-
-Move an issue and the board follows, because nothing was ever written to it:
-
-```
-  in_progress    CANON-1, CANON-2
-```
-
-There is no board membership to update, and therefore none to go stale. Columns grouped by state
-follow the schema's declared order rather than sorting alphabetically.
+- **It derives, never authors.** Anything typed into Canon that became the truth would recreate the
+  two-sources problem it exists to remove.
+- **Enforcement lives at the edge.** An aggregator cannot refuse a commit that already happened.
+  `validate-plan.py` refuses in each repository's hook and CI, where refusing works. Canon runs the
+  same rules everywhere and reports who is failing them.
+- **The schema is the template, and is not configurable.** A schema with no configuration cannot
+  drift.
+- **No estimation.** No story points, velocity or burndown, and a test that parses the source to
+  keep it that way. Flow is measured from transitions that were committed anyway.
+- **Every action works by keyboard and by pointer**, asserted by two browser runs: one that sends no
+  clicks, one that sends no keys.
 
 ## Agents
 
-Canon speaks MCP over stdio. Point an agent at it:
-
-```json
-{ "mcpServers": { "canon": {
-    "command": "/path/to/canon",
-    "args": ["mcp", "-actor", "agent:one", "-db", "/path/to/canon.db",
-             "-schema", "/path/to/canon.yaml"]
-} } }
+```bash
+canon mcp -products ~/code
 ```
 
-The tools are **derived from the HTTP route table**, so an agent can do everything a human can —
-21 routes, 21 tools, verified by a test rather than by discipline. Calls dispatch through the same
-handler the network serves, so an agent and a human take an identical path through authorisation.
-
-A refusal comes back as an error an agent can act on; a proposal does not:
-
-```
-create_issue         {"title":"Search is slow"}          → {"id":"CANON-1"}
-update_issue_fields  {"id":"CANON-1","storyPoints":"8"}  → isError, field "storyPoints" is not
-                                                            defined in the schema
-transition_issue     {"id":"CANON-1","to":"done"}        → proposal_required, PROP-1
-```
-
-The last one is not an error. The attempt was recorded for a human, which from the agent's point
-of view succeeded.
-
-## Measurement, not estimation
-
-Canon has no story point field and will not get one. Estimates get inflated under pressure to make
-velocity rise, they are inconsistent between people, and they measure the guess rather than the
-work. A field named like an estimate is refused at startup:
-
-```
-$ canon schema
-canon: field "storyPoints" is an estimate; Canon measures flow from recorded transitions
-and has no estimation. Remove it, or use cycle time and throughput instead
-```
-
-What you get instead comes from timestamps that were recorded anyway:
-
-```
-$ curl "$A/metrics?days=30" -H "$H"
-
-completed 9   started 11   in progress 2
-cycle time (active→closed)   p50   2d   p85   7d   p95  11d   max  11d   (n=9)
-lead time (created→closed)   p50   2d   p85   7d   p95  11d   max  11d   (n=9)
-slowest: CANON-9 11d, CANON-6 7d, CANON-8 3d
-ageing (unfinished, oldest first):
-  WIP-2    in_progress  18d
-  WIP-1    in_progress  10d
-```
-
-Three deliberate choices:
-
-- **No mean.** Cycle times are long-tailed and an average hides the tail people actually complain
-  about. Here p50 is 2 days and p85 is 7.
-- **Ageing is reported for unfinished work.** Cycle time only moves once something finishes. The
-  oldest thing still in progress moves *before* the damage lands, and is the number to watch.
-- **Lead time alongside cycle time.** Cycle time is what the team controls; lead time is what the
-  requester waits. Reporting only the first is how a team convinces itself things are fine while
-  the queue grows.
-
-`?q=` accepts the query language, so flow can be measured per team or per component without a
-separate reporting concept.
-
-## How it stores things
-
-Canon stores **events, not state**: `issue.created`, `field.set`, `issue.transitioned`,
-`actor.role_granted`. Current state is a projection produced by replaying them, and the projection
-is a cache with no authority — `canon rebuild` discards and reproduces it, which turns a
-projection bug into a five-minute fix rather than a data repair script.
-
-Events are canonical CBOR in a SQLite table with triggers that reject `UPDATE` and `DELETE`, so
-the log is append-only as a property of the database rather than a habit of its callers.
-`canon events` renders any of it as human-readable JSON.
-
-This buys three things at once: history is inherent rather than bolted on, backup is one command
-producing one file, and a second log home becomes a transport rather than a rewrite — appends commute, so two
-clones merge by concatenation. That last point is why the storage layer is shaped this way; see
-[ADR-0003](docs/decisions/0003-storage-history-and-federation.md).
-
-## Backing up
-
-```
-$ canon backup -out backup.db
-wrote backup.db (13 events, 20.0 KiB) in 1ms
-restore with: canon serve -db backup.db
-```
-
-Safe to run while the server is serving, and it never overwrites an existing file.
-
-**Do not simply copy `canon.db`.** SQLite runs in WAL mode, so recent commits live in a `-wal`
-sidecar that has not been folded into the main file yet — on a young database that is most of the
-data. A test in `internal/event` demonstrates it: a plain copy of a 500-event log recovered
-**zero events**. `canon backup` takes a read transaction and writes one internally consistent
-file, which is what makes "keep this one file" a true statement.
+The same reads, over MCP. Tools are *derived* from the HTTP route table, and a test asserts parity —
+so an agent can never be offered a surface that lags the one humans get.
 
 ## What is not built
 
-Honest list, so nobody is surprised:
-
-- **An identity provider.** Canon issues its own tokens; it does not speak OIDC or SAML, so there
-  is no single sign-on. `enforce.Verify` is the seam an external provider would replace, and
-  nothing above it would change — but nobody has written that.
-- **Signed webhooks.** Deliveries carry no signature, so a subscriber cannot verify one came from
-  Canon, and they are held in memory rather than queued — a subscriber that is down while Canon
-  restarts misses those transitions.
-- **A remote client.** `canon new`, `canon link` and `canon trace` write the local event log
-  directly, so they cannot talk to a server elsewhere. For a developer in a product repository the
-  tracker will usually be remote, and this is the largest gap in those commands.
-- **Repair tooling.** If a schema change would strand issues, the server refuses to start — which is
-  correct, and means the data cannot then be fixed through it. There is no offline `canon repair`.
-- **Federated repo-local storage.** The event model is designed for it; the transport is not built.
-- **Jira import.** Wanted, not started. Backdated writes (`?at=`) were the missing capability and
-  now exist, so the remaining work is the mapping.
-
-Deliberately excluded and not coming: story points, velocity, burndown, per-project workflow
-customisation, a plugin marketplace, and bundled documents/chat/video.
+- **Remote discovery.** `Discover` reads a local directory; pointing Canon at a GitHub organisation
+  is not implemented.
+- **Intake.** Raising a request through Canon, as a pull request against a repository's ledger, is
+  designed ([ADR-0009](docs/decisions/0009-canon-as-aggregator.md)) and not built.
+- **Work with no repository.** Support and operations tickets have no home here. This is the largest
+  capability the reframe gave up.
+- **Incremental refresh.** Each refresh re-reads every repository.
 
 ## Development
 
 ```bash
-make check     # vet, workflow lint, tests
-make build     # static binary into bin/
-make bench     # benchmarks
+make check     # vet, tests, the workflow linter, the architecture check
+make build
 ```
 
-The repository is developed under a spec-anchored increment workflow — see
-[`AGENTS.md`](AGENTS.md). Work is planned in [`specs/increment-plan.md`](specs/increment-plan.md),
-each increment carries acceptance criteria in EARS notation, and evidence for every completed one
-is in [`specs/increments/`](specs/increments/). Decisions are recorded as ADRs in
-[`docs/decisions/`](docs/decisions/).
-
-Four validators run in the pre-commit hook and in CI: the ledger is well formed, skills match the
-Agent Skills spec, the ledger matches git history, and no ignored file is tracked.
-
-## Licence
-
-Apache-2.0. See [LICENSE](LICENSE).
+See [`docs/architecture.md`](docs/architecture.md) for the map, and
+[`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a pull request.
