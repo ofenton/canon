@@ -835,7 +835,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## docs-003: Populate the architecture map
 
 - **Type:** docs
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 3 (Medium)
 - **Traces:** R31
 - **Scope:** Replace the unfilled template stub at `docs/architecture.md` with the system as built, measured from the code rather than recalled. Include the cross-cutting invariants and which test asserts each. No code changes.
@@ -1080,10 +1080,29 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Risk:** Medium — a spec nobody rereads is how a project drifts back to what it was
 - **Evidence:** see `specs/increments/docs-005-reframe-the-product-spec.md`
 
+## chore-006: Delete what the rewrite left behind
+
+- **Type:** chore
+- **Status:** in-progress
+- **Tier:** 3 (Medium)
+- **Traces:** R58
+- **Scope:** Remove `deploy/canon.yaml`, the ignore rules for a database Canon cannot write, and the scratch directories nothing creates. The README already claims "no database, and nothing to configure" and the repository contradicted it. A structural test makes the claim enforced rather than stated.
+- **Acceptance Criteria:**
+  - [ ] THE SYSTEM SHALL track no configuration file, since the template fixes the schema
+  - [ ] THE SYSTEM SHALL track no database and ignore no artefact it cannot produce
+  - [ ] THE SYSTEM SHALL fail its own tests if either is reintroduced
+- **Test Strategy:**
+  - A structural test over `git ls-files`, so the claim is checked rather than asserted in prose
+  - Full suite and both browser runs, to show nothing read the deleted files
+- **Dependencies:** none
+- **Rollback Plan:** Restore the files from git; nothing reads them, so nothing changes
+- **Risk:** Low — deleting files no code references
+- **Evidence:** _(filled in at verify)_
+
 ## ui-001: Every view has a URL
 
 - **Type:** feature
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 1 (Critical)
 - **Traces:** R64
 - **Scope:** Put the view, the selected product, the filters and the page into the URL, and read them back on load. Browser back and forward move between views. A reporting tool whose findings cannot be sent to somebody is much less useful than one whose can.

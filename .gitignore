@@ -19,17 +19,10 @@ __pycache__/
 *.test
 /canon
 
-# Local runtime state. `canon serve` writes these into the working directory.
+# Canon holds nothing. There was a database and a canon.yaml here; both went with
+# cut-001, and the ignore rules for them outlived them by a month — a rule for an
+# artefact the program cannot produce reads as though it still can.
 #
-# /canon.yaml is anchored on purpose: the root copy is one operator's local config,
-# but internal/schema/testdata/canon.yaml is a tracked fixture and an unanchored
-# pattern would silently exclude it.
-/canon.yaml
-*.db
-*.db-journal
-*.db-wal
-*.db-shm
+# TestTheRepositoryHoldsNoStateOrConfiguration fails if either comes back, so this
+# file is no longer the only thing standing between us and a committed database.
 
-# Scratch directories used to drive the binary during development.
-/.demotmp/
-/.seedtmp/
