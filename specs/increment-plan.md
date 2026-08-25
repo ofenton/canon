@@ -1197,14 +1197,14 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## ui-002: Pointer parity, and a narrow screen
 
 - **Type:** feature
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 2 (High)
 - **Traces:** R65, R67
 - **Scope:** Give every registry action a pointer affordance, and make the layout work below 40rem. A structural test asserts the parity so a new action cannot be keyboard-only by omission.
 - **Acceptance Criteria:**
-  - [ ] THE SYSTEM SHALL perform every action in the registry from a pointer as well as from the keyboard
-  - [ ] WHEN the viewport is 400px wide THE SYSTEM SHALL show every column's content without the page scrolling sideways
-  - [ ] THE SYSTEM SHALL continue to pass the keyboard-only run with no pointer events
+  - [x] THE SYSTEM SHALL perform every action in the registry from a pointer as well as from the keyboard
+  - [x] WHEN the viewport is 400px wide THE SYSTEM SHALL show every column's content without the page scrolling sideways
+  - [x] THE SYSTEM SHALL continue to pass the keyboard-only run with no pointer events
 - **Test Strategy:**
   - A structural test pairing each registry action with its affordance
   - Browser test at 400px, asserting `document.body.scrollWidth` does not exceed the viewport
