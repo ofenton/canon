@@ -54,7 +54,11 @@ github:ofenton                    every repository in an organisation that has t
 One line per source, `#` for comments, and nothing else — the list says what Canon reads, never how
 it behaves. Pass it with `-sources <file>`, name places directly with `-source` (repeatable), or
 leave both off and Canon reads `canon.sources` if it is there and the working directory if it is
-not. Organisation expansion is not built yet; those lines report what to do instead.
+not. `github:<org>` asks GitHub which of its repositories carry the ledger and tracks those — so a new
+product appears in Canon by committing a file, with nothing to add here. Repositories without the
+ledger are skipped silently, because most of an organisation has not adopted the template. Set
+`GH_TOKEN` to include private ones; without it Canon reads the public repositories and says what it
+could not see.
 
 A repository that has to be fetched is mirrored into a cache — `~/Library/Caches/canon` or
 `~/.cache/canon`, or wherever `-cache` says. **Deleting it loses nothing**: the next refresh rebuilds

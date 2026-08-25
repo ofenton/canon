@@ -14,6 +14,7 @@ package source
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -136,7 +137,19 @@ func resolve(s Source, cache string) Result {
 		}
 		return res
 	case Organisation:
-		res.Err = fmt.Errorf("expanding an organisation is not built yet; list its repositories")
+		// The list names a place, and the place answers with repositories. Each one
+		// then takes exactly the path an explicitly listed repository takes, which is
+		// what stops this becoming a second way to get a repository onto disk.
+		urls, err := expandOrg(strings.TrimPrefix(s.Line, "github:"))
+		problems := []error{err}
+		for _, url := range urls {
+			path, err := fetch(cache, url)
+			if path != "" {
+				res.Paths = append(res.Paths, path)
+			}
+			problems = append(problems, err)
+		}
+		res.Err = errors.Join(problems...)
 		return res
 	}
 
