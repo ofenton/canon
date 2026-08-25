@@ -14,8 +14,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/ofenton/canon/internal/projection"
-	"github.com/ofenton/canon/internal/schema"
+	"github.com/ofenton/canon/internal/ingest"
 )
 
 // Flow is the measured behaviour of a set of issues.
@@ -71,19 +70,19 @@ type Bucket struct {
 }
 
 // Compute measures flow over issues, between from and to.
-func Compute(issues []*projection.Issue, s *schema.Schema, from, to time.Time, bucket time.Duration) Flow {
+func Compute(increments []ingest.Increment, from, to time.Time, bucket time.Duration) Flow {
 	flow := Flow{From: from, To: to}
 
 	var cycles, leads []Item
-	for _, issue := range issues {
-		startedAt, closedAt := milestones(issue, s)
+	for _, issue := range increments {
+		startedAt, closedAt := milestones(issue)
 
 		if closedAt.IsZero() {
-			if isActive(issue.State, s) {
+			if isActive(issue.Status) {
 				flow.InProgress++
 				if !startedAt.IsZero() {
 					flow.Ageing = append(flow.Ageing, Ageing{
-						ID: issue.ID, State: issue.State, Days: days(to.Sub(startedAt)),
+						ID: issue.ID, State: issue.Status, Days: days(to.Sub(startedAt)),
 					})
 				}
 			}
@@ -99,15 +98,15 @@ func Compute(issues []*projection.Issue, s *schema.Schema, from, to time.Time, b
 		if !startedAt.IsZero() {
 			cycles = append(cycles, Item{ID: issue.ID, Days: days(closedAt.Sub(startedAt))})
 		}
-		if !issue.CreatedAt.IsZero() {
-			leads = append(leads, Item{ID: issue.ID, Days: days(closedAt.Sub(issue.CreatedAt))})
+		if first := firstSeen(issue); !first.IsZero() {
+			leads = append(leads, Item{ID: issue.ID, Days: days(closedAt.Sub(first))})
 		}
 	}
 
 	flow.CycleTime = summarise(cycles)
 	flow.LeadTime = summarise(leads)
 	sort.Slice(flow.Ageing, func(i, j int) bool { return flow.Ageing[i].Days > flow.Ageing[j].Days })
-	flow.Throughput = throughput(issues, s, from, to, bucket)
+	flow.Throughput = throughput(increments, from, to, bucket)
 	return flow
 }
 
@@ -116,16 +115,20 @@ func Compute(issues []*projection.Issue, s *schema.Schema, from, to time.Time, b
 // "First" matters: work that is reopened and closed again should not report a cycle
 // time measured from the second attempt, because the calendar time a requester waited
 // includes the first.
-func milestones(issue *projection.Issue, s *schema.Schema) (started, closed time.Time) {
-	for _, t := range issue.Transitions {
-		switch category(t.To, s) {
-		case schema.Active:
+func milestones(inc ingest.Increment) (started, closed time.Time) {
+	for _, t := range inc.Transitions {
+		at, err := time.Parse(time.RFC3339, t.At)
+		if err != nil {
+			continue
+		}
+		switch Category(t.To) {
+		case "active":
 			if started.IsZero() {
-				started = t.At
+				started = at
 			}
-		case schema.Closed:
+		case "closed":
 			if closed.IsZero() {
-				closed = t.At
+				closed = at
 			}
 		}
 	}
@@ -133,7 +136,7 @@ func milestones(issue *projection.Issue, s *schema.Schema) (started, closed time
 	return started, closed
 }
 
-func throughput(issues []*projection.Issue, s *schema.Schema, from, to time.Time, bucket time.Duration) []Bucket {
+func throughput(increments []ingest.Increment, from, to time.Time, bucket time.Duration) []Bucket {
 	if bucket <= 0 || !to.After(from) {
 		return nil
 	}
@@ -141,8 +144,8 @@ func throughput(issues []*projection.Issue, s *schema.Schema, from, to time.Time
 	for start := from.Truncate(bucket); start.Before(to); start = start.Add(bucket) {
 		counts[start] = 0
 	}
-	for _, issue := range issues {
-		_, closed := milestones(issue, s)
+	for _, issue := range increments {
+		_, closed := milestones(issue)
 		if closed.IsZero() || !within(closed, from, to) {
 			continue
 		}
@@ -194,16 +197,26 @@ func percentile(sorted []Item, p float64) float64 {
 	return sorted[rank-1].Days
 }
 
-func category(state string, s *schema.Schema) schema.Category {
-	for _, st := range s.States {
-		if st.Name == state {
-			return st.Category
-		}
+// Category groups the template's fixed statuses. There is no configurable schema to
+// read any more: under ADR-0009 the template is the schema, so a status not listed
+// here is not one this system understands.
+//
+// (removed) is deliberately not closed. An increment removed from the ledger did not
+// finish; it stopped existing, and counting it as completed would flatter every
+// repository that reverted a plan.
+func Category(status string) string {
+	switch status {
+	case "planned", "approved", ingest.Removed:
+		return "open"
+	case "in-progress", "in-review":
+		return "active"
+	case "done", "abandoned":
+		return "closed"
 	}
 	return ""
 }
 
-func isActive(state string, s *schema.Schema) bool { return category(state, s) == schema.Active }
+func isActive(status string) bool { return Category(status) == "active" }
 
 func within(t, from, to time.Time) bool {
 	return !t.Before(from) && !t.After(to)
@@ -235,9 +248,14 @@ var EstimateFieldNames = []string{
 	"velocity", "burndown", "effort", "tshirt", "t_shirt_size",
 }
 
-// CheckNoEstimateFields reports an error if a schema defines an estimate-shaped field.
-func CheckNoEstimateFields(s *schema.Schema) error {
-	for _, name := range s.FieldNames() {
+// CheckNoEstimateFields reports an error if an increment carries an estimate-shaped
+// field.
+//
+// The rule is unchanged by the reframe: no estimation, refused by name. What changed
+// is where the field could come from — an organisation's schema before, a repository's
+// ledger now.
+func CheckNoEstimateFields(fields map[string]string) error {
+	for name := range fields {
 		normalised := normalise(name)
 		for _, banned := range EstimateFieldNames {
 			if normalised == banned {
@@ -261,4 +279,15 @@ func normalise(name string) string {
 		}
 	}
 	return string(out)
+}
+
+// firstSeen is when an increment first appeared in the ledger. Lead time measures
+// from there: a ledger records no separate creation, so the first transition is it.
+func firstSeen(inc ingest.Increment) time.Time {
+	for _, t := range inc.Transitions {
+		if at, err := time.Parse(time.RFC3339, t.At); err == nil {
+			return at
+		}
+	}
+	return time.Time{}
 }

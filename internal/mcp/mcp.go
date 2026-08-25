@@ -40,75 +40,20 @@ var pathParam = regexp.MustCompile(`\{([a-zA-Z_]+)\}`)
 // one is still exposed — a missing description is a documentation gap, not a reason
 // to hide an operation from agents.
 var descriptions = map[string]string{
-	"GET /api/schema":                           "Read the organisation's issue schema: states, permitted transitions, fields, issue types and roles. Call this first to learn what is allowed.",
-	"GET /api/events":                           "Read the raw append-only event log, optionally filtered by subject or sequence.",
-	"GET /api/issues":                           "List issues, optionally filtered by state or team.",
-	"POST /api/issues":                          "Create an issue. Only a title is required.",
-	"GET /api/issues/{id}":                      "Read one issue's current state, fields, parent and last actor.",
-	"DELETE /api/issues/{id}":                   "Delete an issue. Its children are lifted to its parent, never orphaned.",
-	"PATCH /api/issues/{id}/fields":             "Set one or more fields. Fields not defined in the schema are refused.",
-	"PUT /api/issues/{id}/multi/{field}":        "Replace the values of a multi-valued field. Every value must be one the schema declares.",
-	"PUT /api/issues/{id}/checklist/{field}":    "Add a checklist item, or mark one met. Omit checked to add; pass checked true or false to mark an existing item.",
-	"DELETE /api/issues/{id}/checklist/{field}": "Remove a checklist item from an issue.",
-	"POST /api/issues/{id}/transition":          "Move an issue to a new state. Some states require evidence. If your role may only propose the transition, this returns a proposal for a human to approve.",
-	"PUT /api/issues/{id}/parent":               "Set or clear an issue's parent. Cycles are refused.",
-	"GET /api/issues/{id}/children":             "List an issue's direct children.",
-	"GET /api/issues/{id}/ancestors":            "List an issue's parents up to its root, nearest first, with its depth.",
-	"GET /api/issues/{id}/tree":                 "List everything beneath an issue, each with its depth. Pass depth to limit how far down.",
-	"POST /api/actors/{id}/tokens":              "Issue an API token for an actor. The token is returned once and never again; Canon stores only a hash. Issuing one for yourself is always allowed; issuing one for somebody else needs the administer permission.",
-	"DELETE /api/actors/{id}/tokens":            "Revoke every token an actor holds. Rotation is revoke then issue.",
-	"GET /api/products":                         "List every product Canon knows about: each conforming repository, what it is for, how much work is open and done, and when it was last read.",
-	"GET /api/products/{name}":                  "Everything about one product: its increments with their derived status histories, and its conformance report.",
-	"GET /api/schema/usage":                     "Report every field, state, issue type, team and role in the schema with how many issues use it and when it was last used. Unused configuration is listed first.",
-	"GET /api/issues/{id}/commits":              "List the commits linked to an issue, oldest first by the time they were authored.",
-	"PUT /api/issues/{id}/commits":              "Link a commit to an issue. Safe to repeat: linking the same commit twice records it once. Supply the commit's own author time as \"at\" when linking work done earlier.",
-	"GET /api/issues/{id}/dependencies":         "List what an issue waits on, what waits on it, whether it is blocked and by what, and any dependency cycle it is part of.",
-	"PUT /api/issues/{id}/dependencies":         "Record that this issue depends on another. Cycles are permitted and reported, not refused.",
-	"DELETE /api/issues/{id}/dependencies/{on}": "Remove a dependency.",
-	"GET /api/cycles":                           "List every dependency cycle in the project. A cycle means nothing in it can start.",
-	"GET /api/proposals":                        "List proposals awaiting a human decision. Pass status=all for the full history.",
-	"GET /api/proposals/{id}":                   "Read one proposal, including who proposed it and why.",
-	"POST /api/proposals/{id}/approve":          "Approve a proposal and apply it. Humans only.",
-	"POST /api/proposals/{id}/reject":           "Reject a proposal, with an optional reason. Humans only.",
-	"GET /api/metrics":                          "Measured flow: cycle time, lead time, throughput and the ageing of unfinished work. Derived from recorded transitions; Canon has no estimates.",
-	"GET /api/boards":                           "List saved boards and the keys a board may group by.",
-	"POST /api/boards":                          "Save a board: a name, a query and a grouping key. A board holds no membership of its own.",
-	"GET /api/boards/{name}":                    "Render a saved board against current data, grouped into columns.",
-	"DELETE /api/boards/{name}":                 "Delete a saved board. The issues it showed are unaffected.",
-	"GET /api/actors":                           "List registered actor ids.",
-	"POST /api/actors":                          "Register a human or agent actor.",
-	"GET /api/actors/{id}":                      "Read an actor's roles and team membership.",
-	"POST /api/actors/{id}/roles":               "Grant an actor a role defined in canon.yaml.",
-	"DELETE /api/actors/{id}/roles/{role}":      "Revoke a role from an actor.",
-	"POST /api/actors/{id}/teams":               "Add an actor to a team.",
-	"DELETE /api/actors/{id}/teams/{team}":      "Remove an actor from a team.",
+	"GET /api/products":        "List every product Canon knows about: each conforming repository, what it is for, how much work is open and done, and when it was last read.",
+	"GET /api/products/{name}": "Everything about one product: its increments with their status histories derived from the ledger's commit history, and its conformance report.",
+	"GET /api/increments":      "Work across every product, which is the question no single repository can answer. Filter with status= and product=; page with limit= and offset=.",
+	"GET /api/metrics":         "Cycle time, lead time, ageing and throughput, measured from recorded status transitions. There is no estimate of any kind. Narrow with product= and days=.",
+	"GET /api/conformance":     "How faithfully each product follows the template, and what it fails. Reported, never enforced: refusing a commit is the repository's own job.",
+	"GET /api/schema":          "The statuses and types the agentic SDLC template fixes. Not configuration — a statement of the convention.",
 }
 
 // bodyHints describe the JSON body each write expects, so an agent does not have to
 // guess field names from a URL.
-var bodyHints = map[string]map[string]string{
-	"POST /api/issues":                 {"title": "required", "type": "optional", "team": "optional", "id": "optional"},
-	"POST /api/issues/{id}/transition": {"to": "required, target state", "evidence": "required for some states"},
-	"PUT /api/issues/{id}/parent":      {"parent": "issue id, or empty to clear"},
-	"POST /api/proposals/{id}/reject":  {"reason": "optional"},
-	"POST /api/actors":                 {"id": "required", "kind": "human or agent", "model": "required for agents"},
-	"POST /api/actors/{id}/roles":      {"role": "required"},
-	"POST /api/actors/{id}/teams":      {"team": "required"},
-	"PUT /api/issues/{id}/commits": {
-		"sha":        "required, the commit id, 7 to 40 hex characters",
-		"message":    "the commit subject; the body is not stored",
-		"repository": "where the commit lives",
-		"branch":     "the branch it was made on",
-		"author":     "who wrote the commit, if not the actor linking it",
-		"at":         "the commit's author time as RFC 3339; needs the backdate grant if in the past",
-	},
-	"PUT /api/issues/{id}/dependencies":         {"on": "required, the issue this one waits on"},
-	"PUT /api/issues/{id}/multi/{field}":        {"values": "required, a list of declared values"},
-	"PUT /api/issues/{id}/checklist/{field}":    {"text": "required, the criterion", "checked": "omit to add; true or false to mark an existing item"},
-	"DELETE /api/issues/{id}/checklist/{field}": {"text": "required, the criterion to remove"},
-	"POST /api/boards":                          {"name": "required", "query": "required, e.g. team=platform priority=p1", "group_by": "optional, defaults to state"},
-	"PATCH /api/issues/{id}/fields":             {"<field name>": "value, for any field in the schema"},
-}
+// bodyHints described the JSON body each write expected. Canon accepts no writes, so
+// it is empty — kept rather than removed because the tool derivation reads it, and an
+// empty map is a clearer statement than a special case.
+var bodyHints = map[string]map[string]string{}
 
 // ToolsFrom derives the tool list from an HTTP route table.
 func ToolsFrom(routes map[string]http.HandlerFunc) []Tool {
