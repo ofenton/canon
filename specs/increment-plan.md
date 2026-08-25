@@ -949,7 +949,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-035: Ingest a repository
 
 - **Type:** feature
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 1 (Critical)
 - **Traces:** R52, R53
 - **Scope:** Read a repository that follows the template — clone or fetch, parse `specs/product.md` and `specs/increment-plan.md`, and derive each increment's status history from the commit history of the ledger file. Additive: nothing existing is removed, so main keeps working.
@@ -968,21 +968,21 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-036: Flow measured from real transitions
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-progress
 - **Tier:** 1 (Critical)
 - **Traces:** R56
 - **Scope:** Feed the existing metrics from ingested transitions instead of authored events, and retire `scripts/import-ledger.py`, whose approximation was measured at roughly thirty times out.
 - **Acceptance Criteria:**
-  - [ ] THE SYSTEM SHALL report cycle and lead time from transitions derived from commit history
-  - [ ] THE SYSTEM SHALL report no estimate of any kind
-  - [ ] WHEN two status changes share a commit THE SYSTEM SHALL report them at the same instant rather than inventing an interval
+  - [x] THE SYSTEM SHALL report cycle and lead time from transitions derived from commit history
+  - [x] THE SYSTEM SHALL report no estimate of any kind
+  - [x] WHEN two status changes share a commit THE SYSTEM SHALL report them at the same instant rather than inventing an interval
 - **Test Strategy:**
   - Compare reported percentiles against the same figures computed directly from `git log`
   - The existing estimation-refusal tests must still pass
 - **Dependencies:** feat-035
 - **Rollback Plan:** Point metrics back at the projection's authored transitions
 - **Risk:** Low — the metrics code is unchanged; only its input changes
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/feat-036-flow-measured-from-real-transitions.md`
 
 ## feat-037: Conformance, reported not enforced
 
