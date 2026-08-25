@@ -101,6 +101,11 @@ PASS  no uncaught exceptions (mouse)
 Two runs against one server: the first sends no clicks, the second sends no keys. That is the only
 way to prove both paths work rather than that one works and the other is present.
 
+CI failed where the local run passed: `j and k move the selection` needs more than one row, and
+CI's fixture is a single checkout while mine was a directory holding two repositories. Moved to the
+work view, which spans every increment of every product, and reproduced CI's single-product case
+locally rather than guessing at it.
+
 The first run failed on `the product shows its increments — 0 increment(s)`, because `j` selected
 the second product, which is the one with no commits. The fixture was wrong, not the code — but it
 did show that an unreadable product renders its error rather than an empty table.

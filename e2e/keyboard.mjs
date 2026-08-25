@@ -32,11 +32,8 @@ await page.keyboard.press("Escape");
 const products = await page.locator("#main tbody tr").count();
 check("products are listed", products >= 1, `${products} product(s)`);
 
-await page.keyboard.press("j");
-const moved = await page.locator('#main tbody tr[aria-selected="true"] td').first().textContent();
-await page.keyboard.press("k");
-const back = await page.locator('#main tbody tr[aria-selected="true"] td').first().textContent();
-check("j and k move the selection", moved !== back, `${back.trim()} → ${moved.trim()}`);
+check("a row is selected to begin with",
+  (await page.locator('#main tbody tr[aria-selected="true"]').count()) === 1);
 
 // Open the first product, which is the one that reads cleanly. A product Canon could
 // not read shows its error instead of a table, which is correct and not what this
@@ -58,6 +55,23 @@ for (const [keys, marker] of [[["g", "w"], "Status"], [["g", "f"], "Cycle time"]
   await page.waitForFunction(
     (m) => document.querySelector("#main").textContent.includes(m), marker, { timeout: 8000 });
   check(`${keys.join(" ")} navigates`, true, marker);
+}
+
+// Movement needs more than one row to prove anything. The products list may hold
+// exactly one — CI's fixture is a single checkout — so this is checked on work,
+// which spans every increment of every product.
+await page.keyboard.press("g");
+await page.keyboard.press("w");
+await page.waitForSelector("#main tbody tr", { timeout: 8000 });
+const rows = await page.locator("#main tbody tr").count();
+if (rows > 1) {
+  await page.keyboard.press("j");
+  const moved = await page.locator('#main tbody tr[aria-selected="true"] .id').first().textContent();
+  await page.keyboard.press("k");
+  const back = await page.locator('#main tbody tr[aria-selected="true"] .id').first().textContent();
+  check("j and k move the selection", moved !== back, `${back.trim()} ↔ ${moved.trim()}`);
+} else {
+  check("j and k move the selection", false, "needs more than one row to test");
 }
 
 check("every screen says when it was read",
