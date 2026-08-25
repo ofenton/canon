@@ -11,8 +11,6 @@
 package catalogue
 
 import (
-	"fmt"
-	"os"
 	"path/filepath"
 	"sort"
 	"sync"
@@ -20,6 +18,7 @@ import (
 
 	"github.com/ofenton/canon/internal/conform"
 	"github.com/ofenton/canon/internal/ingest"
+	"github.com/ofenton/canon/internal/source"
 )
 
 // Entry is one product, as of the last refresh.
@@ -54,7 +53,34 @@ type Catalogue struct {
 // New builds an empty catalogue.
 func New() *Catalogue { return &Catalogue{entries: map[string]*Entry{}} }
 
-// Refresh reads every source and replaces what the catalogue holds.
+// RefreshFrom reads every resolved source and replaces what the catalogue holds.
+//
+// A source that resolved to nothing is kept as an entry carrying its error, for the
+// same reason an unreadable repository is: a product that silently disappears from a
+// catalogue is worse than one that appears with an error, and a source that vanishes
+// cannot be reported at all.
+func (c *Catalogue) RefreshFrom(results []source.Result, now func() time.Time) {
+	fresh := make(map[string]*Entry, len(results))
+	at := now().UTC()
+
+	for _, r := range results {
+		if r.Err != nil && len(r.Paths) == 0 {
+			fresh[r.Source.Line] = &Entry{
+				Source: r.Source.Line, Err: r.Err.Error(), RefreshedAt: at,
+			}
+			continue
+		}
+		for _, path := range r.Paths {
+			fresh[path] = read(path, now, at)
+		}
+	}
+
+	c.mu.Lock()
+	c.entries, c.last = fresh, at
+	c.mu.Unlock()
+}
+
+// Refresh reads every source path and replaces what the catalogue holds.
 //
 // One failing source does not stop the others, for the same reason one malformed
 // increment does not stop an ingest: the repositories most worth reporting on are
@@ -64,25 +90,29 @@ func (c *Catalogue) Refresh(sources []string, now func() time.Time) {
 	at := now().UTC()
 
 	for _, src := range sources {
-		entry := &Entry{Source: src, RefreshedAt: at}
-		repo, err := ingest.Repo(src, now)
-		if err != nil {
-			entry.Err = err.Error()
-			fresh[src] = entry
-			continue
-		}
-		entry.Repository = repo
-		if commits, err := ingest.Commits(src); err == nil {
-			entry.Report = conform.Check(repo, commits)
-		} else {
-			entry.Report = conform.Check(repo, ingest.CommitStats{})
-		}
-		fresh[src] = entry
+		fresh[src] = read(src, now, at)
 	}
 
 	c.mu.Lock()
 	c.entries, c.last = fresh, at
 	c.mu.Unlock()
+}
+
+// read ingests one repository and checks it against the template.
+func read(path string, now func() time.Time, at time.Time) *Entry {
+	entry := &Entry{Source: path, RefreshedAt: at}
+	repo, err := ingest.Repo(path, now)
+	if err != nil {
+		entry.Err = err.Error()
+		return entry
+	}
+	entry.Repository = repo
+	if commits, err := ingest.Commits(path); err == nil {
+		entry.Report = conform.Check(repo, commits)
+	} else {
+		entry.Report = conform.Check(repo, ingest.CommitStats{})
+	}
+	return entry
 }
 
 // Entries returns every product, sorted by name, as of the last refresh.
@@ -113,44 +143,4 @@ func (c *Catalogue) RefreshedAt() time.Time {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.last
-}
-
-// Discover finds repositories under a root directory.
-//
-// A repository is anything with a ledger at the path the template fixes. Searching by
-// artifact rather than by a list means adopting Canon is committing a file, not
-// registering anywhere — which is the adoption story ADR-0009 wanted.
-//
-// One level deep only: a parent directory of checkouts is the shape people have, and
-// walking an entire filesystem to find ledgers would be slow and surprising.
-func Discover(root string) ([]string, error) {
-	entries, err := os.ReadDir(root)
-	if err != nil {
-		return nil, fmt.Errorf("reading %s: %w", root, err)
-	}
-
-	var found []string
-	// The root may itself be a repository rather than a directory of them.
-	if isRepo(root) {
-		found = append(found, root)
-	}
-	for _, e := range entries {
-		if !e.IsDir() {
-			continue
-		}
-		path := filepath.Join(root, e.Name())
-		if isRepo(path) {
-			found = append(found, path)
-		}
-	}
-	sort.Strings(found)
-	return found, nil
-}
-
-func isRepo(path string) bool {
-	if _, err := os.Stat(filepath.Join(path, ingest.LedgerPath)); err != nil {
-		return false
-	}
-	_, err := os.Stat(filepath.Join(path, ".git"))
-	return err == nil
 }

@@ -1121,7 +1121,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## docs-007: Where Canon looks
 
 - **Type:** docs
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 1 (Critical)
 - **Traces:** R70
 - **Scope:** Record that Canon reads a list of sources rather than scanning one local directory, and why that does not reintroduce configuration. ADR-0010, three requirements, three increments. No code changes.
@@ -1140,7 +1140,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-040: A list of the repositories to track
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-progress
 - **Tier:** 1 (Critical)
 - **Traces:** R70, R71
 - **Scope:** Read sources from a file and from `-source` flags: a local directory, a local repository, and lines Canon does not yet know how to fetch, which it reports rather than ignores. Directory scanning becomes one source kind rather than the entry point.
@@ -1154,7 +1154,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Dependencies:** none
 - **Rollback Plan:** Restore `Discover(root)` as the entry point; the flag keeps working
 - **Risk:** Low — additive; the existing behaviour becomes one source kind
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/feat-040-a-list-of-sources.md`
 
 ## feat-041: Track a repository over the network
 

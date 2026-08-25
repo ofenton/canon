@@ -12,7 +12,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **BREAKING: Canon is an aggregator, not a tracker.** It reads repositories that follow the
   agentic SDLC template and derives everything it shows. It accepts no writes: there is no API to
   create an issue, no schema to configure, no identity to hold, and no database. Point it at a
-  directory with `canon serve -products <dir>`.
+  directory with `canon serve -source <dir>`.
 - **BREAKING: every write route, command and concept was removed** — the event log, projections,
   schema enforcement, authorisation, authentication, the actor registry, proposals, boards, the
   query language, `canon new`, `canon link`, `canon token`, `canon bootstrap`, `canon backup`,

@@ -36,12 +36,25 @@ git clone https://github.com/ofenton/canon.git && cd canon
 make build
 
 ./bin/canon catalogue ~/code      # what products are there?
-./bin/canon serve -products ~/code
+./bin/canon serve -source ~/code
 ```
 
 A product is any repository containing `specs/increment-plan.md`. There is nothing to register and
 nothing to configure: **adopting Canon is committing that file.**
 
+Where Canon looks is a list of **sources** — places, not repositories to register:
+
+```
+# canon.sources
+~/code                            a local directory, scanned one level deep
+git@github.com:ofenton/orders     one repository, fetched
+github:ofenton                    every repository in an organisation that has the ledger
+```
+
+One line per source, `#` for comments, and nothing else — the list says what Canon reads, never how
+it behaves. Pass it with `-sources <file>`, name places directly with `-source` (repeatable), or
+leave both off and Canon reads `canon.sources` if it is there and the working directory if it is
+not. Fetching and organisation expansion are not built yet; those lines report what to do instead.
 ## What it tells you
 
 ```bash
@@ -99,7 +112,7 @@ git recorded, which is the most any reader can claim.
 ## Agents
 
 ```bash
-canon mcp -products ~/code
+canon mcp -source ~/code
 ```
 
 The same reads, over MCP. Tools are *derived* from the HTTP route table, and a test asserts parity —

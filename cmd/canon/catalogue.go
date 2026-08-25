@@ -9,35 +9,48 @@ import (
 
 	"github.com/ofenton/canon/internal/catalogue"
 	"github.com/ofenton/canon/internal/conform"
+	"github.com/ofenton/canon/internal/source"
 )
 
-// catalogueCmd lists every product found under a root.
+// catalogueCmd lists every product Canon can find.
 //
-// Discovery is by artifact: anything with a ledger at the path the template fixes.
-// Adopting Canon is committing a file, not registering anywhere.
+// Discovery is still by artifact — anything with a ledger at the path the template
+// fixes — but where to look is now a list rather than one directory. A source that
+// resolves to nothing is printed, not skipped: R71 is about being told.
 func catalogueCmd(args []string) error {
 	fs := flag.NewFlagSet("catalogue", flag.ContinueOnError)
 	asJSON := fs.Bool("json", false, "print the catalogue as JSON")
+	sources := sourceFlags(fs)
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	root := "."
-	if fs.NArg() > 0 {
-		root = fs.Arg(0)
-	}
-
-	sources, err := catalogue.Discover(root)
+	// A bare path still works: `canon catalogue ~/code` is what anyone tries first.
+	list, err := sources()
 	if err != nil {
 		return err
 	}
-	if len(sources) == 0 {
-		fmt.Printf("no products under %s\n\n  A product is a repository with %s.\n",
-			root, "specs/increment-plan.md")
-		return nil
+	if fs.NArg() > 0 {
+		list = nil
+		for _, arg := range fs.Args() {
+			list = append(list, source.Source{Line: arg, Kind: source.Directory})
+		}
 	}
 
+	results := source.Resolve(list)
+	paths := source.Paths(results)
+
 	c := catalogue.New()
-	c.Refresh(sources, time.Now)
+	c.RefreshFrom(results, time.Now)
+
+	if !*asJSON {
+		fmt.Printf("%d source(s)\n", len(results))
+		report(results)
+		fmt.Println()
+	}
+	if len(paths) == 0 && !*asJSON {
+		fmt.Printf("  A product is a repository with %s.\n", "specs/increment-plan.md")
+		return nil
+	}
 
 	if *asJSON {
 		enc := json.NewEncoder(os.Stdout)
@@ -45,7 +58,7 @@ func catalogueCmd(args []string) error {
 		return enc.Encode(c.Entries())
 	}
 
-	fmt.Printf("%d product(s) under %s\n\n", len(sources), root)
+	fmt.Printf("%d product(s)\n\n", len(paths))
 	for _, e := range c.Entries() {
 		if e.Err != "" {
 			// Not dropped. A repository mid-adoption — the template's files
