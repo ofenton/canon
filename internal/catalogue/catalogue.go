@@ -33,6 +33,12 @@ type Entry struct {
 	Err string `json:"error,omitempty"`
 	// RefreshedAt is when this entry was last read.
 	RefreshedAt time.Time `json:"refreshed_at"`
+	// Stale is why this entry may be out of date while still being served — a remote
+	// that could not be reached, most often. Distinct from Err: Err means there is
+	// nothing to show, Stale means what is shown was true at RefreshedAt and may not
+	// be now. A dashboard that goes blank when a host blips is worse than one that
+	// keeps showing yesterday and says so.
+	Stale string `json:"stale,omitempty"`
 }
 
 // Name is what to call this product, even when reading it failed.
@@ -71,7 +77,11 @@ func (c *Catalogue) RefreshFrom(results []source.Result, now func() time.Time) {
 			continue
 		}
 		for _, path := range r.Paths {
-			fresh[path] = read(path, now, at)
+			entry := read(path, now, at)
+			if r.Err != nil {
+				entry.Stale = r.Err.Error()
+			}
+			fresh[path] = entry
 		}
 	}
 

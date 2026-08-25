@@ -115,6 +115,9 @@ func (s *Server) getProduct(w http.ResponseWriter, r *http.Request) {
 	if e.Err != "" {
 		body["error"] = e.Err
 	}
+	if e.Stale != "" {
+		body["stale"] = e.Stale
+	}
 	if e.Repository != nil {
 		body["blocked"] = e.Repository.Blocked()
 		if cycles := e.Repository.Cycles(); len(cycles) > 0 {
@@ -271,6 +274,9 @@ func summarise(e *catalogue.Entry) map[string]any {
 	if e.Err != "" {
 		row["error"] = e.Err
 		return row
+	}
+	if e.Stale != "" {
+		row["stale"] = e.Stale
 	}
 	var open, done int
 	for _, inc := range e.Repository.Increments {

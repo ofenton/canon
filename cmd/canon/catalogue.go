@@ -36,7 +36,7 @@ func catalogueCmd(args []string) error {
 		}
 	}
 
-	results := source.Resolve(list)
+	results := source.Resolve(list, cacheDir)
 	paths := source.Paths(results)
 
 	c := catalogue.New()

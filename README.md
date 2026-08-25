@@ -54,7 +54,12 @@ github:ofenton                    every repository in an organisation that has t
 One line per source, `#` for comments, and nothing else — the list says what Canon reads, never how
 it behaves. Pass it with `-sources <file>`, name places directly with `-source` (repeatable), or
 leave both off and Canon reads `canon.sources` if it is there and the working directory if it is
-not. Fetching and organisation expansion are not built yet; those lines report what to do instead.
+not. Organisation expansion is not built yet; those lines report what to do instead.
+
+A repository that has to be fetched is mirrored into a cache — `~/Library/Caches/canon` or
+`~/.cache/canon`, or wherever `-cache` says. **Deleting it loses nothing**: the next refresh rebuilds
+it from the same repositories, and a test asserts the rebuilt catalogue is identical. If a remote is
+unreachable, Canon keeps serving what it read last and says why it may be out of date.
 ## What it tells you
 
 ```bash

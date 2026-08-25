@@ -13,6 +13,11 @@ import (
 // directory, which is where an operator's list belongs — it is theirs, not Canon's.
 const defaultList = "canon.sources"
 
+// cacheDir is where fetched repositories are kept. A package variable because every
+// command that can name a source can also fetch one, and threading it through each
+// would be four signatures carrying the same thing.
+var cacheDir = source.DefaultCacheDir()
+
 // lines collects a repeatable flag.
 type lines []string
 
@@ -29,6 +34,7 @@ func sourceFlags(fs *flag.FlagSet) func() ([]source.Source, error) {
 	var direct lines
 	fs.Var(&direct, "source", "a place to look; repeatable")
 	list := fs.String("sources", "", "a file listing places to look (default "+defaultList+" if present)")
+	fs.StringVar(&cacheDir, "cache", source.DefaultCacheDir(), "where fetched repositories are kept")
 
 	return func() ([]source.Source, error) {
 		if len(direct) > 0 {

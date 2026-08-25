@@ -52,6 +52,7 @@ serve flags:
 where to look (catalogue, serve and mcp):
   -source string    a place to look; repeatable
   -sources string   a file listing places to look (default canon.sources if present)
+  -cache string     where fetched repositories are kept (deleting it loses nothing)
 
 A source is a place, not a repository to register: a local directory scanned one level
 deep, a local repository, or — once built — a repository to fetch and an organisation to
@@ -100,7 +101,7 @@ func run(args []string) error {
 // load builds a server with its catalogue already filled.
 func load(sources []source.Source) (*api.Server, []source.Result) {
 	srv := api.New(catalogue.New(), time.Now)
-	results := source.Resolve(sources)
+	results := source.Resolve(sources, cacheDir)
 	srv.Catalogue().RefreshFrom(results, time.Now)
 	return srv, results
 }
@@ -134,7 +135,7 @@ func serve(args []string) error {
 		fmt.Printf("  refresh  every %s\n", *every)
 		go func() {
 			for range time.Tick(*every) {
-				srv.Catalogue().RefreshFrom(source.Resolve(list), time.Now)
+				srv.Catalogue().RefreshFrom(source.Resolve(list, cacheDir), time.Now)
 			}
 		}()
 	}
