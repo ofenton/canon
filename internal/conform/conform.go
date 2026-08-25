@@ -156,6 +156,12 @@ func Check(r *ingest.Repository, commits ingest.CommitStats) Report {
 			len(inProgress), strings.Join(inProgress, ", "))
 	}
 
+	for _, cycle := range r.Cycles() {
+		add("dependency-cycle", Error, cycle[0],
+			"is in a dependency cycle: %s → %s. Nothing in it can start until one dependency is removed",
+			strings.Join(cycle, " → "), cycle[0])
+	}
+
 	rep.Findings = append(rep.Findings, cycleTimeReliability(r)...)
 	rep.Findings = append(rep.Findings, referenceDiscipline(commits)...)
 	return rep

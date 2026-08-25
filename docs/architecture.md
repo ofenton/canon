@@ -103,8 +103,8 @@ those are the ones that survive a careless change.
 | The UI offers no writes | `TestTheUIOffersNoWrites` (structural) |
 | No MCP tool takes a write body | `TestNoToolTakesAWriteBody` |
 | Every route is exercised | `TestEveryRouteIsExercised` (structural) |
-| Every MCP tool matches an API route | `TestToolParityWithTheAPI` — tools are derived, not written twice |
-| Every route has an MCP description | `TestEveryRouteHasADescription` |
+| Every MCP tool matches an API route | `TestToolsCoverEveryRealRoute` — against `api.Routes()` itself, not a copy |
+| Every route has an MCP description | `TestEveryRealRouteHasADescription` |
 | Every JSON key is snake_case | `TestEveryJSONKeyIsSnakeCase` — walks real responses |
 | Reads require no identity | `TestReadsNeedNoIdentity` |
 | Transitions come from commit history | `TestTransitionsComeFromCommitHistory` |
@@ -120,6 +120,10 @@ those are the ones that survive a careless change.
 | Every action is declared once | `TestActionsAreDeclaredOnce` (structural) |
 | The UI makes no external request | `TestNoExternalRequests` (structural) |
 | Every screen says when it was read | `TestScreensSayWhenTheyWereRead` |
+| A blocked increment names what it waits on | `TestBlockedReportsUnfinishedDependencies` |
+| Finished work is never blocked | `TestFinishedWorkIsNotBlocked` |
+| A dependency outside the ledger is not a block | `TestADanglingDependencyIsNotABlock` |
+| A dependency cycle is found and reported once | `TestCyclesAreFound`, `TestACycleIsReportedOnce` |
 | Every action works by keyboard and by pointer | `e2e/keyboard.mjs` — two runs, one sending no clicks and one sending no keys |
 
 **This table is the part of this document most worth keeping current.** The worst defects in this
@@ -146,6 +150,9 @@ over its API — replaces this function and nothing else.
 - **Everything in memory.** Instance size is bounded by RAM, and nothing has measured where.
 - **Refresh is a timer.** There is no webhook and no incremental update; each refresh re-reads every
   repository from scratch.
+- **Blocking is direct only.** A waits on B is reported; A waits on B waits on C is not.
+  Transitive chains are technically true and rarely act on, and the direct answer is the one
+  somebody can do something about.
 - **The rules exist twice**, in `internal/conform` and in the template's `validate-plan.py`, with
   nothing keeping them in step. [ADR-0006](decisions/0006-distributing-the-template.md) is the
   answer and is not built.

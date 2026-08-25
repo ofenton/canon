@@ -106,7 +106,22 @@ func (s *Server) getProduct(w http.ResponseWriter, r *http.Request) {
 			fmt.Errorf("no product called %q; GET /api/products lists them", r.PathValue("name")))
 		return
 	}
-	writeJSON(w, http.StatusOK, e)
+	body := map[string]any{
+		"repository":   e.Repository,
+		"conformance":  e.Report,
+		"source":       e.Source,
+		"refreshed_at": e.RefreshedAt,
+	}
+	if e.Err != "" {
+		body["error"] = e.Err
+	}
+	if e.Repository != nil {
+		body["blocked"] = e.Repository.Blocked()
+		if cycles := e.Repository.Cycles(); len(cycles) > 0 {
+			body["cycles"] = cycles
+		}
+	}
+	writeJSON(w, http.StatusOK, body)
 }
 
 // listIncrements returns work across every product, which is the question no single
@@ -114,11 +129,17 @@ func (s *Server) getProduct(w http.ResponseWriter, r *http.Request) {
 func (s *Server) listIncrements(w http.ResponseWriter, r *http.Request) {
 	status := r.URL.Query().Get("status")
 	product := r.URL.Query().Get("product")
+	// blocked=true narrows to work that cannot start, which is the question worth
+	// asking across products: everything else is a list somebody has to read.
+	blockedOnly := r.URL.Query().Get("blocked") == "true"
 	limit, offset := page(r)
 
 	type row struct {
 		Product string `json:"product"`
 		ingest.Increment
+		// BlockedBy is what this is waiting on that has not finished. Derived from
+		// the ledger's own Dependencies field, not recorded here.
+		BlockedBy []string `json:"blocked_by,omitempty"`
 	}
 	all := []row{}
 	for _, e := range s.products.Entries() {
@@ -128,11 +149,15 @@ func (s *Server) listIncrements(w http.ResponseWriter, r *http.Request) {
 		if product != "" && e.Name() != product {
 			continue
 		}
+		blocked := e.Repository.Blocked()
 		for _, inc := range e.Repository.Increments {
 			if status != "" && inc.Status != status {
 				continue
 			}
-			all = append(all, row{Product: e.Name(), Increment: inc})
+			if blockedOnly && len(blocked[inc.ID]) == 0 {
+				continue
+			}
+			all = append(all, row{Product: e.Name(), Increment: inc, BlockedBy: blocked[inc.ID]})
 		}
 	}
 	sort.Slice(all, func(i, j int) bool {
