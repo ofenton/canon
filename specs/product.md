@@ -94,6 +94,24 @@ Three consequences follow:
 - **R60:** THE SYSTEM SHALL offer the same surface to agents over MCP as to humans over HTTP, with a
   test asserting parity.
 
+### The web interface
+
+Canon is agent-first, and the interface is where that claim is tested: whatever an agent can ask
+for, a person should be able to see. It is a **reading** tool — Canon authors nothing, so there is
+no form, no editing and no undo anywhere in it.
+
+- **R64:** WHEN a person reaches any view THE SYSTEM SHALL give it a URL that reproduces it, so a
+  finding can be sent to somebody else.
+- **R65:** THE SYSTEM SHALL make every action performable by pointer and by keyboard, with both
+  paths dispatching through one definition.
+- **R66:** WHEN a person searches for text THE SYSTEM SHALL return matching increments across every
+  product.
+- **R67:** WHEN the viewport is narrow THE SYSTEM SHALL remain usable, without a horizontal scroll
+  on the page itself.
+- **R68:** THE SYSTEM SHALL show what changed recently across every product, which is the question
+  no single repository can answer.
+- **R69:** THE SYSTEM SHALL state, for any figure it shows, when the data behind it was read.
+
 ### Should
 
 - **R61:** WHEN an ingest finds an increment referencing a requirement that does not exist THE

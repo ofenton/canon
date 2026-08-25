@@ -873,7 +873,8 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-033: Usable with a mouse
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** abandoned
+- **Superseded by:** ui-001 to ui-004. Planned against the issue-tracker UI, which `cut-001` replaced. Its second and third criteria were delivered incidentally — a click selects and a double-click opens, and the browser suite drives both paths — but its first was not: `?`, `r` and `Escape` still have no pointer affordance. That is now `ui-002`.
 - **Tier:** 2 (High)
 - **Traces:** R21
 - **Scope:** Make every action reachable by pointer as well as by keyboard: clickable rows and relationships, visible buttons for the actions currently bound only to keys, and hit targets a person can hit. Keyboard parity is preserved and asserted, and the two paths call the same action registry rather than duplicating logic.
@@ -887,12 +888,13 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Dependencies:** feat-032
 - **Rollback Plan:** Remove the pointer handlers; the keyboard paths are untouched
 - **Risk:** Medium — two input paths diverging is the failure mode, so both must call one registry
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** superseded before implementation; see the increments that replace it
 
 ## feat-034: Search and pagination people can see
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** abandoned
+- **Superseded by:** ui-001 to ui-004. Pagination landed with `cut-001`; the visible search box did not, because `internal/query` was removed and there is no text search to expose. That is now `ui-003`.
 - **Tier:** 1 (Critical)
 - **Traces:** R23, R21
 - **Scope:** A permanent search box rather than a keyboard-only prompt, and pagination controls so a list longer than one page is reachable. One input for both search and filter, because the query language already does both. No per-field filter controls.
@@ -906,7 +908,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Dependencies:** feat-033
 - **Rollback Plan:** Hide the controls; `/` and the API's limit and offset are unchanged
 - **Risk:** Medium — an off-by-one in paging shows the wrong rows, which is worse than showing none
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** superseded before implementation; see the increments that replace it
 
 ## chore-005: Take the template's own updates, and record the reconciliation
 
@@ -1044,7 +1046,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-039: Read-only agent surface
 
 - **Type:** feature
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 2 (High)
 - **Traces:** R60, R63
 - **Scope:** Restore MCP parity against the reduced route table, and show what is blocked and why from dependencies declared in ingested ledgers.
@@ -1077,6 +1079,101 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Rollback Plan:** Restore the previous `specs/product.md` from git
 - **Risk:** Medium — a spec nobody rereads is how a project drifts back to what it was
 - **Evidence:** see `specs/increments/docs-005-reframe-the-product-spec.md`
+
+## ui-001: Every view has a URL
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 1 (Critical)
+- **Traces:** R64
+- **Scope:** Put the view, the selected product, the filters and the page into the URL, and read them back on load. Browser back and forward move between views. A reporting tool whose findings cannot be sent to somebody is much less useful than one whose can.
+- **Acceptance Criteria:**
+  - [ ] WHEN a view is reached THE SYSTEM SHALL update the URL so that opening it reproduces the view
+  - [ ] WHEN the browser back button is used THE SYSTEM SHALL return to the previous view
+  - [ ] WHEN a URL naming a product that does not exist is opened THE SYSTEM SHALL say so rather than showing an empty screen
+- **Test Strategy:**
+  - Browser test: navigate, copy the URL, open it in a fresh page, assert the same view
+  - Browser test: back and forward across three views
+- **Dependencies:** none
+- **Rollback Plan:** Stop writing the URL; the in-memory state still drives every view
+- **Risk:** Low — additive to state that already exists
+- **Evidence:** _(filled in at verify)_
+
+## ui-002: Pointer parity, and a narrow screen
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 2 (High)
+- **Traces:** R65, R67
+- **Scope:** Give every registry action a pointer affordance, and make the layout work below 40rem. A structural test asserts the parity so a new action cannot be keyboard-only by omission.
+- **Acceptance Criteria:**
+  - [ ] THE SYSTEM SHALL perform every action in the registry from a pointer as well as from the keyboard
+  - [ ] WHEN the viewport is 400px wide THE SYSTEM SHALL show every column's content without the page scrolling sideways
+  - [ ] THE SYSTEM SHALL continue to pass the keyboard-only run with no pointer events
+- **Test Strategy:**
+  - A structural test pairing each registry action with its affordance
+  - Browser test at 400px, asserting `document.body.scrollWidth` does not exceed the viewport
+- **Dependencies:** ui-001
+- **Rollback Plan:** Remove the added controls; the keyboard paths are untouched
+- **Risk:** Low — presentation and affordances only
+- **Evidence:** _(filled in at verify)_
+
+## ui-003: Search across every product
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 2 (High)
+- **Traces:** R66
+- **Scope:** Search increment titles, ids and field values across every ingested product, served from `/api/increments?q=`. One input, no per-field controls: a filter bar with a control per field is the accretion this product refuses.
+- **Acceptance Criteria:**
+  - [ ] WHEN a person submits a word THE SYSTEM SHALL return matching increments from every product
+  - [ ] WHEN a search is refined THE SYSTEM SHALL return to the first page rather than an empty one
+  - [ ] THE SYSTEM SHALL match without regard to case
+- **Test Strategy:**
+  - Unit over ingested fixtures, including matches in a non-title field
+  - Browser test: type, assert the list narrows and the URL carries the query
+- **Dependencies:** ui-001
+- **Rollback Plan:** Remove the parameter; the status and blocked filters are unaffected
+- **Risk:** Low — a read filter over data already in memory
+- **Evidence:** _(filled in at verify)_
+
+## ui-004: What changed recently
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 2 (High)
+- **Traces:** R68, R69
+- **Scope:** A view of status changes across every product, most recent first, each naming the commit it came from. This is the screen only an aggregator can show, and it is built from transitions that are already exact.
+- **Acceptance Criteria:**
+  - [ ] THE SYSTEM SHALL list recent status changes across every product, most recent first
+  - [ ] THE SYSTEM SHALL name the commit each change came from
+  - [ ] THE SYSTEM SHALL state when the data behind the view was read
+- **Test Strategy:**
+  - Unit: ordering across two products with interleaved timestamps
+  - Browser test asserting the view renders and carries a commit reference
+- **Dependencies:** ui-001
+- **Rollback Plan:** Remove the route and the screen; nothing else reads them
+- **Risk:** Low — a projection over transitions already derived
+- **Evidence:** _(filled in at verify)_
+
+## docs-006: Requirements for the interface
+
+- **Type:** docs
+- **Status:** in-progress
+- **Tier:** 2 (High)
+- **Traces:** R64
+- **Scope:** Give the web interface requirements. The reframed spec has none, so the UI exists and nothing asks it for anything. Replan the two UI increments written against the old product, marking what of them already landed. No code changes.
+- **Acceptance Criteria:**
+  - [x] THE SYSTEM SHALL state what the interface is for, in requirements an increment can trace to
+  - [x] THE SYSTEM SHALL record what the superseded increments delivered rather than deleting them
+  - [x] THE SYSTEM SHALL audit the current interface rather than assuming what it does
+- **Test Strategy:**
+  - Audit the interface: enumerate its registry actions, its pointer affordances, its URL handling and its responsive rules
+  - Every new requirement claimed by a planned increment
+- **Dependencies:** none
+- **Rollback Plan:** Restore the previous spec and plan from git
+- **Risk:** Low — documentation and planning
+- **Evidence:** see `specs/increments/docs-006-requirements-for-the-interface.md`
 
 ## Sequencing
 
