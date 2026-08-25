@@ -47,7 +47,7 @@ checks them. They are measured again below; they will drift again until somethin
 | `internal/ui` | 33 | Serves one embedded HTML file | — |
 | `internal/metrics` | 322 | Flow measured from derived transitions | `ingest` |
 | `internal/conform` | 247 | Runs the template's rules and reports what fails | `ingest` |
-| `internal/source` | 360 | Says where Canon looks: parses the list of sources and resolves each to repositories | `ingest` |
+| `internal/source` | 580 | Says where Canon looks: parses the list, expands organisations, fetches into the cache | `ingest` |
 | `internal/catalogue` | 156 | Holds what was read from each repository, and when | `ingest`, `conform`, `source` |
 | `internal/api` | 325 | The read surface, and pagination | `catalogue`, `conform`, `ingest`, `metrics`, `ui` |
 | `internal/mcp` | 325 | MCP over stdio, **derived from the API's route table** | — (takes routes as data) |
@@ -135,6 +135,8 @@ those are the ones that survive a careless change.
 | A dependency outside the ledger is not a block | `TestADanglingDependencyIsNotABlock` |
 | A dependency cycle is found and reported once | `TestCyclesAreFound`, `TestACycleIsReportedOnce` |
 | Every action works by keyboard and by pointer | `e2e/keyboard.mjs` — two runs, one sending no clicks and one sending no keys |
+| A repository without the ledger is skipped, not reported | `internal/source.TestAnOrganisationExpandsToItsProducts` — most of an organisation has not adopted the template |
+| No test reaches GitHub | `internal/source.TestMain` — `githubAPI` points at a dead port unless a test stubs it |
 | Deleting the cache loses nothing | `internal/source.TestDeletingTheCacheLosesNothing` — deletes it, rebuilds, compares ingest fingerprints |
 | An unreachable remote is served stale with its reason | `internal/catalogue.TestAStaleSourceIsServedWithItsReason` — `Stale`, not `Err`: there is something to show |
 | One unreachable source never empties the catalogue | `internal/catalogue.TestAFailedSourceAppearsRatherThanVanishing` — a failed source survives as an entry |

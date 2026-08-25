@@ -122,9 +122,8 @@ func TestOneBadSourceDoesNotHideTheGoodOnes(t *testing.T) {
 		{root, Directory},
 		{empty, Directory},
 		{"file:///no/such/repository", Remote},
-		{"github:ofenton", Organisation},
 	}, t.TempDir())
-	if len(got) != 5 {
+	if len(got) != 4 {
 		t.Fatalf("got %d results, want one per source — a source that vanishes cannot be reported", len(got))
 	}
 	if got[0].Err == nil || !strings.Contains(got[0].Err.Error(), "/no/such/place") {
@@ -138,15 +137,9 @@ func TestOneBadSourceDoesNotHideTheGoodOnes(t *testing.T) {
 	if got[2].Err == nil {
 		t.Error("a directory holding no product should say so")
 	}
-	// An unreachable remote and an unbuilt kind both report; neither takes the others
-	// down with it.
-	for _, r := range got[3:] {
-		if r.Err == nil {
-			t.Errorf("%q should have reported a problem", r.Source.Line)
-		}
-	}
-	if !strings.Contains(got[4].Err.Error(), "not built yet") {
-		t.Errorf("an unbuilt kind should say what to do instead: %v", got[4].Err)
+	// An unreachable remote reports without taking the others down with it.
+	if got[3].Err == nil {
+		t.Errorf("%q should have reported a problem", got[3].Source.Line)
 	}
 }
 
