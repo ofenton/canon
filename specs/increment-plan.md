@@ -1083,21 +1083,21 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## chore-006: Delete what the rewrite left behind
 
 - **Type:** chore
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 3 (Medium)
 - **Traces:** R58
 - **Scope:** Remove `deploy/canon.yaml`, the ignore rules for a database Canon cannot write, and the scratch directories nothing creates. The README already claims "no database, and nothing to configure" and the repository contradicted it. A structural test makes the claim enforced rather than stated.
 - **Acceptance Criteria:**
-  - [ ] THE SYSTEM SHALL track no configuration file, since the template fixes the schema
-  - [ ] THE SYSTEM SHALL track no database and ignore no artefact it cannot produce
-  - [ ] THE SYSTEM SHALL fail its own tests if either is reintroduced
+  - [x] THE SYSTEM SHALL track no configuration file, since the template fixes the schema
+  - [x] THE SYSTEM SHALL track no database and ignore no artefact it cannot produce
+  - [x] THE SYSTEM SHALL fail its own tests if either is reintroduced
 - **Test Strategy:**
   - A structural test over `git ls-files`, so the claim is checked rather than asserted in prose
   - Full suite and both browser runs, to show nothing read the deleted files
 - **Dependencies:** none
 - **Rollback Plan:** Restore the files from git; nothing reads them, so nothing changes
 - **Risk:** Low — deleting files no code references
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/chore-006-delete-the-leftovers.md`
 
 ## ui-001: Every view has a URL
 
