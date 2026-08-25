@@ -46,13 +46,19 @@ jobs:
             exit 1
           fi
 
-  # The UI's acceptance criterion is that every action is reachable by keyboard.
-  # The structural tests in internal/ui check that a binding exists; only a browser
-  # can check that it works, so this job drives the real thing with no pointer input.
+  # Every action must work by keyboard and by pointer. The structural tests in
+  # internal/ui check that a binding exists; only a browser can check that it works,
+  # so this job drives the real thing twice — once sending no clicks, once no keys.
+  #
+  # The fixture is this checkout: it follows the template, so it is a product Canon
+  # can read. fetch-depth 0 because transitions come from the ledger's commit
+  # history, and a shallow clone has none.
   ui:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-go@v5
         with:
           go-version: '1.26'
@@ -67,17 +73,16 @@ jobs:
           npm install --no-audit --no-fund
           npx playwright install --with-deps chromium-headless-shell
 
-      - name: Run the keyboard-only test
+      - name: Drive the UI by keyboard and by pointer
         run: |
           make build
-          cp internal/schema/testdata/canon.yaml .
-          ./bin/canon bootstrap -actor ci -team platform
-          ./bin/canon serve -addr :8093 &
+          ./bin/canon catalogue .
+          ./bin/canon serve -addr :8093 -products . -refresh 0 &
           for i in $(seq 1 30); do
-            curl -sf http://localhost:8093/ >/dev/null && break
+            curl -sf http://localhost:8093/api/products >/dev/null && break
             sleep 1
           done
-          node e2e/keyboard.mjs http://localhost:8093 ci
+          node e2e/keyboard.mjs http://localhost:8093
 
   ledger:
     runs-on: ubuntu-latest
