@@ -47,7 +47,7 @@ func TestEveryJSONKeyIsSnakeCase(t *testing.T) {
 	}
 
 	reads := []string{
-		"/api/schema", "/api/schema/usage", "/api/events", "/api/issues", "/api/issues/CANON-1",
+		"/api/schema", "/api/schema/usage", "/api/products", "/api/events", "/api/issues", "/api/issues/CANON-1",
 		"/api/issues/CANON-1/children", "/api/issues/CANON-2/ancestors",
 		"/api/issues/CANON-1/tree", "/api/issues/CANON-1/dependencies",
 		"/api/issues/CANON-1/commits", "/api/cycles", "/api/metrics",

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/ofenton/canon/internal/api"
+	"github.com/ofenton/canon/internal/catalogue"
 	"github.com/ofenton/canon/internal/enforce"
 	"github.com/ofenton/canon/internal/event"
 	"github.com/ofenton/canon/internal/mcp"
@@ -34,6 +35,7 @@ usage:
   canon ingest <path>           read a repository that follows the template
   canon flow <path>             report how long work actually took
   canon conform <path>          report how faithfully a repository follows the template
+  canon catalogue <root>        list every product found under a directory
   canon events [flags]          print the event log as JSON
   canon bootstrap [flags]       create the first admin on an empty log
   canon token [flags]           issue or revoke an actor's API token
@@ -53,6 +55,9 @@ ingest flags:
 
 flow flags:
   -days int         window in days (default 30)
+
+catalogue flags:
+  -json             print the catalogue as JSON
 
 conform flags:
   -json             print the report as JSON
@@ -84,6 +89,7 @@ serve flags:
   -db string        path to the event log (default "canon.db")
   -schema string    path to canon.yaml (default "canon.yaml")
   -addr string      address to listen on (default ":8080")
+  -products string  directory to discover products under (default ".")
 
 mcp flags:
   -actor string     actor to act as (required)
@@ -152,6 +158,8 @@ func run(args []string) error {
 		return flowCmd(args[1:])
 	case "conform":
 		return conformCmd(args[1:])
+	case "catalogue":
+		return catalogueCmd(args[1:])
 	case "events":
 		return events(args[1:])
 	case "bootstrap":
@@ -406,6 +414,7 @@ func serve(args []string) error {
 	dbPath := fs.String("db", "canon.db", "path to the event log")
 	schemaPath := fs.String("schema", "canon.yaml", "path to canon.yaml")
 	addr := fs.String("addr", ":8080", "address to listen on")
+	products := fs.String("products", ".", "directory to discover products under")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -435,9 +444,18 @@ func serve(args []string) error {
 	defer hooks.Close(5 * time.Second)
 
 	srv := api.New(sch, store, e, time.Now)
+
+	// The catalogue is filled once at startup. Reads then answer from it and never
+	// touch git, which is what makes a read fast and what "as of" means here.
+	if sources, err := catalogue.Discover(*products); err == nil && len(sources) > 0 {
+		srv.Catalogue().Refresh(sources, time.Now)
+	}
 	fmt.Printf("canon %s listening on %s\n  schema %s (%d states, %d fields, %d roles)\n  log    %s\n",
 		version, *addr, *schemaPath,
 		len(sch.States), len(sch.Fields), len(sch.RoleNames()), *dbPath)
+	if n := len(srv.Catalogue().Entries()); n > 0 {
+		fmt.Printf("  catalog %d product(s) discovered under %s\n", n, *products)
+	}
 	if len(sch.Webhooks) > 0 {
 		fmt.Printf("  hooks  %d webhook(s) on state changes\n", len(sch.Webhooks))
 	}

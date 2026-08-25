@@ -57,6 +57,8 @@ var descriptions = map[string]string{
 	"GET /api/issues/{id}/tree":                 "List everything beneath an issue, each with its depth. Pass depth to limit how far down.",
 	"POST /api/actors/{id}/tokens":              "Issue an API token for an actor. The token is returned once and never again; Canon stores only a hash. Issuing one for yourself is always allowed; issuing one for somebody else needs the administer permission.",
 	"DELETE /api/actors/{id}/tokens":            "Revoke every token an actor holds. Rotation is revoke then issue.",
+	"GET /api/products":                         "List every product Canon knows about: each conforming repository, what it is for, how much work is open and done, and when it was last read.",
+	"GET /api/products/{name}":                  "Everything about one product: its increments with their derived status histories, and its conformance report.",
 	"GET /api/schema/usage":                     "Report every field, state, issue type, team and role in the schema with how many issues use it and when it was last used. Unused configuration is listed first.",
 	"GET /api/issues/{id}/commits":              "List the commits linked to an issue, oldest first by the time they were authored.",
 	"PUT /api/issues/{id}/commits":              "Link a commit to an issue. Safe to repeat: linking the same commit twice records it once. Supply the commit's own author time as \"at\" when linking work done earlier.",
