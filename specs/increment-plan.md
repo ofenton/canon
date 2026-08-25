@@ -987,7 +987,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-037: Conformance, reported not enforced
 
 - **Type:** feature
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 1 (Critical)
 - **Traces:** R54, R61, R62
 - **Scope:** Run the template's own rules across every ingested repository and report what fails, per repository, without refusing anything. A repository that does not conform is reported and skipped, never fatal to the rest.
