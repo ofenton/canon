@@ -114,19 +114,26 @@ func classify(line string) Kind {
 // One source failing never stops the others, which is the same rule the catalogue
 // applies to one unparseable ledger and for the same reason: the sources most worth
 // reporting on are the ones that fail.
-func Resolve(sources []Source) []Result {
+// cache is where fetched repositories are kept; see DefaultCacheDir.
+func Resolve(sources []Source, cache string) []Result {
 	out := make([]Result, 0, len(sources))
 	for _, s := range sources {
-		out = append(out, resolve(s))
+		out = append(out, resolve(s, cache))
 	}
 	return out
 }
 
-func resolve(s Source) Result {
+func resolve(s Source, cache string) Result {
 	res := Result{Source: s}
 	switch s.Kind {
 	case Remote:
-		res.Err = fmt.Errorf("fetching a repository is not built yet; clone it and list the path")
+		// Paths and Err together is the stale case: the remote was unreachable and
+		// the previous fetch is still on disk. Reported, and still served.
+		path, err := fetch(cache, s.Line)
+		res.Err = err
+		if path != "" {
+			res.Paths = []string{path}
+		}
 		return res
 	case Organisation:
 		res.Err = fmt.Errorf("expanding an organisation is not built yet; list its repositories")

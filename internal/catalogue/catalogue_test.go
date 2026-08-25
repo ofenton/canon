@@ -1,6 +1,7 @@
 package catalogue
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -244,7 +245,7 @@ func TestAFailedSourceAppearsRatherThanVanishing(t *testing.T) {
 	c.RefreshFrom(source.Resolve([]source.Source{
 		{Line: "/no/such/place", Kind: source.Directory},
 		{Line: root, Kind: source.Directory},
-	}), now)
+	}, t.TempDir()), now)
 
 	entries := c.Entries()
 	if len(entries) != 2 {
@@ -263,5 +264,41 @@ func TestAFailedSourceAppearsRatherThanVanishing(t *testing.T) {
 	}
 	if failed != 1 || read != 1 {
 		t.Fatalf("%d failed and %d read; one bad source must not empty the catalogue", failed, read)
+	}
+}
+
+// AC: WHEN a remote is unreachable THE SYSTEM SHALL keep serving what it read last and
+// say when that was.
+//
+// At the catalogue because that is where the two halves meet: the repository is still
+// readable, and the reason it may be out of date has to survive alongside it. Err would
+// be wrong — there is something to show — so it is Stale, and the distinction is the
+// point of the test.
+func TestAStaleSourceIsServedWithItsReason(t *testing.T) {
+	dir := product(t, t.TempDir(), "orders", true)
+
+	c := New()
+	c.RefreshFrom([]source.Result{{
+		Source: source.Source{Line: "file://elsewhere", Kind: source.Remote},
+		Paths:  []string{dir},
+		Err:    errors.New("file://elsewhere could not be fetched, showing what was read before"),
+	}}, now)
+
+	entries := c.Entries()
+	if len(entries) != 1 {
+		t.Fatalf("got %d entries", len(entries))
+	}
+	e := entries[0]
+	if e.Err != "" {
+		t.Errorf("a readable repository was reported as unreadable: %s", e.Err)
+	}
+	if e.Repository == nil {
+		t.Fatal("nothing is being served; the point is that the last read survives")
+	}
+	if !strings.Contains(e.Stale, "could not be fetched") {
+		t.Errorf("the reason did not survive: %q", e.Stale)
+	}
+	if e.RefreshedAt.IsZero() {
+		t.Error("a stale view must say when it was read, or it presents itself as current")
 	}
 }

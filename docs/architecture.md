@@ -47,9 +47,9 @@ checks them. They are measured again below; they will drift again until somethin
 | `internal/ui` | 33 | Serves one embedded HTML file | — |
 | `internal/metrics` | 322 | Flow measured from derived transitions | `ingest` |
 | `internal/conform` | 247 | Runs the template's rules and reports what fails | `ingest` |
-| `internal/source` | 231 | Says where Canon looks: parses the list of sources and resolves each to repositories | `ingest` |
-| `internal/catalogue` | 146 | Holds what was read from each repository, and when | `ingest`, `conform`, `source` |
-| `internal/api` | 319 | The read surface, and pagination | `catalogue`, `conform`, `ingest`, `metrics`, `ui` |
+| `internal/source` | 360 | Says where Canon looks: parses the list of sources and resolves each to repositories | `ingest` |
+| `internal/catalogue` | 156 | Holds what was read from each repository, and when | `ingest`, `conform`, `source` |
+| `internal/api` | 325 | The read surface, and pagination | `catalogue`, `conform`, `ingest`, `metrics`, `ui` |
 | `internal/mcp` | 325 | MCP over stdio, **derived from the API's route table** | — (takes routes as data) |
 | `cmd/canon` | 446 | `catalogue`, `ingest`, `flow`, `conform`, `serve`, `mcp` | all |
 
@@ -79,7 +79,12 @@ Canon stores none of it.
 canon serve -source ~/code -addr :8080 -refresh 5m
 ```
 
-One process, one port, no database, no configuration file. Reads never touch git: the catalogue is
+One process, one port, no database, no configuration file. Canon does write a **cache** of mirrored
+repositories, which is not a contradiction of that and is worth stating precisely: a cache is
+discardable and reproducible, a store is authoritative. Nothing is read from the cache that could not
+be read from origin, and `TestDeletingTheCacheLosesNothing` deletes it and compares the ingest.
+
+Reads never touch git: the catalogue is
 filled at startup and on a timer, and every response carries `refreshed_at` so a stale view reads as
 stale rather than presenting itself as current.
 
@@ -130,6 +135,8 @@ those are the ones that survive a careless change.
 | A dependency outside the ledger is not a block | `TestADanglingDependencyIsNotABlock` |
 | A dependency cycle is found and reported once | `TestCyclesAreFound`, `TestACycleIsReportedOnce` |
 | Every action works by keyboard and by pointer | `e2e/keyboard.mjs` — two runs, one sending no clicks and one sending no keys |
+| Deleting the cache loses nothing | `internal/source.TestDeletingTheCacheLosesNothing` — deletes it, rebuilds, compares ingest fingerprints |
+| An unreachable remote is served stale with its reason | `internal/catalogue.TestAStaleSourceIsServedWithItsReason` — `Stale`, not `Err`: there is something to show |
 | One unreachable source never empties the catalogue | `internal/catalogue.TestAFailedSourceAppearsRatherThanVanishing` — a failed source survives as an entry |
 | The list of sources has no schema | `internal/source.TestTheListHasNoSchema` — a nested key must parse as two opaque lines, and the package may not import a decoder |
 | The repository holds no state and no configuration | `cmd/canon.TestTheRepositoryHoldsNoStateOrConfiguration` — reads `git ls-files`, so a claim in the README is not the only guard |

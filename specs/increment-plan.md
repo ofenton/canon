@@ -1140,7 +1140,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-040: A list of the repositories to track
 
 - **Type:** feature
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 1 (Critical)
 - **Traces:** R70, R71
 - **Scope:** Read sources from a file and from `-source` flags: a local directory, a local repository, and lines Canon does not yet know how to fetch, which it reports rather than ignores. Directory scanning becomes one source kind rather than the entry point.
@@ -1159,7 +1159,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-041: Track a repository over the network
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-progress
 - **Tier:** 1 (Critical)
 - **Traces:** R70, R71, R72
 - **Scope:** Fetch git URLs into a cache of bare clones and ingest from there, refreshing on the same timer. Credentials come from git's own helpers; Canon stores none. Deleting the cache must lose nothing.
@@ -1173,7 +1173,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Dependencies:** feat-040
 - **Rollback Plan:** Reject remote sources; local ones are unaffected
 - **Risk:** Medium — the first time Canon writes to disk, and the first network dependency
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/feat-041-fetch-a-remote.md`
 
 ## feat-042: Discover an organisation
 

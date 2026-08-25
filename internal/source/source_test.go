@@ -94,7 +94,7 @@ func TestADirectoryAndARepositoryBothResolve(t *testing.T) {
 	repo(t, filepath.Join(root, "api"))
 	alone := repo(t, filepath.Join(t.TempDir(), "standalone"))
 
-	got := Resolve([]Source{{root, Directory}, {alone, Directory}})
+	got := Resolve([]Source{{root, Directory}, {alone, Directory}}, t.TempDir())
 	if len(got) != 2 {
 		t.Fatalf("got %d results", len(got))
 	}
@@ -121,9 +121,9 @@ func TestOneBadSourceDoesNotHideTheGoodOnes(t *testing.T) {
 		{"/no/such/place", Directory},
 		{root, Directory},
 		{empty, Directory},
-		{"git@github.com:ofenton/orders", Remote},
+		{"file:///no/such/repository", Remote},
 		{"github:ofenton", Organisation},
-	})
+	}, t.TempDir())
 	if len(got) != 5 {
 		t.Fatalf("got %d results, want one per source — a source that vanishes cannot be reported", len(got))
 	}
@@ -138,13 +138,15 @@ func TestOneBadSourceDoesNotHideTheGoodOnes(t *testing.T) {
 	if got[2].Err == nil {
 		t.Error("a directory holding no product should say so")
 	}
+	// An unreachable remote and an unbuilt kind both report; neither takes the others
+	// down with it.
 	for _, r := range got[3:] {
 		if r.Err == nil {
-			t.Errorf("%q is not built yet and must say so", r.Source.Line)
+			t.Errorf("%q should have reported a problem", r.Source.Line)
 		}
-		if !strings.Contains(r.Err.Error(), "not built yet") {
-			t.Errorf("%q: %v — an unbuilt kind should say what to do instead", r.Source.Line, r.Err)
-		}
+	}
+	if !strings.Contains(got[4].Err.Error(), "not built yet") {
+		t.Errorf("an unbuilt kind should say what to do instead: %v", got[4].Err)
 	}
 }
 
@@ -152,7 +154,7 @@ func TestPathsFlattensWhatWasFound(t *testing.T) {
 	root := t.TempDir()
 	repo(t, filepath.Join(root, "a"))
 	repo(t, filepath.Join(root, "b"))
-	if n := len(Paths(Resolve([]Source{{root, Directory}, {"/nope", Directory}}))); n != 2 {
+	if n := len(Paths(Resolve([]Source{{root, Directory}, {"/nope", Directory}}, t.TempDir()))); n != 2 {
 		t.Fatalf("got %d paths, want 2", n)
 	}
 }
@@ -172,7 +174,7 @@ func TestATildeIsExpanded(t *testing.T) {
 	}
 	repo(t, filepath.Join(home, "orders"))
 
-	got := Resolve([]Source{{"~", Directory}})
+	got := Resolve([]Source{{"~", Directory}}, t.TempDir())
 	if got[0].Err != nil {
 		t.Fatalf("~ did not resolve: %v", got[0].Err)
 	}
