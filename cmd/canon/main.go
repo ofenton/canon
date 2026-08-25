@@ -31,6 +31,7 @@ usage:
   canon version                 print the build version
   canon schema [flags]          validate canon.yaml and print a summary
   canon usage [flags]           report what each declared thing is actually doing
+  canon ingest <path>           read a repository that follows the template
   canon events [flags]          print the event log as JSON
   canon bootstrap [flags]       create the first admin on an empty log
   canon token [flags]           issue or revoke an actor's API token
@@ -44,6 +45,9 @@ usage:
 
 schema flags:
   -schema string    path to canon.yaml (default "canon.yaml")
+
+ingest flags:
+  -json             print the ingested repository as JSON
 
 usage flags:
   -db string        path to the event log (default "canon.db")
@@ -133,6 +137,8 @@ func run(args []string) error {
 		return schemaCmd(args[1:])
 	case "usage":
 		return usageCmd(args[1:])
+	case "ingest":
+		return ingestCmd(args[1:])
 	case "events":
 		return events(args[1:])
 	case "bootstrap":
