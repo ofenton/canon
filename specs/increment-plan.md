@@ -1178,14 +1178,14 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-042: Discover an organisation
 
 - **Type:** feature
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 2 (High)
 - **Traces:** R52, R70
 - **Scope:** Expand an organisation entry such as `github:ofenton` to every repository in it that contains the ledger, using a token from the environment. This is what makes the list name places rather than repositories, and it is what R52 has asked for since the reframe.
 - **Acceptance Criteria:**
-  - [ ] WHEN a source names an organisation THE SYSTEM SHALL ingest every repository in it that contains the ledger
-  - [ ] WHEN a repository in the organisation does not contain the ledger THE SYSTEM SHALL skip it without reporting it as a failure
-  - [ ] WHEN no token is available THE SYSTEM SHALL say so for that source and continue with the others
+  - [x] WHEN a source names an organisation THE SYSTEM SHALL ingest every repository in it that contains the ledger
+  - [x] WHEN a repository in the organisation does not contain the ledger THE SYSTEM SHALL skip it without reporting it as a failure
+  - [x] WHEN no token is available THE SYSTEM SHALL say so for that source and continue with the others
 - **Test Strategy:**
   - Unit against a stubbed host API, including a repository without the artifact
   - A test asserting a missing token degrades that source only
