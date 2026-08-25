@@ -119,3 +119,74 @@ func functionBody(page, signature string) string {
 	}
 	return page[start:]
 }
+
+// Every piece of view state reaches the URL, so a view can be sent to somebody.
+//
+// Structural, and deliberately the shape that fails when the *next* increment adds
+// state: a search query or a new filter that render() reads but the URL does not carry
+// breaks this without anybody having to remember the requirement. That is the whole
+// reason ui-001 comes before the three increments that add state.
+//
+// Two keys are exempt and named here rather than inferred. cursor is which row is
+// highlighted — restoring a highlight in a fresh tab would be odd, and it is reset on
+// every navigation anyway. limit is fixed, not chosen.
+func TestEveryPieceOfViewStateIsInTheURL(t *testing.T) {
+	src := page(t)
+
+	_, rest, ok := strings.Cut(src, "const state = {")
+	if !ok {
+		t.Fatal("the state object is gone; this test no longer guards anything")
+	}
+	body, _, _ := strings.Cut(rest, "}")
+
+	notShareable := map[string]bool{"cursor": true, "limit": true}
+	var checked int
+	for _, field := range strings.Split(body, ",") {
+		key, _, ok := strings.Cut(strings.TrimSpace(field), ":")
+		if !ok || notShareable[key] {
+			continue
+		}
+		checked++
+		// Both directions: writing it without reading it back produces a URL that
+		// looks shareable and restores nothing, which is worse than no URL at all.
+		for fn, half := range map[string]string{
+			"stateToParams": after(src, "function stateToParams()"),
+			"applyURL":      after(src, "function applyURL()"),
+		} {
+			if !strings.Contains(half, key) {
+				t.Errorf("state.%s never appears in %s, so it cannot survive a copied URL", key, fn)
+			}
+		}
+	}
+	if checked < 4 {
+		t.Fatalf("only %d shareable field(s) examined; the state object was not parsed", checked)
+	}
+}
+
+// The UI navigates within the page, never by reloading it. A full load would discard
+// the history this increment depends on, and back would leave Canon entirely.
+func TestNavigationNeverReloadsThePage(t *testing.T) {
+	src := page(t)
+	for _, banned := range []string{"location.href =", "location.assign", "location.replace", "window.open"} {
+		if strings.Contains(src, banned) {
+			t.Errorf("the UI uses %q; navigation goes through history so back stays inside Canon", banned)
+		}
+	}
+	for _, required := range []string{"history.pushState", "history.replaceState", `"popstate"`} {
+		if !strings.Contains(src, required) {
+			t.Errorf("%s is gone; the URL and the screen can now disagree", required)
+		}
+	}
+}
+
+// after returns the source following a marker, bounded to the function that follows it.
+func after(src, marker string) string {
+	_, rest, ok := strings.Cut(src, marker)
+	if !ok {
+		return ""
+	}
+	if end := strings.Index(rest, "\n}"); end > 0 {
+		return rest[:end]
+	}
+	return rest
+}

@@ -125,6 +125,8 @@ those are the ones that survive a careless change.
 | A dependency outside the ledger is not a block | `TestADanglingDependencyIsNotABlock` |
 | A dependency cycle is found and reported once | `TestCyclesAreFound`, `TestACycleIsReportedOnce` |
 | Every action works by keyboard and by pointer | `e2e/keyboard.mjs` — two runs, one sending no clicks and one sending no keys |
+| Every view has a URL that reproduces it | `e2e/urls.mjs` — a copied URL is opened in a fresh page and compared |
+| Every piece of view state reaches the URL | `internal/ui.TestEveryPieceOfViewStateIsInTheURL` — parses the state object, so new state fails by default |
 
 **This table is the part of this document most worth keeping current.** The worst defects in this
 project were cross-cutting invariants that no single increment owned and no document stated.
