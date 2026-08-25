@@ -50,6 +50,12 @@
   header b { font-size:1rem; font-weight:600; letter-spacing:-.01em; }
   header .derived { color:var(--dim); font-size:12px; }
   nav { margin-left:auto; display:flex; gap:.25rem; }
+  .tools { display:flex; gap:.25rem; }
+  .tools button { background:none; border:1px solid var(--line-soft); color:var(--dim);
+    border-radius:6px; width:28px; height:28px; cursor:pointer; font-size:14px; }
+  .tools button:hover { background:var(--bg-hover); color:var(--fg); }
+  .title { cursor:pointer; }
+  tbody .title:hover { text-decoration:underline; }
   nav button { background:none; border:1px solid transparent; color:var(--fg);
                cursor:pointer; font:inherit; padding:.3rem .6rem;
                border-radius:var(--radius); display:flex; align-items:center; gap:.4rem; }
@@ -126,6 +132,36 @@
   #status { position:fixed; bottom:0; left:0; right:0; padding:.5rem 1.5rem;
             border-top:1px solid var(--line); background:var(--bg-inset);
             font-size:12px; color:var(--dim); }
+
+  /* A narrow screen shows every column, as a labelled list.
+   *
+   * The alternative — letting the table scroll inside its own box — keeps the page from
+   * scrolling sideways while still hiding half of every row behind a gesture nobody
+   * knows is there. The requirement is that the content is shown, so the table stops
+   * being a table: each row becomes a block, and each cell carries the column name it
+   * was given when the row was built. */
+  @media (max-width: 46rem) {
+    header { flex-wrap:wrap; gap:.5rem; }
+    nav { margin-left:0; width:100%; flex-wrap:wrap; }
+    /* Keyboard hints on a screen this size are almost certainly being touched, not
+     * typed at, and they were costing "Conformance" its last four letters. */
+    nav kbd { display:none; }
+    main { padding:1rem .75rem; }
+    .toolbar { flex-wrap:wrap; }
+    table, tbody, tr, td { display:block; width:100%; }
+    thead { display:none; }
+    tr { border:1px solid var(--line-soft); border-radius:var(--radius);
+         margin-bottom:.6rem; padding:.4rem .6rem; }
+    td { display:flex; gap:.75rem; justify-content:space-between; align-items:baseline;
+         border:none; padding:.25rem 0; text-align:right; overflow-wrap:anywhere; }
+    td::before { content:attr(data-label); color:var(--dim); font-size:12px;
+                 text-align:left; flex:0 0 auto; }
+    td:empty, td[data-label=""] { display:none; }
+    /* A title is the one field long enough to wrap, and a wrapped right-aligned
+     * sentence is hard to read. Its label goes above it instead of beside it. */
+    .title { flex-direction:column; align-items:flex-start; text-align:left;
+             font-weight:600; gap:.15rem; }
+  }
 </style>
 
 <header>
@@ -137,6 +173,11 @@
     <button data-view="flow" data-key="g f">Flow <kbd>g f</kbd></button>
     <button data-view="conformance" data-key="g c">Conformance <kbd>g c</kbd></button>
   </nav>
+  <div class="tools">
+    <button id="back-btn" title="Back to the list (Escape)" hidden>&larr;</button>
+    <button id="reload-btn" title="Reload (r)">&#x21bb;</button>
+    <button id="help-btn" title="Keyboard help (?)">?</button>
+  </div>
 </header>
 
 <main id="main" aria-live="polite"></main>
@@ -196,17 +237,29 @@ const duration = (d) => {
 
 // Every action lives here once, and both the keyboard and the pointer dispatch through
 // it. Two input paths with two implementations diverge; one registry cannot.
+// Every action declares how a pointer performs it, in the same entry as the key.
+//
+// A separate list of "shortcut → button" is a list somebody has to maintain, and
+// TestEveryActionHasAPointerPath only has to check that this field is filled in. A new
+// action cannot be keyboard-only by omission, because the omission is what fails.
+//
+// `pointer` is a selector, except for two cases where the affordance is the content
+// itself. Moving a selection is not something a pointer does step by step: it clicks the
+// row it wants. A literal reading of "every action performable by pointer" would put
+// next/previous buttons on the page that nobody would ever press — an affordance added
+// to satisfy a test rather than a person. So j and k declare "row", and Enter declares
+// ".title", and the browser test drives those as clicks rather than looking for controls.
 const ACTIONS = [
-  { key: "?",      name: "Keyboard help",       run: () => el("help").showModal() },
-  { key: "j",      name: "Next row",            run: () => move(1) },
-  { key: "k",      name: "Previous row",        run: () => move(-1) },
-  { key: "Enter",  name: "Open selected",       run: open },
-  { key: "Escape", name: "Back to the list",    run: back },
-  { key: "r",      name: "Reload",              run: () => { render(); say("reloaded"); } },
-  { key: "g p",    name: "Go to products",      run: () => go("products") },
-  { key: "g w",    name: "Go to work",          run: () => go("work") },
-  { key: "g f",    name: "Go to flow",          run: () => go("flow") },
-  { key: "g c",    name: "Go to conformance",   run: () => go("conformance") },
+  { key: "?",      name: "Keyboard help",     pointer: "#help-btn",   run: () => el("help").showModal() },
+  { key: "j",      name: "Next row",          pointer: "row",         run: () => move(1) },
+  { key: "k",      name: "Previous row",      pointer: "row",         run: () => move(-1) },
+  { key: "Enter",  name: "Open selected",     pointer: ".title",      run: open },
+  { key: "Escape", name: "Back to the list",  pointer: "#back-btn",   run: back },
+  { key: "r",      name: "Reload",            pointer: "#reload-btn", run: () => { render(); say("reloaded"); } },
+  { key: "g p",    name: "Go to products",    pointer: 'nav [data-view="products"]',    run: () => go("products") },
+  { key: "g w",    name: "Go to work",        pointer: 'nav [data-view="work"]',        run: () => go("work") },
+  { key: "g f",    name: "Go to flow",        pointer: 'nav [data-view="flow"]',        run: () => go("flow") },
+  { key: "g c",    name: "Go to conformance", pointer: 'nav [data-view="conformance"]', run: () => go("conformance") },
 ];
 
 // The URL is the view. A reporting tool whose findings cannot be sent to somebody is
@@ -299,6 +352,7 @@ async function render() {
   const seq = ++renderSeq;
   document.querySelectorAll("nav button").forEach((b) =>
     b.setAttribute("aria-current", String(b.dataset.view === state.view && !state.detail)));
+  el("back-btn").hidden = !state.detail;
 
   const main = el("main");
   main.innerHTML = "";
@@ -327,6 +381,19 @@ function table(main, headers, entries) {
     // parallel implementation of them.
     tr.addEventListener("click", () => { state.cursor = i; move(0); });
     tr.addEventListener("dblclick", open);
+    // The title opens on one click. Double-click is not discoverable, and an
+    // affordance nobody finds is not one. The rest of the row still selects, because
+    // selecting and opening are different intentions.
+    tr.querySelector(".title")?.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      state.cursor = i;
+      open();
+    });
+    // Each cell carries its column name, which is what lets the table become a list of
+    // labelled fields on a narrow screen instead of scrolling sideways.
+    [...tr.children].forEach((cell, c) => {
+      if (!cell.hasAttribute("colspan") && headers[c]) cell.dataset.label = headers[c];
+    });
     body.append(tr);
   });
   t.append(body);
@@ -398,7 +465,7 @@ async function renderWork(main, seq) {
       { className: "blank", innerHTML: "<h3>Nothing matches</h3>" }));
     return;
   }
-  table(main, ["Product", "", "Title", "Status", "Waiting on"], res.body.increments.map((i) => ({
+  table(main, ["Product", "ID", "Title", "Status", "Waiting on"], res.body.increments.map((i) => ({
     product: i.product,
     html: `<td class="muted">${escape(i.product)}</td><td class="id">${escape(i.id)}</td>` +
           `<td class="title">${escape(i.title)}</td>` +
@@ -511,7 +578,7 @@ async function renderProduct(main, name, seq) {
     }));
   }
   const blocked = e.blocked ?? {};
-  table(main, ["", "Title", "Status", "Waiting on"], (repo.increments ?? []).map((i) => ({
+  table(main, ["ID", "Title", "Status", "Waiting on"], (repo.increments ?? []).map((i) => ({
     html: `<td class="id">${escape(i.id)}</td><td class="title">${escape(i.title)}</td>` +
           `<td><span class="state ${categoryOf(i.status)}">${escape(i.status)}</span></td>` +
           `<td class="id">${(blocked[i.id] ?? []).map(escape).join(", ")}</td>`,
@@ -541,8 +608,13 @@ document.addEventListener("keydown", (ev) => {
   pending = "";
 });
 
-document.querySelectorAll("nav button").forEach((b) =>
-  b.addEventListener("click", () => go(b.dataset.view)));
+// Pointer dispatch, from the same registry as the keyboard. Every action whose pointer
+// names a control is bound here, so adding an action with a button is one entry rather
+// than an entry plus a listener that can be forgotten.
+ACTIONS.filter((a) => a.pointer !== "row" && a.pointer !== ".title").forEach((a) => {
+  const control = document.querySelector(a.pointer);
+  if (control) control.addEventListener("click", a.run);
+});
 
 // The keyboard reference is generated from the registry, so it cannot drift from what
 // the keys actually do.

@@ -135,6 +135,8 @@ those are the ones that survive a careless change.
 | A dependency outside the ledger is not a block | `TestADanglingDependencyIsNotABlock` |
 | A dependency cycle is found and reported once | `TestCyclesAreFound`, `TestACycleIsReportedOnce` |
 | Every action works by keyboard and by pointer | `e2e/keyboard.mjs` — two runs, one sending no clicks and one sending no keys |
+| Every action declares its pointer path | `internal/ui.TestEveryActionHasAPointerPath` — parses the registry, so keyboard-only cannot happen by omission |
+| The page works at 400px with every column shown | `e2e/narrow.mjs` — four views, `scrollWidth` against the viewport, and cells carrying their column name |
 | A repository without the ledger is skipped, not reported | `internal/source.TestAnOrganisationExpandsToItsProducts` — most of an organisation has not adopted the template |
 | No test reaches GitHub | `internal/source.TestMain` — `githubAPI` points at a dead port unless a test stubs it |
 | Deleting the cache loses nothing | `internal/source.TestDeletingTheCacheLosesNothing` — deletes it, rebuilds, compares ingest fingerprints |

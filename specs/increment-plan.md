@@ -1178,7 +1178,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-042: Discover an organisation
 
 - **Type:** feature
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 2 (High)
 - **Traces:** R52, R70
 - **Scope:** Expand an organisation entry such as `github:ofenton` to every repository in it that contains the ledger, using a token from the environment. This is what makes the list name places rather than repositories, and it is what R52 has asked for since the reframe.
@@ -1197,21 +1197,21 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## ui-002: Pointer parity, and a narrow screen
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-review
 - **Tier:** 2 (High)
 - **Traces:** R65, R67
 - **Scope:** Give every registry action a pointer affordance, and make the layout work below 40rem. A structural test asserts the parity so a new action cannot be keyboard-only by omission.
 - **Acceptance Criteria:**
-  - [ ] THE SYSTEM SHALL perform every action in the registry from a pointer as well as from the keyboard
-  - [ ] WHEN the viewport is 400px wide THE SYSTEM SHALL show every column's content without the page scrolling sideways
-  - [ ] THE SYSTEM SHALL continue to pass the keyboard-only run with no pointer events
+  - [x] THE SYSTEM SHALL perform every action in the registry from a pointer as well as from the keyboard
+  - [x] WHEN the viewport is 400px wide THE SYSTEM SHALL show every column's content without the page scrolling sideways
+  - [x] THE SYSTEM SHALL continue to pass the keyboard-only run with no pointer events
 - **Test Strategy:**
   - A structural test pairing each registry action with its affordance
   - Browser test at 400px, asserting `document.body.scrollWidth` does not exceed the viewport
 - **Dependencies:** ui-001
 - **Rollback Plan:** Remove the added controls; the keyboard paths are untouched
 - **Risk:** Low — presentation and affordances only
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/ui-002-pointer-parity.md`
 
 ## ui-003: Search across every product
 

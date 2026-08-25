@@ -106,7 +106,10 @@ check("pagination controls are present", await next.count() === 1);
 
 await mouse.click('nav button[data-view="products"]');
 await mouse.waitForSelector("#main tbody tr", { timeout: 8000 });
-await mouse.click("#main tbody tr");
+// A cell that is not the title: the title opens on one click now, and the centre of a
+// products row is the title. Selecting and opening are different intentions, and the
+// row gives each of them its own target.
+await mouse.locator("#main tbody tr td").last().click();
 check("clicking a row selects it",
   (await mouse.locator('#main tbody tr[aria-selected="true"]').count()) === 1);
 await mouse.dblclick("#main tbody tr");
