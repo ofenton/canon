@@ -930,7 +930,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## docs-004: ADR-0009, Canon as aggregator
 
 - **Type:** docs
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 2 (High)
 - **Traces:** R31
 - **Scope:** Record the decision to make Canon read-only over repositories that follow the template: what it enforces, what identity remains, what the approval gate is, and what gets deleted. Measured, not estimated. No code changes.
@@ -949,21 +949,21 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-035: Ingest a repository
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-review
 - **Tier:** 1 (Critical)
 - **Traces:** R52, R53
 - **Scope:** Read a repository that follows the template — clone or fetch, parse `specs/product.md` and `specs/increment-plan.md`, and derive each increment's status history from the commit history of the ledger file. Additive: nothing existing is removed, so main keeps working.
 - **Acceptance Criteria:**
-  - [ ] WHEN given a repository containing `specs/increment-plan.md` THE SYSTEM SHALL ingest every increment without per-repository configuration
-  - [ ] THE SYSTEM SHALL derive each status transition and its timestamp from the ledger file's commit history rather than approximating it
-  - [ ] WHEN a repository is ingested twice THE SYSTEM SHALL produce the same result
+  - [x] WHEN given a repository containing `specs/increment-plan.md` THE SYSTEM SHALL ingest every increment without per-repository configuration
+  - [x] THE SYSTEM SHALL derive each status transition and its timestamp from the ledger file's commit history rather than approximating it
+  - [x] WHEN a repository is ingested twice THE SYSTEM SHALL produce the same result
 - **Test Strategy:**
   - Ingest this repository and compare the derived transitions against `git log -p specs/increment-plan.md`
   - Ingest twice, assert the projection fingerprint matches
 - **Dependencies:** none
 - **Rollback Plan:** Remove the ingest command; nothing else depends on it yet
 - **Risk:** Medium — the parser meets other people's markdown, and being wrong quietly is the failure mode
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/feat-035-ingest-a-repository.md`
 
 ## feat-036: Flow measured from real transitions
 
@@ -1062,7 +1062,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## docs-005: Reframe the product spec
 
 - **Type:** docs
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 1 (Critical)
 - **Traces:** R52
 - **Scope:** Rewrite `specs/product.md` for Canon as an aggregator, and plan the increments that deliver it. The requirements delivered under the previous framing are kept, marked superseded, because 43 increments trace to them. No code changes.
