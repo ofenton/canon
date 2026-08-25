@@ -1216,14 +1216,14 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## ui-003: Search across every product
 
 - **Type:** feature
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 2 (High)
 - **Traces:** R66
 - **Scope:** Search increment titles, ids and field values across every ingested product, served from `/api/increments?q=`. One input, no per-field controls: a filter bar with a control per field is the accretion this product refuses.
 - **Acceptance Criteria:**
-  - [ ] WHEN a person submits a word THE SYSTEM SHALL return matching increments from every product
-  - [ ] WHEN a search is refined THE SYSTEM SHALL return to the first page rather than an empty one
-  - [ ] THE SYSTEM SHALL match without regard to case
+  - [x] WHEN a person submits a word THE SYSTEM SHALL return matching increments from every product
+  - [x] WHEN a search is refined THE SYSTEM SHALL return to the first page rather than an empty one
+  - [x] THE SYSTEM SHALL match without regard to case
 - **Test Strategy:**
   - Unit over ingested fixtures, including matches in a non-title field
   - Browser test: type, assert the list narrows and the URL carries the query
