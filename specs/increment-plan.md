@@ -1121,21 +1121,21 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## docs-007: Where Canon looks
 
 - **Type:** docs
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 1 (Critical)
 - **Traces:** R70
 - **Scope:** Record that Canon reads a list of sources rather than scanning one local directory, and why that does not reintroduce configuration. ADR-0010, three requirements, three increments. No code changes.
 - **Acceptance Criteria:**
-  - [ ] THE SYSTEM SHALL state where the list of tracked repositories lives and what a source is
-  - [ ] THE SYSTEM SHALL distinguish the list from the configuration `chore-006` removed, precisely enough that the next plausible file can be judged against it
-  - [ ] THE SYSTEM SHALL say what changes about Canon holding nothing
+  - [x] THE SYSTEM SHALL state where the list of tracked repositories lives and what a source is
+  - [x] THE SYSTEM SHALL distinguish the list from the configuration `chore-006` removed, precisely enough that the next plausible file can be judged against it
+  - [x] THE SYSTEM SHALL say what changes about Canon holding nothing
 - **Test Strategy:**
   - Every new requirement claimed by a planned increment
   - The ADR amends 0009 rather than contradicting it silently
 - **Dependencies:** none
 - **Rollback Plan:** Restore the previous spec and plan from git
 - **Risk:** Low — documentation and planning
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/docs-007-where-canon-looks.md`
 
 ## feat-040: A list of the repositories to track
 
