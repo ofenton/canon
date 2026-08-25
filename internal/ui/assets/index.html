@@ -148,7 +148,7 @@
 // Canon shows what it derived from repositories. There is nothing to write here, so
 // there is no create form, no editing and no undo: every screen is a view of somebody
 // else's git history.
-const state = { view: "products", detail: null, cursor: 0, status: "", offset: 0, limit: 50 };
+const state = { view: "products", detail: null, cursor: 0, status: "", blocked: false, offset: 0, limit: 50 };
 
 const el = (id) => document.getElementById(id);
 const escape = (s) => String(s ?? "").replace(/[&<>"']/g,
@@ -316,6 +316,7 @@ async function renderProducts(main, seq) {
 async function renderWork(main, seq) {
   const q = new URLSearchParams();
   if (state.status) q.set("status", state.status);
+  if (state.blocked) q.set("blocked", "true");
   q.set("limit", state.limit);
   q.set("offset", state.offset);
   const res = await api("/increments?" + q);
@@ -328,9 +329,12 @@ async function renderWork(main, seq) {
     `<select id="q"><option value="">every status</option>` +
     ["planned", "approved", "in-progress", "in-review", "done", "abandoned"]
       .map((s) => `<option ${s === state.status ? "selected" : ""}>${s}</option>`).join("") +
-    `</select><span class="muted" id="count"></span>`;
+    `</select>` +
+    `<button class="btn" id="blocked" aria-pressed="${state.blocked}">Blocked only</button>` +
+    `<span class="muted" id="count"></span>`;
   main.append(bar);
   el("q").addEventListener("change", (e) => { state.status = e.target.value; state.offset = 0; render(); });
+  el("blocked").addEventListener("click", () => { state.blocked = !state.blocked; state.offset = 0; render(); });
 
   const total = res.body.total ?? 0;
   const shown = res.body.increments?.length ?? 0;
@@ -342,11 +346,12 @@ async function renderWork(main, seq) {
       { className: "blank", innerHTML: "<h3>Nothing matches</h3>" }));
     return;
   }
-  table(main, ["Product", "", "Title", "Status"], res.body.increments.map((i) => ({
+  table(main, ["Product", "", "Title", "Status", "Waiting on"], res.body.increments.map((i) => ({
     product: i.product,
     html: `<td class="muted">${escape(i.product)}</td><td class="id">${escape(i.id)}</td>` +
           `<td class="title">${escape(i.title)}</td>` +
-          `<td><span class="state ${categoryOf(i.status)}">${escape(i.status)}</span></td>`,
+          `<td><span class="state ${categoryOf(i.status)}">${escape(i.status)}</span></td>` +
+          `<td class="id">${(i.blocked_by ?? []).map(escape).join(", ")}</td>`,
   })));
 
   const pager = document.createElement("div");
@@ -437,10 +442,18 @@ async function renderProduct(main, name, seq) {
     main.append(Object.assign(document.createElement("p"), { className: "err", textContent: e.error }));
     return;
   }
-  table(main, ["", "Title", "Status", "Changes"], (repo.increments ?? []).map((i) => ({
+  for (const cycle of e.cycles ?? []) {
+    main.append(Object.assign(document.createElement("p"), {
+      className: "err",
+      textContent: `Dependency cycle: ${cycle.join(" → ")} → ${cycle[0]}. Nothing in it can start ` +
+                   `until one dependency is removed.`,
+    }));
+  }
+  const blocked = e.blocked ?? {};
+  table(main, ["", "Title", "Status", "Waiting on"], (repo.increments ?? []).map((i) => ({
     html: `<td class="id">${escape(i.id)}</td><td class="title">${escape(i.title)}</td>` +
           `<td><span class="state ${categoryOf(i.status)}">${escape(i.status)}</span></td>` +
-          `<td class="muted">${(i.transitions ?? []).length}</td>`,
+          `<td class="id">${(blocked[i.id] ?? []).map(escape).join(", ")}</td>`,
   })));
   main.append(Object.assign(document.createElement("p"), {
     className: "hint",

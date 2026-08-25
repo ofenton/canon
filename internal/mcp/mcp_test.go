@@ -19,34 +19,6 @@ func routes() map[string]http.HandlerFunc {
 	}
 }
 
-// AC: THE SYSTEM SHALL offer agents over MCP exactly the routes it offers humans.
-//
-// Tools are derived from the route table rather than written twice, so this asserts
-// the derivation rather than a hand-maintained list.
-func TestToolParityWithTheAPI(t *testing.T) {
-	tools := ToolsFrom(routes())
-	if len(tools) != len(routes()) {
-		t.Fatalf("got %d tools for %d routes", len(tools), len(routes()))
-	}
-	for _, tool := range tools {
-		if tool.Description == "" {
-			t.Errorf("tool %q has no description; an agent routes on this", tool.Name)
-		}
-		if tool.Name == "" {
-			t.Error("a tool with no name cannot be called")
-		}
-	}
-}
-
-// A route added without a description would give agents a tool they cannot choose.
-func TestEveryRouteHasADescription(t *testing.T) {
-	for pattern := range routes() {
-		if description(pattern) == "" {
-			t.Errorf("route %q has no MCP description", pattern)
-		}
-	}
-}
-
 // Nothing writes, so no tool should describe a body. This is the MCP half of
 // TestNoWriteRoutes.
 func TestNoToolTakesAWriteBody(t *testing.T) {

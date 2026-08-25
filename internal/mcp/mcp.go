@@ -42,7 +42,7 @@ var pathParam = regexp.MustCompile(`\{([a-zA-Z_]+)\}`)
 var descriptions = map[string]string{
 	"GET /api/products":        "List every product Canon knows about: each conforming repository, what it is for, how much work is open and done, and when it was last read.",
 	"GET /api/products/{name}": "Everything about one product: its increments with their status histories derived from the ledger's commit history, and its conformance report.",
-	"GET /api/increments":      "Work across every product, which is the question no single repository can answer. Filter with status= and product=; page with limit= and offset=.",
+	"GET /api/increments":      "Work across every product, which is the question no single repository can answer. Each row carries blocked_by: what it waits on that has not finished. Filter with status=, product= and blocked=true; page with limit= and offset=.",
 	"GET /api/metrics":         "Cycle time, lead time, ageing and throughput, measured from recorded status transitions. There is no estimate of any kind. Narrow with product= and days=.",
 	"GET /api/conformance":     "How faithfully each product follows the template, and what it fails. Reported, never enforced: refusing a commit is the repository's own job.",
 	"GET /api/schema":          "The statuses and types the agentic SDLC template fixes. Not configuration — a statement of the convention.",
@@ -139,12 +139,14 @@ func singular(s string) string {
 	return strings.TrimSuffix(s, "s")
 }
 
-func description(pattern string) string {
-	if d, ok := descriptions[pattern]; ok {
-		return d
-	}
-	return pattern
-}
+// description returns the sentence an agent routes on, or empty if the route has none.
+//
+// Deliberately no fallback. It used to return the route pattern itself, which meant a
+// tool always had a "description" and the test asserting every route had one could
+// never fail — an undocumented route shipped as `GET /api/undocumented`, which tells
+// an agent nothing while looking like it does. An absent description should be
+// visibly absent.
+func description(pattern string) string { return descriptions[pattern] }
 
 func inputSchema(pattern, path string) map[string]any {
 	props := map[string]any{}

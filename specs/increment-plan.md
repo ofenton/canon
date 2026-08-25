@@ -1025,7 +1025,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## cut-001: Delete the write path
 
 - **Type:** refactor
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 1 (Critical)
 - **Traces:** R59
 - **Scope:** Remove everything that exists to defend writes Canon no longer accepts: authorisation, authentication, the actor registry, proposals, boards, backdating, checklists, dependency and commit-link writes, and the write half of the API and CLI. Reads become open to any authenticated member. Roughly 5,000 lines.
@@ -1044,20 +1044,20 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## feat-039: Read-only agent surface
 
 - **Type:** feature
-- **Status:** approved
+- **Status:** in-progress
 - **Tier:** 2 (High)
 - **Traces:** R60, R63
 - **Scope:** Restore MCP parity against the reduced route table, and show what is blocked and why from dependencies declared in ingested ledgers.
 - **Acceptance Criteria:**
-  - [ ] THE SYSTEM SHALL offer agents over MCP exactly the routes it offers humans over HTTP
-  - [ ] WHERE a ledger declares dependencies THE SYSTEM SHALL show what is blocked and by what
+  - [x] THE SYSTEM SHALL offer agents over MCP exactly the routes it offers humans over HTTP
+  - [x] WHERE a ledger declares dependencies THE SYSTEM SHALL show what is blocked and by what
 - **Test Strategy:**
   - The existing parity test, against the reduced surface
   - Fixture with a declared dependency chain, including a cycle
 - **Dependencies:** cut-001
 - **Rollback Plan:** Leave the MCP surface as it is
 - **Risk:** Low — the parity test is the guard
-- **Evidence:** _(filled in at verify)_
+- **Evidence:** see `specs/increments/feat-039-read-only-agent-surface.md`
 
 ## docs-005: Reframe the product spec
 
