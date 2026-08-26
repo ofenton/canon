@@ -1216,7 +1216,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## ui-003: Search across every product
 
 - **Type:** feature
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 2 (High)
 - **Traces:** R66
 - **Scope:** Search increment titles, ids and field values across every ingested product, served from `/api/increments?q=`. One input, no per-field controls: a filter bar with a control per field is the accretion this product refuses.
@@ -1231,6 +1231,25 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Rollback Plan:** Remove the parameter; the status and blocked filters are unaffected
 - **Risk:** Low — a read filter over data already in memory
 - **Evidence:** see `specs/increments/ui-003-search.md`
+
+## docs-008: Settle how the template is distributed
+
+- **Type:** docs
+- **Status:** in-progress
+- **Tier:** 2 (High)
+- **Traces:** R70
+- **Scope:** Decide ADR-0006, which has been proposed since 2026-08-24 and whose chosen option no longer exists — ADR-0009 deleted the schema it would have distributed rules from. Record the classification actually built, and the evidence from adopting an existing repository. No code changes in Canon.
+- **Acceptance Criteria:**
+  - [ ] THE SYSTEM SHALL record a decision rather than leaving the ADR proposed
+  - [ ] THE SYSTEM SHALL say which part of the original decision no longer applies, and why
+  - [ ] THE SYSTEM SHALL answer the four questions the ADR left open
+- **Test Strategy:**
+  - The decision is exercised against a repository that already existed, not only reasoned about
+  - Every open question has an answer or is explicitly deferred with a reason
+- **Dependencies:** none
+- **Rollback Plan:** Return the ADR to proposed
+- **Risk:** Low — documentation
+- **Evidence:** see `specs/increments/docs-008-template-distribution.md`
 
 ## ui-004: What changed recently
 
