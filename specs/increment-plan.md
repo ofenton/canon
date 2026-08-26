@@ -1235,14 +1235,14 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## docs-008: Settle how the template is distributed
 
 - **Type:** docs
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 2 (High)
 - **Traces:** R70
 - **Scope:** Decide ADR-0006, which has been proposed since 2026-08-24 and whose chosen option no longer exists — ADR-0009 deleted the schema it would have distributed rules from. Record the classification actually built, and the evidence from adopting an existing repository. No code changes in Canon.
 - **Acceptance Criteria:**
-  - [ ] THE SYSTEM SHALL record a decision rather than leaving the ADR proposed
-  - [ ] THE SYSTEM SHALL say which part of the original decision no longer applies, and why
-  - [ ] THE SYSTEM SHALL answer the four questions the ADR left open
+  - [x] THE SYSTEM SHALL record a decision rather than leaving the ADR proposed
+  - [x] THE SYSTEM SHALL say which part of the original decision no longer applies, and why
+  - [x] THE SYSTEM SHALL answer the four questions the ADR left open
 - **Test Strategy:**
   - The decision is exercised against a repository that already existed, not only reasoned about
   - Every open question has an answer or is explicitly deferred with a reason
