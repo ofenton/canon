@@ -101,6 +101,36 @@ Three consequences follow:
 - **R72:** THE SYSTEM SHALL hold nothing in its cache that it did not read from a source, so
   discarding the cache loses no data.
 
+### Running it
+
+- **R73:** THE SYSTEM SHALL cost nothing measurable while nobody is looking at it — no compute that
+  runs to be ready.
+- **R74:** THE SYSTEM SHALL answer every read from a snapshot taken at a known time, rather than
+  reading repositories while somebody waits.
+- **R75:** WHEN a snapshot cannot be refreshed THE SYSTEM SHALL keep serving the last one and say
+  when it was taken.
+- **R76:** THE SYSTEM SHALL admit only an identity the owner has granted, and refuse everything else
+  before it reaches any data.
+- **R77:** THE SYSTEM SHALL hold no credential in its repository, its image or its configuration.
+
+### Choosing what is tracked
+
+- **R78:** THE SYSTEM SHALL let a person add and remove a tracked repository without editing a file
+  by hand.
+- **R79:** THE SYSTEM SHALL keep the history of that list, so a product that disappears from the
+  catalogue can be explained.
+- **R80:** THE SYSTEM SHALL author nothing about the work itself. Where to look is the only thing it
+  writes, and that boundary is asserted by a test.
+
+### Reporting on adoption
+
+- **R81:** WHEN a repository is not configured for the agent loop THE SYSTEM SHALL say so and name
+  what is missing, rather than reporting it as having no work.
+- **R82:** THE SYSTEM SHALL show each product's specification as written, so the catalogue answers
+  what a product is for and not only how much of it is done.
+- **R83:** THE SYSTEM SHALL report which version of the template each repository is on, so drift
+  across an estate is visible.
+
 ### The web interface
 
 Canon is agent-first, and the interface is where that claim is tested: whatever an agent can ask
