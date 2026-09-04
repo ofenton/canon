@@ -1,7 +1,8 @@
 # 0006 — Distributing the template
 
-**Status:** proposed — needs a decision
-**Date:** 2026-08-24
+**Status:** accepted
+**Date:** 2026-08-24, decided 2026-08-26
+**Amended by:** [0009](0009-canon-as-aggregator.md), which removed the schema option C depended on.
 
 ## Context
 
@@ -92,7 +93,50 @@ locally adapted is prose people work around.
 
 ## Decision
 
-**B for the mechanism, C for the rules, and the two compose.**
+**B for the mechanism. C is withdrawn — the thing it distributed no longer exists.**
+
+### What changed since this was proposed
+
+[ADR-0009](0009-canon-as-aggregator.md) deleted `canon.yaml` two days later. There is no org
+schema, because the template *is* the schema: states, types and required fields are fixed by the
+convention rather than chosen per organisation, and `/api/schema` reports them as
+`"not configurable"`.
+
+So option C — "the validators read the rules from the org's schema" — has nothing to read from.
+And its consequence, *"`validate-plan.py` stops holding `STATUSES` and `TYPES` as literals"*, is
+now exactly backwards: those literals are correct. They are the convention, in the file that
+enforces it, with no indirection to a service that might be unreachable.
+
+This is worth stating rather than quietly dropping. C was the more elegant option and the one that
+applied the product's argument to itself. It died because the product's argument moved.
+
+### The mechanism
+
+`.sdlc/` and `skills/` are a versioned artifact rather than a copy — realised not as a package or a
+submodule but as **a classified install**. The template already contained the classification, in
+this ADR's own table asking "should this diverge?" of each part. `adopt.sh` executes that table:
+
+| Class | Files | On every run |
+|---|---|---|
+| **managed** | `.sdlc/`, `skills/` | Replaced. An improvement that does not reach a project is an improvement that project does not have. |
+| **seeded** | `AGENTS.md`, `specs/`, `docs/` | Written only when absent. Once it exists it is the project's, and drift is **reported, never fixed**. |
+| **merged** | `.gitignore` | Template rules appended in a marked block; everything else untouched. |
+| **skipped** | `README.md`, the worked example | The project's front door, and content that would appear in a real ledger as work nobody did. |
+
+A file the project adds *inside* a managed directory is an extension, not divergence: left alone
+and reported. Deleting somebody's skill to enforce a rule about skills would be the wrong trade
+every time.
+
+`.sdlc/VERSION` records the last commit that touched the template — not the repository's HEAD,
+since the template lives alongside unrelated projects and a version that moves when something else
+commits tells an adopting project nothing.
+
+### Reporting rather than enforcing
+
+Seeded files that have diverged are named on every run and left alone. That is deliberately the
+same posture Canon takes to conformance, and for the same reason: the tool cannot know whether a
+project's `AGENTS.md` differs because it is stale or because that project needed something. What it
+*can* do is make the difference visible, which is the thing a copy could never do.
 
 `.sdlc/` and `skills/` become a pinned, versioned artifact rather than a copy — so an improvement
 propagates and a project can say what it is running. Within that, the *values* the validators
@@ -114,14 +158,38 @@ means a stale cache is possible and visible, rather than an outage being possibl
   sequence is to fix [ADR-0005](0005-where-work-lives-git-or-canon.md) first: if the centre's job
   changes, what the template should depend on changes with it.
 
-## Open questions for the decision
+## The open questions, answered
 
-1. **What is the artifact?** A git submodule, a released tarball, a package, or a `canon` subcommand
-   that materialises `.sdlc/`. Each has a different failure mode when offline.
-2. **Can a project override a rule?** If yes, this is the copy model with extra steps. If no, a
-   project with a genuine exception is stuck — and "we have a genuine exception" is what every team
-   in every Jira instance said.
-3. **Does the template depend on Canon, or merely offer to?** A template that requires a running
-   tracker to commit is a much heavier thing than the one we have.
-4. **Who owns compatibility?** A version bump that changes the ledger format has to be somebody's
-   problem before it is forty projects' problem.
+1. **What is the artifact?** A directory at a git ref, installed by a script that classifies it.
+   No submodule, no package, no registry. Offline behaviour is the best available: once installed,
+   nothing fetches — not at commit time, not ever — and re-running the installer is the only thing
+   that touches the network, if the template is remote at all.
+
+2. **Can a project override a rule?** For managed files, no: edit a validator and the next run
+   restores it. For seeded files, yes, and the difference is reported. The line is drawn at
+   *mechanical enforcement* versus *prose and content*, which is the same line the table above
+   draws. A project with a genuine exception to a validator has to argue it into the template,
+   where every project gets it — which is the point.
+
+3. **Does the template depend on Canon?** **No.** ADR-0009 settled this from the other side: Canon
+   reads repositories and writes nothing to them. A template that required a running tracker to
+   commit would invert that relationship. The template does not know Canon exists; Canon recognises
+   the template by one file.
+
+4. **Who owns compatibility?** Not answered, and deliberately deferred. With two projects it is not
+   yet a real question, and `.sdlc/VERSION` makes it an answerable one when it becomes one: a
+   project can be asked what it is on, and an upgrade is an explicit act with a diff. Guessing at a
+   compatibility policy for forty projects while running two would be inventing process for a
+   problem nobody has.
+
+## Evidence
+
+Exercised against a repository that already existed rather than reasoned about: **Puzzlo**, a
+SwiftUI iOS app with an AWS backend — 109 files, 60 commits, on the App Store. It has a README
+somebody wrote and a `.gitignore` tuned to Xcode, which are exactly the two files a copy destroys.
+
+- `README.md` untouched; `.gitignore` gained five rules in a marked block and kept its own.
+- All five validators pass unmodified against Swift, Python and Terraform. The template makes no
+  assumption about language or toolchain.
+- Running the installer twice changes nothing.
+- Three bugs found by testing rather than by reading, recorded in `docs-008`.
