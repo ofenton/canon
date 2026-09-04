@@ -1254,14 +1254,14 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## docs-009: A program of work for running Canon
 
 - **Type:** docs
-- **Status:** in-progress
+- **Status:** in-review
 - **Tier:** 1 (Critical)
 - **Traces:** R73, R80
 - **Scope:** Decide how Canon is deployed and what it is allowed to write, add the requirements for running it, and plan the increments. ADR-0011 and ADR-0012. No code.
 - **Acceptance Criteria:**
-  - [ ] THE SYSTEM SHALL record a deployment architecture with its alternatives and their costs
-  - [ ] THE SYSTEM SHALL state precisely what Canon may write, and why the existing invariant is narrowed rather than deleted
-  - [ ] THE SYSTEM SHALL plan every increment needed, each tracing to a requirement
+  - [x] THE SYSTEM SHALL record a deployment architecture with its alternatives and their costs
+  - [x] THE SYSTEM SHALL state precisely what Canon may write, and why the existing invariant is narrowed rather than deleted
+  - [x] THE SYSTEM SHALL plan every increment needed, each tracing to a requirement
 - **Test Strategy:**
   - Every new requirement is claimed by a planned increment
   - Each ADR names what it amends and what it rejected
