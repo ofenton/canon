@@ -1235,7 +1235,7 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 ## docs-008: Settle how the template is distributed
 
 - **Type:** docs
-- **Status:** in-review
+- **Status:** done
 - **Tier:** 2 (High)
 - **Traces:** R70
 - **Scope:** Decide ADR-0006, which has been proposed since 2026-08-24 and whose chosen option no longer exists — ADR-0009 deleted the schema it would have distributed rules from. Record the classification actually built, and the evidence from adopting an existing repository. No code changes in Canon.
@@ -1250,6 +1250,240 @@ mark this done — that is the whole loop, run once, on the workflow itself._
 - **Rollback Plan:** Return the ADR to proposed
 - **Risk:** Low — documentation
 - **Evidence:** see `specs/increments/docs-008-template-distribution.md`
+
+## docs-009: A program of work for running Canon
+
+- **Type:** docs
+- **Status:** in-review
+- **Tier:** 1 (Critical)
+- **Traces:** R73, R80
+- **Scope:** Decide how Canon is deployed and what it is allowed to write, add the requirements for running it, and plan the increments. ADR-0011 and ADR-0012. No code.
+- **Acceptance Criteria:**
+  - [x] THE SYSTEM SHALL record a deployment architecture with its alternatives and their costs
+  - [x] THE SYSTEM SHALL state precisely what Canon may write, and why the existing invariant is narrowed rather than deleted
+  - [x] THE SYSTEM SHALL plan every increment needed, each tracing to a requirement
+- **Test Strategy:**
+  - Every new requirement is claimed by a planned increment
+  - Each ADR names what it amends and what it rejected
+- **Dependencies:** none
+- **Rollback Plan:** Restore the previous spec and plan from git
+- **Risk:** Low — documentation and planning
+- **Evidence:** see `specs/increments/docs-009-a-program-of-work.md`
+
+## feat-043: Serve from a snapshot
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 1 (Critical)
+- **Traces:** R74, R75
+- **Scope:** Split deriving the catalogue from answering questions about it. Ingest writes a versioned snapshot; the API loads one and answers from it. Everything in the API stays as it is — this changes where the catalogue comes from, not what it contains. Buildable and testable with no AWS at all.
+- **Acceptance Criteria:**
+  - [ ] WHEN a snapshot is written and reloaded THE SYSTEM SHALL answer identically to the catalogue it came from
+  - [ ] WHEN no snapshot can be read THE SYSTEM SHALL say so rather than serving an empty catalogue
+  - [ ] THE SYSTEM SHALL record when a snapshot was taken, and serve that as `refreshed_at`
+  - [ ] WHEN a snapshot's format is older than the reader THE SYSTEM SHALL refuse it and say which version it found
+- **Test Strategy:**
+  - Round-trip: ingest a repository, snapshot, reload, compare every API response byte for byte
+  - A test that the snapshot carries a version and that a mismatched one is refused
+  - The existing API tests run unchanged against a snapshot-backed catalogue
+- **Dependencies:** none
+- **Rollback Plan:** Keep the in-memory path; the snapshot is additive until the API stops reading the catalogue directly
+- **Risk:** Medium — the interface between two deployables is new, and a silent format drift would be hard to see
+- **Evidence:** _(filled in at verify)_
+
+## feat-044: Package Canon for Lambda
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 1 (Critical)
+- **Traces:** R73
+- **Scope:** Two Lambda handlers over the existing code: one that ingests and writes a snapshot, one that serves the API and the UI. A reproducible build producing both, and a way to run each locally so the deployment is not the only place they can be exercised.
+- **Acceptance Criteria:**
+  - [ ] THE SYSTEM SHALL build both handlers reproducibly from a clean checkout
+  - [ ] WHEN the read handler is invoked THE SYSTEM SHALL serve every route the local server serves
+  - [ ] THE SYSTEM SHALL run both handlers locally without AWS
+- **Test Strategy:**
+  - The route-parity test runs against the Lambda handler, not only the local server
+  - A local invocation harness exercising both handlers end to end
+- **Dependencies:** feat-043
+- **Rollback Plan:** Keep `canon serve`; the handlers are additional entry points over the same packages
+- **Risk:** Low — new entry points over code that already has tests
+- **Evidence:** _(filled in at verify)_
+
+## feat-045: Infrastructure as code
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 1 (Critical)
+- **Traces:** R73, R76
+- **Scope:** The bucket, the two functions, the schedule, the HTTP API and the user pool, defined in this repository. Costs asserted rather than assumed: no load balancer, no NAT gateway, no always-on compute.
+- **Acceptance Criteria:**
+  - [ ] THE SYSTEM SHALL define every deployed resource in this repository
+  - [ ] THE SYSTEM SHALL provision nothing that bills while idle
+  - [ ] WHEN the infrastructure is destroyed and reapplied THE SYSTEM SHALL produce a working instance from the same definitions
+- **Test Strategy:**
+  - A plan or synth in CI, so a broken definition fails before anybody deploys
+  - A test asserting the resource set contains no load balancer, NAT gateway or always-on compute
+  - Destroy and reapply once, and record what it cost
+- **Dependencies:** feat-044
+- **Rollback Plan:** Destroy the stack; nothing else depends on it
+- **Risk:** Medium — the first thing here that costs money if it is wrong
+- **Evidence:** _(filled in at verify)_
+
+## feat-046: Sign in
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 1 (Critical)
+- **Traces:** R76
+- **Scope:** A Cognito user pool with one user, a JWT authoriser on every `/api/` route, and the page acquiring a token through the hosted sign-in. The shell is served unauthenticated because it holds no data; everything with data behind the authoriser.
+- **Acceptance Criteria:**
+  - [ ] WHEN a request to any `/api/` route carries no valid token THE SYSTEM SHALL refuse it before it reaches any data
+  - [ ] WHEN a person signs in THE SYSTEM SHALL restore the view they asked for, not the default one
+  - [ ] THE SYSTEM SHALL keep no credential of its own — the pool is the only identity store
+- **Test Strategy:**
+  - A test enumerating the route table and asserting every `/api/` route is behind the authoriser, so a new route cannot be added unprotected
+  - Browser test: unauthenticated fetch refused, authenticated fetch served
+  - Browser test: signing in from a deep link lands on that view
+- **Dependencies:** feat-045
+- **Rollback Plan:** Remove the authoriser; the instance becomes private by obscurity, which is why this is Tier 1
+- **Risk:** Medium — an authoriser that is attached to some routes and not others is the failure mode, hence the enumeration test
+- **Evidence:** _(filled in at verify)_
+
+## feat-047: Refresh on a schedule
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 2 (High)
+- **Traces:** R74, R75
+- **Scope:** The ingest handler on a timer, writing a new snapshot. A refresh that fails must leave the previous snapshot in place, and the interface must show its age rather than presenting stale data as current.
+- **Acceptance Criteria:**
+  - [ ] WHEN the schedule fires THE SYSTEM SHALL write a new snapshot and leave the previous one recoverable
+  - [ ] WHEN a refresh fails THE SYSTEM SHALL keep serving the last good snapshot and report the failure
+  - [ ] WHEN a snapshot is older than the schedule interval THE SYSTEM SHALL show its age prominently
+- **Test Strategy:**
+  - Unit: a failing ingest leaves the previous snapshot untouched
+  - Browser test at a stale snapshot, asserting the age is shown
+- **Dependencies:** feat-045
+- **Rollback Plan:** Disable the schedule and refresh by invoking the function
+- **Risk:** Low — the failure path is the interesting one and it is tested directly
+- **Evidence:** _(filled in at verify)_
+
+## feat-048: A source list with history
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 2 (High)
+- **Traces:** R78, R79
+- **Scope:** Move the source list from a local file to a versioned object both handlers read. ADR-0010's constraint holds: a flat list, no schema, no parser beyond splitting lines.
+- **Acceptance Criteria:**
+  - [ ] THE SYSTEM SHALL read its sources from one place that both the ingest and the read path can reach
+  - [ ] WHEN the list changes THE SYSTEM SHALL retain the previous version
+  - [ ] THE SYSTEM SHALL parse the stored list with the same code that parses a local one
+- **Test Strategy:**
+  - Unit: the same parser over a local file and a stored object produces identical sources
+  - A test that a change retains the prior version and it can be read back
+- **Dependencies:** feat-045
+- **Rollback Plan:** Read the local file; the stored list is additive
+- **Risk:** Low — a different reader for the same format
+- **Evidence:** _(filled in at verify)_
+
+## feat-049: Add and remove a repository
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 2 (High)
+- **Traces:** R78, R80
+- **Scope:** The first write surface Canon has ever had, confined to the source list. Adding a repository is visible immediately as a pending source and becomes a product at the next refresh — the interface must say that rather than appearing to have done nothing.
+- **Acceptance Criteria:**
+  - [ ] WHEN a person adds a repository THE SYSTEM SHALL record it and say when it will first be read
+  - [ ] WHEN a person removes a repository THE SYSTEM SHALL stop tracking it without losing what was recorded about it
+  - [ ] THE SYSTEM SHALL refuse to write anything about the work itself, asserted by a test over the route table
+  - [ ] WHEN a repository cannot be reached THE SYSTEM SHALL report why against that source rather than failing the whole refresh
+- **Test Strategy:**
+  - A narrowed route-table test: sources may be written, work state may not — a route accepting a status change fails it
+  - Browser test: add, see it pending, remove it
+  - Unit: an unreachable source reports and does not stop the others
+- **Dependencies:** feat-048
+- **Rollback Plan:** Remove the write routes; the list is still editable in the store
+- **Risk:** Medium — this narrows an asserted invariant, and the replacement guard needs an allow-list somebody maintains
+- **Evidence:** _(filled in at verify)_
+
+## feat-050: Credentials from Parameter Store
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 2 (High)
+- **Traces:** R77
+- **Scope:** A GitHub token in SSM Parameter Store as a SecureString, read by the ingest handler at run time. Nothing in the repository, the image or the environment.
+- **Acceptance Criteria:**
+  - [ ] THE SYSTEM SHALL read its GitHub credential at run time from a store outside the deployment
+  - [ ] WHEN no credential is available THE SYSTEM SHALL read what it can and say what it could not see
+  - [ ] THE SYSTEM SHALL never write a credential to a log, a snapshot or a response
+- **Test Strategy:**
+  - A structural test over snapshot and response shapes asserting no field carries a token-shaped value
+  - Unit: the missing-credential path degrades to public repositories only, which `internal/source` already does
+- **Dependencies:** feat-045
+- **Rollback Plan:** Read the token from the environment as it does locally today
+- **Risk:** Medium — a credential in a log is not recoverable by rolling back
+- **Evidence:** _(filled in at verify)_
+
+## feat-051: Report whether a repository is set up for the loop
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 2 (High)
+- **Traces:** R81
+- **Scope:** A second class of conformance. Today Canon checks whether a ledger follows the conventions; this checks whether the repository is configured to produce one at all — `AGENTS.md`, `skills/`, the validators, the hook, and `.sdlc/VERSION`. A repository mid-adoption should read as mid-adoption, not as a product with no work.
+- **Acceptance Criteria:**
+  - [ ] WHEN a repository is missing part of the agent loop THE SYSTEM SHALL name what is missing
+  - [ ] WHEN a repository has the loop but has not used it THE SYSTEM SHALL distinguish that from not having it
+  - [ ] THE SYSTEM SHALL report this without changing the repository
+- **Test Strategy:**
+  - Unit over fixtures: fully configured, partly configured, and configured but unused
+  - Run against Puzzlo and this repository, and record what each reports
+- **Dependencies:** none
+- **Rollback Plan:** Remove the checks; ledger conformance is unaffected
+- **Risk:** Low — additive reporting over files already read
+- **Evidence:** _(filled in at verify)_
+
+## feat-052: Show the product spec
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 2 (High)
+- **Traces:** R82
+- **Scope:** Render `specs/product.md` in the product view, so the catalogue answers what a product is for and not only how much of it is done. Requirements become linkable, which gives increments' `Traces:` somewhere to point.
+- **Acceptance Criteria:**
+  - [ ] THE SYSTEM SHALL show each product's specification as written
+  - [ ] WHEN a specification is the template placeholder THE SYSTEM SHALL say it has not been written rather than displaying the placeholder
+  - [ ] WHEN an increment traces to a requirement THE SYSTEM SHALL link them in both directions
+- **Test Strategy:**
+  - Unit: a placeholder spec is detected as unwritten
+  - Browser test: open a product, read its spec, follow a trace to a requirement and back
+- **Dependencies:** none
+- **Rollback Plan:** Remove the view; the parsed spec is already in the ingest output
+- **Risk:** Low — display over data already derived
+- **Evidence:** _(filled in at verify)_
+
+## feat-053: Template version across the estate
+
+- **Type:** feature
+- **Status:** approved
+- **Tier:** 3 (Medium)
+- **Traces:** R83
+- **Scope:** Read `.sdlc/VERSION` and report which template each repository is on, so drift is a number rather than a discovery. This is the question ADR-0006 said a copied template could never answer.
+- **Acceptance Criteria:**
+  - [ ] THE SYSTEM SHALL report the template version each repository is on
+  - [ ] WHEN a repository has no recorded version THE SYSTEM SHALL say so rather than guessing
+  - [ ] THE SYSTEM SHALL show which repositories are behind the newest version it has seen
+- **Test Strategy:**
+  - Unit over fixtures with a version, without one, and with two differing
+  - Run across both real repositories
+- **Dependencies:** feat-051
+- **Rollback Plan:** Remove the field; nothing else reads it
+- **Risk:** Low — one file, parsed and displayed
+- **Evidence:** _(filled in at verify)_
 
 ## ui-004: What changed recently
 
